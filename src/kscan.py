@@ -8,6 +8,7 @@ trace = pdb.set_trace
 from pymake import parser, parserdata, data, functions
 import z3
 import vcommon as CM
+pause = CM.pause
 
 logger_level = 3
 class  ZSolver:
@@ -32,6 +33,7 @@ class  ZSolver:
             return p
         else:
             return z3.And(p,q)
+            
 
     @staticmethod
     def get_tristate_sort(name):
@@ -163,8 +165,8 @@ class Skanner:
 
     def parse_condition(self):
         if isinstance(cond, parserdata.EqCondition):
-            exp1_s = self.parse_expansion(cond.exp1)
-            exp2_s = self.parse_expansion(cond.exp2)
+            exp1_s = self.eval_expansion(cond.exp1)
+            exp2_s = self.eval_expansion(cond.exp2)
             return "ifeq ({},{})".format(exp1_s, exp2_s)
         else:
             mlog.warn("Cannot parse condition: {}".format(repr(cond)))
@@ -176,55 +178,93 @@ class Skanner:
         nameexp = stmt.vnameexp
         token = stmt.token
         value = stmt.value
-
+        
         newpaths = []        
         for path in paths:
-            names = self.parse_expansion(nameexp, path)
-            for name, cond in names:
-                newcond = ZSolver.conj(path.cond, cond)
+            names = self.eval_expansion(nameexp, path)
+            values = self.eval_value(value, path)
+
+            for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
+                newcond = ZSolver.conj(path.cond, ZSolver.conj(ncond, vcond))
                 if newcond is None or self.solver.check(newcond) == z3.sat:
                     newpath = path.fork(newcond)
-                    newpath.set_var(name, token, value)
+                    newpath.set_var(name, token, val)
                     newpaths.append(newpath)
 
         return newpaths
 
-    def parse_expansion(self, expansion, path):
+
+    def combine(self, ts, delim=''):
+        """
+        take in a list of tuple(str, cond) and 
+        combine the strs if cond is satisfied
+        Example 1
+        ts = [[('my-', None)], [('on', None)], [('-', None)], [('y', CONFIG_A == y), ('m', CONFIG_A == m)]]
+        output = [('my-on-y', CONFIG_A == y), ('my-on-m', CONFIG_A == m)]
+
+        """
+        assert ts
+
+        if len(ts) == 1:
+            return ts[0]
+
+        #print 'ts', ts
+        
+        comb = []
+        for pair in itertools.product(*ts):
+            ss, cs = zip(*pair)
+            c = reduce(lambda p,q: ZSolver.conj(p,q), cs, None)
+            comb.append((delim.join(ss), c))
+
+        #print 'comb', comb
+        return comb
+        
+    def eval_value(self, value, path):
+        values = []
+        for value in value.split():
+            values_ = self.eval_fake_expansion(value, path)
+            values.append(values_)
+
+        comb = self.combine(values, delim=" ")
+        return comb
+        
+    def eval_fake_expansion(self, expansion, path):
+        if not '$' in expansion:
+            return [(expansion, None)]
+        else:
+            stmts = parser.parsestring(expansion, None)
+            assert len(stmts) == 1
+            stmt = stmts[0]
+            assert isinstance(stmt, parserdata.EmptyDirective), stmt
+            ret = self.eval_expansion(stmt.exp, path)
+            print 'expansion {} evals to {}'.format(expansion, ret)
+            return ret
+
+    def eval_expansion(self, expansion, path):
         if isinstance(expansion, data.StringExpansion): #'x'
             return [(expansion.s, None)]
         else:
             assert isinstance(expansion, data.Expansion), expansion
                 
-            elems = [self.parse_elem(elem, isfun, path)
+            elems = [self.eval_elem(elem, isfun, path)
                      for elem, isfun in expansion]
-            rs = []
-            for pair in itertools.product(*elems):
-                pair = zip(*pair)
-                names, conds = pair
-                name = ''.join(names)
-                cond = None
-                for c in conds:
-                    cond = ZSolver.conj(cond, c)
-                    
-                rs.append((name, cond))
-            
-            return rs
+            return self.combine(elems)
         
-    def parse_elem(self, elem, isfun, path):
+    def eval_elem(self, elem, isfun, path):
         if isinstance(elem, str):  
             return [(elem, None)]
         elif isfun: 
             if isinstance(elem, functions.VariableRef):
-                return self.parse_fun_VariableRef(elem, path)
+                return self.eval_fun_VariableRef(elem, path)
             else:
                 raise NotImplementedError
         else:
-            return self.parse_expansion(elem)
+            return self.eval_expansion(elem)
         
-    def parse_fun_VariableRef(self, fun, path):
+    def eval_fun_VariableRef(self, fun, path):
         assert isinstance(fun, functions.VariableRef), fun
         
-        names = self.parse_expansion(fun.vname, path) #CONFIG_FOO
+        names = self.eval_expansion(fun.vname, path) #CONFIG_FOO
         rs = []
         for name, _ in names:
             if name in path.locals:
@@ -273,7 +313,8 @@ class Run:
         skanner = Skanner(makefile)
         paths, subdirs = skanner.go()
 
-        for path in paths:
+        for i, path in enumerate(paths):
+            print "path ", i
             print path
         return paths, subdirs
     
