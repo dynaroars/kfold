@@ -237,7 +237,7 @@ class Skanner:
             stmt = stmts[0]
             assert isinstance(stmt, parserdata.EmptyDirective), stmt
             ret = self.eval_expansion(stmt.exp, path)
-            print 'expansion {} evals to {}'.format(expansion, ret)
+            #print 'expansion {} evals to {}'.format(expansion, ret)
             return ret
 
     def eval_expansion(self, expansion, path):
