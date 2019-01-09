@@ -1,3 +1,4 @@
+import copy
 from collections import OrderedDict
 import itertools
 
@@ -12,6 +13,7 @@ pause = CM.pause
 
 logger_level = 3
 class  ZSolver:
+    __config_ct__ = 0
     T = z3.BoolVal(True)
     F = z3.BoolVal(False)        
 
@@ -25,6 +27,13 @@ class  ZSolver:
         self.solver.pop()        
         return ret
 
+    def is_sat(self, f):
+        if f is None:  #equiv to True
+            return True
+        ret = self.check(f)
+        #print f, ret
+        return ret == z3.sat
+    
     @staticmethod
     def conj(p,q):
         if p is None:
@@ -41,61 +50,89 @@ class  ZSolver:
         ttyp, tvals = z3.EnumSort(name, vs)
         rs = [v for v in zip(vs, tvals)]
         rs.append(('typ', ttyp))
+        ZSolver.__config_ct__ += 1
+        mlog.debug("# of config vars {}".format(
+            ZSolver.__config_ct__))
         return z3.Const(name, ttyp), dict(rs)
 
     
-class Var(tuple):
+class Var:
     RECURSE = "RECURSE"   # =, define
     SIMPLY = "SIMPLY"  # := , ::=
-
-    def __new__(cls, name, val, flavor):
-        return super(Var, cls).__new__(cls, (name, val, flavor))
     
     def __init__(self, name, val, flavor):
         self.name = name
-        self.val = val
+        self._val = val
+        self.val_cache = set(val.split())
         self.flavor = flavor
+
+    @property
+    def val(self):
+        return self._val
 
     def __str__(self):
         token = "=" if self.flavor == Var.RECURSE else ":="
         return "{} {} {}".format(self.name, token, self.val)
 
+    def append(self, value):
+        assert isinstance(value, str), value
+        if not value:
+            return
+        for val in value.split():
+            if val in self.val_cache:
+                continue
+
+            self.val_cache.add(val)
+            self._val = self._val + ' ' + val
+                
     @staticmethod
     def get_flavor(token):
-        return Var.RECURSE if token == "=" else Var.SIMPLY
+        if token == "=":
+            flavor = Var.RECURSE
+        elif token in set([":=", "::="]) or token in set(["+="]):
+            flavor = Var.SIMPLY
+        else:
+            raise NotImplementedError("token {}".format(token))
+
+        return flavor
+
     
 class Path:
-    def __init__(self, cond, locals):
+    __ct__ = 0
+    
+    def __init__(self, cond, states):
         self.cond = cond
-        self.locals = locals
-
+        self.states = states
+        Path.__ct__ += 1        
+        #mlog.debug("# of paths {}".format(Path.__ct__))
     def fork(self, newcond):
         """
         Create a new path with newcond
         """
-        newlocals = OrderedDict()
-        for k,v in self.locals.iteritems():
-            newlocals[k] = v
-
-        return Path(newcond, newlocals)
+        newstates = OrderedDict()
+        for k,v in self.states.iteritems():
+            newstates[k] = v
+        return Path(newcond, newstates)
         
     def __str__(self):
-        ss = ["cond: {}".format(self.cond)]
-        for v in self.locals:
-            ss.append(self.locals[v])
-
-        return '\n'.join(map(str,ss))
+        ss = ["path cond: {}".format(self.cond)]
+        ss.append('; '.join(str(self.states[v]) for v in self.states))
+        return '\n'.join(ss)
 
     def set_var(self, name, token, val):
         assert isinstance(name, str), name
-        assert isinstance(token, str) and token in {'='}, token
-        assert isinstance(val, str) and val, val
+        assert isinstance(token, str) # and token in {'='}, token
+        assert isinstance(val, str), val
 
-        v = Var(name, val, Var.get_flavor(token))
-
-        assert name not in self.locals, (name, self.locals)
-        self.locals[name] = v
-            
+        if name not in self.states:
+            flavor = Var.get_flavor(token)
+            v = Var(name, val, flavor)
+            self.states[name] = v
+        else:
+            if token == "+=":
+                self.states[name].append(val)
+            else:
+                raise NotImplementedError
         
 class Skanner:
     def __init__(self, makefile):
@@ -122,6 +159,7 @@ class Skanner:
 
     def parse_stmts(self, stmts, paths):
         for stmt in stmts:
+            mlog.debug("processing {}".format(stmt))
             if isinstance(stmt, parserdata.SetVariable):
                 paths = self.parse_setvar(stmt, paths)
             elif isinstance(stmt, parserdata.ConditionBlock):
@@ -186,7 +224,7 @@ class Skanner:
 
             for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
                 newcond = ZSolver.conj(path.cond, ZSolver.conj(ncond, vcond))
-                if newcond is None or self.solver.check(newcond) == z3.sat:
+                if self.solver.is_sat(newcond):
                     newpath = path.fork(newcond)
                     newpath.set_var(name, token, val)
                     newpaths.append(newpath)
@@ -220,6 +258,10 @@ class Skanner:
         return comb
         
     def eval_value(self, value, path):
+        value = value.strip()
+        if not value:
+            return [('', None)]
+        
         values = []
         for value in value.split():
             values_ = self.eval_fake_expansion(value, path)
@@ -267,8 +309,8 @@ class Skanner:
         names = self.eval_expansion(fun.vname, path) #CONFIG_FOO
         rs = []
         for name, _ in names:
-            if name in path.locals:
-                val = path.locals[name].val
+            if name in path.states:
+                val = path.states[name].val
                 vals = [(val, None)]
 
 
@@ -314,7 +356,7 @@ class Run:
         paths, subdirs = skanner.go()
 
         for i, path in enumerate(paths):
-            print "path ", i
+            print "*** path {} ***".format(i)
             print path
         return paths, subdirs
     
