@@ -41,7 +41,14 @@ class  ZSolver:
         elif q is None:
             return p
         else:
-            return z3.And(p,q)
+            return z3.And(p, q)
+
+    @staticmethod
+    def disj(p,q):
+        if p is None or q is None:
+            return None
+        else:
+            return z3.Or(p, q)
             
 
     @staticmethod
@@ -69,6 +76,12 @@ class Var:
     @property
     def val(self):
         return self._val
+
+
+    def __eq__(self, other):
+        return (self.name == other.name and 
+                self.val == other.val and
+                self.flavor == other.flavor)
 
     def __str__(self):
         token = "=" if self.flavor == Var.RECURSE else ":="
@@ -133,6 +146,40 @@ class Path:
                 self.states[name].append(val)
             else:
                 raise NotImplementedError
+
+    def has_similar_state(self, other):
+        if len(self.states) != len(other.states):
+            return False
+
+        if set(self.states.keys()) != set(other.states.keys()):
+            return False
+
+        return all(self.states[k] == other.states[k] for k in self.states)
+        
+    @staticmethod
+    def merge(paths):
+        assert paths, paths
+
+        if len(paths) == 1:
+            return paths
+
+        remove = set()
+        for i in range(len(paths)):
+            path_i = paths[i]
+            for j in range(i+1, len(paths)):
+                if j in remove:
+                    continue
+
+                path_j = paths[j]
+                if path_i.has_similar_state(path_j):
+                    path_i.cond = z3.simplify(ZSolver.disj(path_i.cond, path_j.cond))
+                    
+                    remove.add(j)
+
+                    
+
+        paths = [path for i, path in enumerate(paths) if i not in remove]
+        return paths
         
 class Skanner:
     def __init__(self, makefile):
@@ -162,6 +209,11 @@ class Skanner:
             mlog.debug("processing {}".format(stmt))
             if isinstance(stmt, parserdata.SetVariable):
                 paths = self.parse_setvar(stmt, paths)
+                old_len = len(paths)
+                paths = Path.merge(paths)
+                if len(paths) != old_len:
+                    mlog.debug("merge {} to {} paths".format(old_len, len(paths)))
+                    
             elif isinstance(stmt, parserdata.ConditionBlock):
                 paths = self.parse_conditionblock(stmt, paths)
                 
@@ -355,9 +407,10 @@ class Run:
         skanner = Skanner(makefile)
         paths, subdirs = skanner.go()
 
-        for i, path in enumerate(paths):
-            print "*** path {} ***".format(i)
-            print path
+        mlog.info("obtain {} paths".format(len(paths)))
+        # for i, path in enumerate(paths):
+        #     print "*** path {} ***".format(i)
+        #     print path
         return paths, subdirs
     
     @classmethod
