@@ -1,4 +1,6 @@
 from collections import OrderedDict
+import itertools
+
 import os.path
 import pdb
 trace = pdb.set_trace
@@ -11,232 +13,269 @@ logger_level = 3
 class  ZSolver:
     T = z3.BoolVal(True)
     F = z3.BoolVal(False)        
-    
+
     def __init__(self):
         self.solver = z3.Solver()
 
-    def zcheck(self, f):
+    def check(self, f):
         self.solver.push()
         self.solver.add(f)
         ret = self.solver.check()
-        self.solver.pop()
+        self.solver.pop()        
         return ret
 
-class Results:
-    def __init__(self):
-        self.conds = OrderedDict()  # file1.o -> z3expr
-        self.goals = OrderedDict()   # obj-y -> [file1.o, file2.o]
-        
-        self.subdirs = []
+    @staticmethod
+    def conj(p,q):
+        if p is None:
+            return q
+        elif q is None:
+            return p
+        else:
+            return z3.And(p,q)
+
+    @staticmethod
+    def get_tristate_sort(name):
+        vs = ["y", "m"]
+        ttyp, tvals = z3.EnumSort(name, vs)
+        rs = [v for v in zip(vs, tvals)]
+        rs.append(('typ', ttyp))
+        return z3.Const(name, ttyp), dict(rs)
+
+    
+class Var(tuple):
+    RECURSE = "RECURSE"   # =, define
+    SIMPLY = "SIMPLY"  # := , ::=
+
+    def __new__(cls, name, val, flavor):
+        return super(Var, cls).__new__(cls, (name, val, flavor))
+    
+    def __init__(self, name, val, flavor):
+        self.name = name
+        self.val = val
+        self.flavor = flavor
 
     def __str__(self):
-        ss = []
-        # for typ in self.objs:
-        #     if self.objs[typ]:
-        #         ss.append("{}: {}".format(typ, ', '.join(self.objs[typ])))
+        token = "=" if self.flavor == Var.RECURSE else ":="
+        return "{} {} {}".format(self.name, token, self.val)
 
-        if self.conds:
-            ss.append("individual files ({}):".format(len(self.conds)))
-            for i, ifile in enumerate(self.conds):
-                ss.append("{}. {}:".format(i + 1, ifile))
-                for goal in self.conds[ifile]:
-                    ss.append("- {}: {}".format(
-                        goal, self.conds[ifile][goal]))
-
-        if self.subdirs:
-            ss.append("subdirs ({}): {}".format(
-                len(self.subdirs), ','.join(self.subdirs)))
-
-        if self.goals:
-            ss.append("goals ({}):".format(len(self.goals)))
-            for i, goal in enumerate(self.goals):
-                ss.append("{}. {} ({}): {}".format(
-                    i, goal, len(self.goals[goal]), ', '.join(self.goals[goal])))
-                
-        return '\n'.join(ss)
-
-class ConfigDef(tuple):
-    def __new__(cls, mdef, cond):
-        return super(ConfigDef, cls).__new__(cls, (mdef, cond))
-
-    def __init__(self, mdef, cond):
-        assert z3.is_expr(cond)
-        assert isinstance(mdef, str) and mdef in set(['y','m']), mdef
-        self.mdef = mdef        
+    @staticmethod
+    def get_flavor(token):
+        return Var.RECURSE if token == "=" else Var.SIMPLY
+    
+class Path:
+    def __init__(self, cond, locals):
         self.cond = cond
+        self.locals = locals
 
+    def fork(self, newcond):
+        """
+        Create a new path with newcond
+        """
+        newlocals = OrderedDict()
+        for k,v in self.locals.iteritems():
+            newlocals[k] = v
+
+        return Path(newcond, newlocals)
+        
     def __str__(self):
-        return "({}, {})".format(self.mdef, self.cond)
+        ss = ["cond: {}".format(self.cond)]
+        for v in self.locals:
+            ss.append(self.locals[v])
 
+        return '\n'.join(map(str,ss))
 
-class MakefileSkanner:
+    def set_var(self, name, token, val):
+        assert isinstance(name, str), name
+        assert isinstance(token, str) and token in {'='}, token
+        assert isinstance(val, str) and val, val
+
+        v = Var(name, val, Var.get_flavor(token))
+
+        assert name not in self.locals, (name, self.locals)
+        self.locals[name] = v
+            
+        
+class Skanner:
     def __init__(self, makefile):
+        assert os.path.isfile(makefile), makefile
 
+        self.solver = ZSolver()
         
         makefile_ = open(makefile, "rU")
         stmts = makefile_.read()
         makefile_.close()
 
+        mlog.info("parsing: '{}'".format(makefile))
         self.topdir = os.path.dirname(makefile)
-        self.results = Results()
-        self.cvars = {}
+        self.zvars = {}
+        
         self.stmts = parser.parsestring(stmts, makefile_.name)
 
+        self.subdirs = []
         
     def go(self):
-        self.parse_stmts(self.stmts, ZSolver.T)
-        return self.results
+        paths = [Path(None, {})]
+        paths = self.parse_stmts(self.stmts, paths)
+        return paths, []
 
-    def parse_stmts(self, stmts, cond):
+    def parse_stmts(self, stmts, paths):
         for stmt in stmts:
             if isinstance(stmt, parserdata.SetVariable):
-                self.parse_setvar(stmt, cond)
-            # elif isinstance(stmt, parserdata.ConditionBlock):
-            #     self.parse_conditionblock(stmt, cond, zcond)
-            # elif isinstance(s, (parserdata.Rule, parserdata.StaticPatternRule)):
-            #     self.parse_rule(s, cond, zcond)
-            # elif (isinstance(s, parserdata.Include)):
-            #     self.parse_include(s, cond, zcond)
-            else:
-                raise NotImplementedError("cannot parse {}".format(stmt))
-            
-    def parse_setvar(self, stmt, cond):
-        """
-        obj-y = foo.o
-        """
-        assert isinstance(stmt, parserdata.SetVariable), setvar
-        assert z3.is_expr(cond), cond
-
-        goals = self.parse_expansion(stmt.vnameexp) #'obj-y'
-        token = stmt.token  #'+='
-        vals = stmt.value  # foo.o
-        vals = [obj for obj in vals.split()]
-        vals = [os.path.join(self.topdir, obj) for obj in vals]
-        #assert token == ":=", token
-        # assert all(val.endswith(".o") or
-        #            val.endswith("/") for val in vals), vals
-
-
-        #TODO: only for certain goals (e.g., obj-*, lib-*)
-        subdirs = [val for val in vals if val.endswith("/")]
-        self.results.subdirs.extend(subdirs)
-
-        def add_goal(goal, val, cond):
-            self.results.conds[val][goal] = cond
-            
-            if goal not in self.results.goals:
-                self.results.goals[goal] = []
-            self.results.goals[goal].append(val)
-
-
-        if isinstance(goals, str):  #obj-y  
-            # if typ not in self.results.objs:
-            #     self.results.objs[typ] = []
-
-            for val in vals:  #file1.o, file2.o
-                # if obj not in self.results.objs[typ]:
-                #     self.results.objs[typ].append(obj)
-
-                assert file not in self.results.conds
-                self.results.conds[val] = OrderedDict()
-                add_goal(goals, val, cond)
+                paths = self.parse_setvar(stmt, paths)
+            elif isinstance(stmt, parserdata.ConditionBlock):
+                paths = self.parse_conditionblock(stmt, paths)
                 
-        else:  #obj-$(CONFIG_FOO)
-            assert isinstance(goals, list), goals
-            for val in vals:
-                assert file not in self.results.conds
-                self.results.conds[val] = OrderedDict()
+            elif isinstance(stmt, (parserdata.Rule,
+                                   parserdata.StaticPatternRule)):
+                mlog.warn("Cannot parse Rule: {}".format(stmt))
 
-                for (goal, cond) in goals:
-                    add_goal(goal, val, cond)
-                    
+            elif isinstance(stmt, parserdata.Command):
+                mlog.warn("Cannot parse Command: {}".format(stmt))
+                
+            else:
+                raise NotImplementedError(
+                    "cannot parse {}".format(stmt))
+            
+        return paths
+    
+    def parse_conditionblock(self, stmt):
+        assert isinstance(stmt, parserdata.ConditionBlock), stmt
 
-    def parse_expansion(self, expansion):
-        #obj-y
-        #obj-$(CONFIG_FOO)
+        ss = []
+        #if/then branch
+        if_cond, then_stmts = stmt[0]
+
+        if_cond_s = self.parse_condition(if_cond)
+        ss.append(if_cond_s)
+        then_stmts_s = self.parse_stmts(then_stmts)
+        ss.append(then_stmts_s)
         
-        if isinstance(expansion, data.StringExpansion): #'obj-y'
-            return expansion.s
+        #else branch
+        if len(stmt) == 2:
+            else_cond, else_stmts = stmt[1]
+            #not much interesting info about else cond (just negation of if)
+            else_cond_s = "else"
+            ss.append(else_cond_s)
+            else_stmts_s = self.parse_stmts(else_stmts)
+            ss.append(else_stmts_s)
+            
+        return '\n'.join(ss)
+
+    def parse_condition(self):
+        if isinstance(cond, parserdata.EqCondition):
+            exp1_s = self.parse_expansion(cond.exp1)
+            exp2_s = self.parse_expansion(cond.exp2)
+            return "ifeq ({},{})".format(exp1_s, exp2_s)
         else:
-            #obj-$(CONFIG_FOO)
-            #['obj-', [('y', CONFIG_FOO=y), ('m', CONFIG_FOO=m)]]
-            elems = [self.parse_elem(elem, isfun) for elem, isfun in expansion]
-            assert len(elems) == 2
-            goal = elems[0] #'obj-y'
-            rest = elems[1] #[('y', CONFIG_FOO=y), ('m', CONFIG_FOO=m)]
+            mlog.warn("Cannot parse condition: {}".format(repr(cond)))
 
-            assert isinstance(goal, str) and goal, goal
-            assert isinstance(rest, list) and len(rest) == 2, rest
 
-            return [("{}{}".format(goal, defval), cond) for
-                    defval, cond in rest]
+    def parse_setvar(self, stmt, paths):
+        assert isinstance(stmt, parserdata.SetVariable), stmt
+
+        nameexp = stmt.vnameexp
+        token = stmt.token
+        value = stmt.value
+
+        newpaths = []        
+        for path in paths:
+            names = self.parse_expansion(nameexp, path)
+            for name, cond in names:
+                newcond = ZSolver.conj(path.cond, cond)
+                if newcond is None or self.solver.check(newcond) == z3.sat:
+                    newpath = path.fork(newcond)
+                    newpath.set_var(name, token, value)
+                    newpaths.append(newpath)
+
+        return newpaths
+
+    def parse_expansion(self, expansion, path):
+        if isinstance(expansion, data.StringExpansion): #'x'
+            return [(expansion.s, None)]
+        else:
+            assert isinstance(expansion, data.Expansion), expansion
+                
+            elems = [self.parse_elem(elem, isfun, path)
+                     for elem, isfun in expansion]
+            rs = []
+            for pair in itertools.product(*elems):
+                pair = zip(*pair)
+                names, conds = pair
+                name = ''.join(names)
+                cond = None
+                for c in conds:
+                    cond = ZSolver.conj(cond, c)
+                    
+                rs.append((name, cond))
+            
+            return rs
         
-
-    def parse_elem(self, elem, isfun):
-        if isinstance(elem, str):  #"obj-"
-            return elem
+    def parse_elem(self, elem, isfun, path):
+        if isinstance(elem, str):  
+            return [(elem, None)]
         elif isfun: 
             if isinstance(elem, functions.VariableRef):
-                return self.parse_fun_VariableRef(elem)
+                return self.parse_fun_VariableRef(elem, path)
             else:
                 raise NotImplementedError
         else:
             return self.parse_expansion(elem)
         
-    def parse_fun_VariableRef(self, fun):
-        #VariableRef<../tests/makefiles/ex3.1b:1:4>(Exp<None>('CONFIG_FOO'))
-
-        name = self.parse_expansion(fun.vname) #CONFIG_FOO
-        cds = self.parse_variableref(name)
-        return cds
-
-    def parse_variableref(self, name):
-        #return possible conditions for name
+    def parse_fun_VariableRef(self, fun, path):
+        assert isinstance(fun, functions.VariableRef), fun
         
-        assert isinstance(name, str) and name
-
-        if not name.startswith("CONFIG_"):
-            mlog.warn("Cannot evaluate variable '{}'".format(name))
-            
-        defy = "y"
-        condy = z3.Bool("{}={}".format(name, defy))
-
-        defm = "m"
-        condm = z3.Bool("{}={}".format(name, defm))
-
-        return [(defy, condy), (defm, condm)]
-            
+        names = self.parse_expansion(fun.vname, path) #CONFIG_FOO
+        rs = []
+        for name, _ in names:
+            if name in path.locals:
+                val = path.locals[name].val
+                vals = [(val, None)]
 
 
+            elif name.startswith("CONFIG_"):
+                if name not in self.zvars:
+                    self.zvars[name] = ZSolver.get_tristate_sort(name)
+                s, d = self.zvars[name]
+                vals = [(k, s == d[k]) for k in d
+                        if k != "typ"]
+                
+            else:
+                mlog.warn('cannot eval {}'.format(name))
+                vals = [('', None)]
+                
+            rs.extend(vals)
+
+        return rs
+    
 
 class Run:
     def __init__(self, paths):
         self.paths = paths
         
     def go(self):
-
-        remaining = list(self.paths)
         results = []
+        remaining = list(self.paths)
         while remaining:
-            results_ = [self.extract(path) for path in remaining] #parallel
-            results_ = [r for r in results_ if r]
+            #parallel
+            results_ = [self.extract(path) for path in remaining] 
             remaining = []
-            
-            for result in results_:
-                results.append(result)
-                remaining.extend(result.subdirs)
+            for paths, subdirs in results_:
+                results.append(paths)
+                remaining.extend(subdirs)
         return results
 
     def extract(self, path):
         makefile = self.get_makefile(path)
         if not makefile:
-            mlog.warn("{}: cannot process".format(path))            
+            mlog.warn("{}: cannot process".format(path))
             return None
         
-        skanner = MakefileSkanner(makefile)
-        results = skanner.go()
-        mlog.info("{}'s results:\n{}".format(makefile, results))
-        return results
+        skanner = Skanner(makefile)
+        paths, subdirs = skanner.go()
+
+        for path in paths:
+            print path
+        return paths, subdirs
     
     @classmethod
     def get_makefile(cls, path):
@@ -269,7 +308,11 @@ if __name__ == '__main__':
        help="set logger info",
        type=int, 
        choices=range(5),
-       default = 3)    
+       default = 3)
+
+    ag('--case-study',
+       type=str,
+       help="""avail options: busybox/linux""")
     
     args = aparser.parse_args()
 
@@ -282,8 +325,16 @@ if __name__ == '__main__':
     if __debug__:
         mlog.warn("DEBUG MODE ON. Can be slow! (Use python -O ... for optimization)")
 
-    myrun = Run(args.paths)
+    paths = args.paths
+    case_study = args.case_study
+    if case_study:
+        case_study = case_study.lower()
+        if case_study == "alldirs":
+            path = args.paths[0]
+            paths = [os.path.join(path, sdir) for sdir in os.listdir(path)]
+            paths = [p for p in paths if os.path.isdir(p)]
+
+    myrun = Run(paths)        
     myrun.go()
-    
     
     
