@@ -99,7 +99,6 @@ class Var:
     def val(self):
         return self._val
 
-
     def __eq__(self, other):
         return (self.name == other.name and 
                 self.val == other.val and
@@ -280,7 +279,6 @@ class Skanner:
 
         #else branch
         if len(stmt) == 2:
-            print 'else branch'
             _, else_stmts = stmt[1]
             else_cond = z3.Not(if_cond)
             paths_ = add_paths(else_cond, else_stmts)
@@ -454,9 +452,9 @@ class Run:
         paths, subdirs = skanner.go()
 
         mlog.info("obtained {} paths".format(len(paths)))
-        for i, path in enumerate(paths):
-            print "*** path {} ***".format(i)
-            print path
+        # for i, path in enumerate(paths):
+        #     print "*** path {} ***".format(i)
+        #     print path
         return paths, subdirs
     
     @classmethod
