@@ -50,9 +50,6 @@ class  ZSolver:
         else:
             return z3.Or(p, q)
 
-
-            
-
     @staticmethod
     def get_tristate_sort(name):
         vs = ["y", "m"]
@@ -86,7 +83,6 @@ class  ZSolver:
                 raise NotimplementedError
             return d_[s1], s2
         
-        
 class Var:
     RECURSE = "RECURSE"   # =, define
     SIMPLY = "SIMPLY"  # := , ::=
@@ -94,8 +90,10 @@ class Var:
     def __init__(self, name, val, flavor):
         self.name = name
         self._val = val
-        self.val_cache = set(val.split())
         self.flavor = flavor
+    
+    def fork(self):
+        return Var(self.name, self.val, self.flavor)
 
     @property
     def val(self):
@@ -115,11 +113,13 @@ class Var:
         assert isinstance(value, str), value
         if not value:
             return
+
+        cache = set(self.val.split())
         for val in value.split():
-            if val in self.val_cache:
+            if val in cache:
                 continue
 
-            self.val_cache.add(val)
+            cache.add(val)
             self._val = self._val + ' ' + val
                 
     @staticmethod
@@ -142,13 +142,14 @@ class Path:
         self.states = states
         Path.__ct__ += 1        
         #mlog.debug("# of paths {}".format(Path.__ct__))
+
     def fork(self, newcond):
         """
         Create a new path with newcond
         """
         newstates = OrderedDict()
         for k,v in self.states.iteritems():
-            newstates[k] = v
+            newstates[k] = v.fork()
         return Path(newcond, newstates)
         
     def __str__(self):
@@ -175,7 +176,7 @@ class Path:
         if len(self.states) != len(other.states):
             return False
 
-        if set(self.states.keys()) != set(other.states.keys()):
+        if set(self.states) != set(other.states):
             return False
 
         return all(self.states[k] == other.states[k] for k in self.states)
@@ -260,12 +261,10 @@ class Skanner:
             if len(paths) != len(newpaths):
                 mlog.debug("merge {} to {} paths".format(
                     len(newpaths), len(paths)))
-            
         return paths
     
     def parse_conditionblock(self, stmt, path):
         assert isinstance(stmt, parserdata.ConditionBlock), stmt
-
 
         def add_paths(cond, stmts):
             newcond = ZSolver.conj(path.cond, cond)
@@ -281,11 +280,12 @@ class Skanner:
 
         #else branch
         if len(stmt) == 2:
+            print 'else branch'
             _, else_stmts = stmt[1]
             else_cond = z3.Not(if_cond)
             paths_ = add_paths(else_cond, else_stmts)
             paths.extend(paths_)
- 
+
         return paths
 
     
@@ -326,6 +326,7 @@ class Skanner:
                 newpath = path.fork(newcond)
                 newpath.set_var(name, token, val)
                 newpaths.append(newpath)
+
         return newpaths
 
 
