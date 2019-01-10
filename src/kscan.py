@@ -49,6 +49,8 @@ class  ZSolver:
             return None
         else:
             return z3.Or(p, q)
+
+
             
 
     @staticmethod
@@ -62,7 +64,29 @@ class  ZSolver:
             ZSolver.__config_ct__))
         return z3.Const(name, ttyp), dict(rs)
 
-    
+    @staticmethod
+    def get_comparison_pair(s1, s2, d):
+        assert z3.is_expr(s1) or (isinstance(s1, str) and s1), s1
+        assert z3.is_expr(s2) or (isinstance(s2, str) and s2), s2
+
+        if z3.is_expr(s1) and z3.is_expr(s2):
+            return (s1, s2)
+        elif not z3.is_expr(s1) and not z3.is_expr(s2):
+            raise NotImplementedError
+        elif z3.is_expr(s1) and not z3.is_expr(s2):
+            #figure the type of s1
+            _, d_ = d[str(s1)]
+            if s2 not in d_:
+                raise NotImplementedError
+            return s1, d_[s2]
+        else:
+            assert not z3.is_expr(s1) and z3.is_expr(s2)
+            _, d_ = d[str(s2)]
+            if s1 not in d_:
+                raise NotimplementedError
+            return d_[s1], s2
+        
+        
 class Var:
     RECURSE = "RECURSE"   # =, define
     SIMPLY = "SIMPLY"  # := , ::=
@@ -172,7 +196,7 @@ class Path:
 
                 path_j = paths[j]
                 if path_i.has_similar_state(path_j):
-                    path_i.cond = z3.simplify(ZSolver.disj(path_i.cond, path_j.cond))
+                    path_i.cond = ZSolver.disj(path_i.cond, path_j.cond)
                     
                     remove.add(j)
 
@@ -200,87 +224,108 @@ class Skanner:
         self.subdirs = []
         
     def go(self):
-        paths = [Path(None, {})]
-        paths = self.parse_stmts(self.stmts, paths)
+        paths = self.parse_stmts(self.stmts, Path(None, {}))
         return paths, []
 
-    def parse_stmts(self, stmts, paths):
-        for stmt in stmts:
-            mlog.debug("processing {}".format(stmt))
-            if isinstance(stmt, parserdata.SetVariable):
-                paths = self.parse_setvar(stmt, paths)
-                old_len = len(paths)
-                paths = Path.merge(paths)
-                if len(paths) != old_len:
-                    mlog.debug("merge {} to {} paths".format(old_len, len(paths)))
-                    
-            elif isinstance(stmt, parserdata.ConditionBlock):
-                paths = self.parse_conditionblock(stmt, paths)
-                
-            elif isinstance(stmt, (parserdata.Rule,
-                                   parserdata.StaticPatternRule)):
-                mlog.warn("Cannot parse Rule: {}".format(stmt))
+    def parse_stmts(self, stmts, path):
 
-            elif isinstance(stmt, parserdata.Command):
-                mlog.warn("Cannot parse Command: {}".format(stmt))
-                
-            else:
-                raise NotImplementedError(
-                    "cannot parse {}".format(stmt))
+        paths = [path]
+        for stmt in stmts:
+            mlog.debug("processing {} with {} paths".format(stmt, len(paths)))
+            
+            newpaths = []
+            for path in paths:
+                if isinstance(stmt, parserdata.SetVariable):
+                    newpaths_ = self.parse_setvar(stmt, path)
+                    newpaths.extend(newpaths_)
+
+                elif isinstance(stmt, parserdata.ConditionBlock):
+                    newpaths_ = self.parse_conditionblock(stmt, path)
+                    newpaths.extend(newpaths_)
+                    
+                elif isinstance(stmt, (parserdata.Rule,
+                                       parserdata.StaticPatternRule)):
+                    mlog.warn("Cannot parse Rule: {}".format(stmt))
+                    newpaths.append(path)
+                    
+                elif isinstance(stmt, parserdata.Command):
+                    mlog.warn("Cannot parse Command: {}".format(stmt))
+                    newpaths.append(path)
+
+                else:
+                    raise NotImplementedError(
+                        "cannot parse {}".format(stmt))
+
+            paths = Path.merge(newpaths)
+            if len(paths) != len(newpaths):
+                mlog.debug("merge {} to {} paths".format(
+                    len(newpaths), len(paths)))
             
         return paths
     
-    def parse_conditionblock(self, stmt):
+    def parse_conditionblock(self, stmt, path):
         assert isinstance(stmt, parserdata.ConditionBlock), stmt
 
-        ss = []
-        #if/then branch
-        if_cond, then_stmts = stmt[0]
 
-        if_cond_s = self.parse_condition(if_cond)
-        ss.append(if_cond_s)
-        then_stmts_s = self.parse_stmts(then_stmts)
-        ss.append(then_stmts_s)
-        
+        def add_paths(cond, stmts):
+            newcond = ZSolver.conj(path.cond, cond)
+            if self.solver.is_sat(newcond):
+                newpath = path.fork(newcond)
+                paths = self.parse_stmts(stmts, newpath)
+                return paths
+            
+        if_cond, then_stmts = stmt[0] #if/then branch
+        if_cond = self.eval_condition(if_cond, path)
+
+        paths = add_paths(if_cond, then_stmts)
+
         #else branch
         if len(stmt) == 2:
-            else_cond, else_stmts = stmt[1]
-            #not much interesting info about else cond (just negation of if)
-            else_cond_s = "else"
-            ss.append(else_cond_s)
-            else_stmts_s = self.parse_stmts(else_stmts)
-            ss.append(else_stmts_s)
-            
-        return '\n'.join(ss)
+            _, else_stmts = stmt[1]
+            else_cond = z3.Not(if_cond)
+            paths_ = add_paths(else_cond, else_stmts)
+            paths.extend(paths_)
+ 
+        return paths
 
-    def parse_condition(self):
+    
+    def eval_condition(self, cond, path):
+        """
+        evaluation arguments of the condition and return a Z3 condition
+        """
         if isinstance(cond, parserdata.EqCondition):
-            exp1_s = self.eval_expansion(cond.exp1)
-            exp2_s = self.eval_expansion(cond.exp2)
-            return "ifeq ({},{})".format(exp1_s, exp2_s)
+            exp1 = self.eval_expansion(cond.exp1, path, do_eval=False)
+            #[('CONFIG_A', None)]
+            assert len(exp1) == 1 and exp1[0][1] is None, exp1
+            exp1 = exp1[0][0]
+            
+            exp2 = self.eval_expansion(cond.exp2, path, do_eval=False)
+            #[('y', None)])
+            assert len(exp2) == 1 and exp2[0][1] is None, exp2            
+            exp2 = exp2[0][0]
+
+            exp1, exp2 = ZSolver.get_comparison_pair(exp1, exp2, self.zvars)
+            cond = exp1 == exp2
+            return cond
         else:
             mlog.warn("Cannot parse condition: {}".format(repr(cond)))
 
 
-    def parse_setvar(self, stmt, paths):
+    def parse_setvar(self, stmt, path):
         assert isinstance(stmt, parserdata.SetVariable), stmt
-
         nameexp = stmt.vnameexp
         token = stmt.token
         value = stmt.value
+        names = self.eval_expansion(nameexp, path)
+        values = self.eval_value(value, path)
         
         newpaths = []        
-        for path in paths:
-            names = self.eval_expansion(nameexp, path)
-            values = self.eval_value(value, path)
-
-            for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
-                newcond = ZSolver.conj(path.cond, ZSolver.conj(ncond, vcond))
-                if self.solver.is_sat(newcond):
-                    newpath = path.fork(newcond)
-                    newpath.set_var(name, token, val)
-                    newpaths.append(newpath)
-
+        for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
+            newcond = ZSolver.conj(path.cond, ZSolver.conj(ncond, vcond))
+            if self.solver.is_sat(newcond):
+                newpath = path.fork(newcond)
+                newpath.set_var(name, token, val)
+                newpaths.append(newpath)
         return newpaths
 
 
@@ -327,35 +372,33 @@ class Skanner:
             return [(expansion, None)]
         else:
             stmts = parser.parsestring(expansion, None)
-            assert len(stmts) == 1
-            stmt = stmts[0]
-            assert isinstance(stmt, parserdata.EmptyDirective), stmt
-            ret = self.eval_expansion(stmt.exp, path)
+            assert len(stmts) == 1 and isinstance(stmts[0], parserdata.EmptyDirective), stmts
+            ret = self.eval_expansion(stmts[0].exp, path)
             #print 'expansion {} evals to {}'.format(expansion, ret)
             return ret
 
-    def eval_expansion(self, expansion, path):
+    def eval_expansion(self, expansion, path, do_eval=True):
         if isinstance(expansion, data.StringExpansion): #'x'
             return [(expansion.s, None)]
         else:
             assert isinstance(expansion, data.Expansion), expansion
                 
-            elems = [self.eval_elem(elem, isfun, path)
+            elems = [self.eval_elem(elem, isfun, path, do_eval)
                      for elem, isfun in expansion]
             return self.combine(elems)
         
-    def eval_elem(self, elem, isfun, path):
+    def eval_elem(self, elem, isfun, path, do_eval=True):
         if isinstance(elem, str):  
             return [(elem, None)]
         elif isfun: 
             if isinstance(elem, functions.VariableRef):
-                return self.eval_fun_VariableRef(elem, path)
+                return self.eval_fun_VariableRef(elem, path, do_eval)
             else:
                 raise NotImplementedError
         else:
             return self.eval_expansion(elem)
         
-    def eval_fun_VariableRef(self, fun, path):
+    def eval_fun_VariableRef(self, fun, path, do_eval=True):
         assert isinstance(fun, functions.VariableRef), fun
         
         names = self.eval_expansion(fun.vname, path) #CONFIG_FOO
@@ -365,14 +408,16 @@ class Skanner:
                 val = path.states[name].val
                 vals = [(val, None)]
 
-
             elif name.startswith("CONFIG_"):
                 if name not in self.zvars:
                     self.zvars[name] = ZSolver.get_tristate_sort(name)
                 s, d = self.zvars[name]
-                vals = [(k, s == d[k]) for k in d
-                        if k != "typ"]
                 
+                if do_eval:
+                    vals = [(k, s == d[k]) for k in d
+                            if k != "typ"]
+                else:
+                    vals = [(s, None)]
             else:
                 mlog.warn('cannot eval {}'.format(name))
                 vals = [('', None)]
@@ -407,10 +452,10 @@ class Run:
         skanner = Skanner(makefile)
         paths, subdirs = skanner.go()
 
-        mlog.info("obtain {} paths".format(len(paths)))
-        # for i, path in enumerate(paths):
-        #     print "*** path {} ***".format(i)
-        #     print path
+        mlog.info("obtained {} paths".format(len(paths)))
+        for i, path in enumerate(paths):
+            print "*** path {} ***".format(i)
+            print path
         return paths, subdirs
     
     @classmethod
@@ -474,3 +519,7 @@ if __name__ == '__main__':
     myrun.go()
     
     
+
+
+#exploit 1
+#paths in makefiles have many same state contents, so can merge .  e.g.,  x$y  = ...  ,  2 diff paths but same state.
