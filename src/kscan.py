@@ -264,25 +264,35 @@ class Skanner:
     
     def parse_conditionblock(self, stmt, path):
         assert isinstance(stmt, parserdata.ConditionBlock), stmt
-
+        
         def add_paths(cond, stmts):
             newcond = ZSolver.conj(path.cond, cond)
             if self.solver.is_sat(newcond):
                 newpath = path.fork(newcond)
                 paths = self.parse_stmts(stmts, newpath)
                 return paths
+
             
         if_cond, then_stmts = stmt[0] #if/then branch
         if_cond = self.eval_condition(if_cond, path)
 
         paths = add_paths(if_cond, then_stmts)
 
-        #else branch
-        if len(stmt) == 2:
-            _, else_stmts = stmt[1]
-            else_cond = z3.Not(if_cond)
+        else_cond = z3.Not(if_cond)
+        
+        
+        if len(stmt) == 1:  #no else branch, treats as else: empty
+            else_stmts = []
+            paths_ = [path]  #continue with original path
             paths_ = add_paths(else_cond, else_stmts)
             paths.extend(paths_)
+        elif len(stmt) == 2: #else branch
+            _, else_stmts = stmt[1]
+            paths_ = add_paths(else_cond, else_stmts)
+            paths.extend(paths_)
+        else:
+            raise NotImplementedError
+            
 
         return paths
 
