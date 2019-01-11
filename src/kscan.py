@@ -41,14 +41,14 @@ class  ZSolver:
         elif q is None:
             return p
         else:
-            return z3.And(p, q)
+            return z3.simplify(z3.And(p, q))
 
     @staticmethod
     def disj(p,q):
         if p is None or q is None:
             return None
         else:
-            return z3.Or(p, q)
+            return z3.simplify(z3.Or(p, q))
 
     @staticmethod
     def get_tristate_sort(name):
@@ -148,7 +148,7 @@ class Path:
         """
         newstates = OrderedDict()
         for k,v in self.states.iteritems():
-            newstates[k] = v.fork()
+            newstates[k] = v.fork()  #buggy
         return Path(newcond, newstates)
         
     def __str__(self):
@@ -452,9 +452,9 @@ class Run:
         paths, subdirs = skanner.go()
 
         mlog.info("obtained {} paths".format(len(paths)))
-        # for i, path in enumerate(paths):
-        #     print "*** path {} ***".format(i)
-        #     print path
+        for i, path in enumerate(paths):
+            mlog.debug("*** path {} ***\n{}".format(i, path))
+        mlog.info("total {} paths".format(len(paths)))            
         return paths, subdirs
     
     @classmethod
