@@ -1,6 +1,7 @@
 import copy
 from collections import OrderedDict
 import itertools
+import time
 
 import os.path
 import pdb
@@ -152,7 +153,7 @@ class Path:
         return Path(newcond, newstates)
         
     def __str__(self):
-        ss = ["path cond: {}".format(self.cond)]
+        ss = ["cond: {}".format(self.cond)]
         ss.append('; '.join(str(self.states[v]) for v in self.states))
         return '\n'.join(ss)
 
@@ -161,15 +162,16 @@ class Path:
         assert isinstance(token, str) # and token in {'='}, token
         assert isinstance(val, str), val
 
-        if name not in self.states:
-            flavor = Var.get_flavor(token)
-            v = Var(name, val, flavor)
-            self.states[name] = v
+        if name not in self.states or token in set(["="]):
+            if name in self.states:
+                mlog.warn('need more precise semantics of {}'.format(token))
+            self.states[name] = Var(name, val, Var.get_flavor(token))                
         else:
             if token == "+=":
                 self.states[name].append(val)
             else:
                 raise NotImplementedError
+                
 
     def has_similar_state(self, other):
         if len(self.states) != len(other.states):
@@ -184,16 +186,21 @@ class Path:
     def merge(paths):
         assert paths, paths
 
+        st = time.time()
         if len(paths) == 1:
             return paths
 
+        ct = 0 
         remove = set()
         for i in range(len(paths)):
+            if i in remove:
+                continue
+            
             path_i = paths[i]
             for j in range(i+1, len(paths)):
                 if j in remove:
                     continue
-
+                ct += 1
                 path_j = paths[j]
                 if path_i.has_similar_state(path_j):
                     path_i.cond = ZSolver.disj(path_i.cond, path_j.cond)
@@ -203,6 +210,7 @@ class Path:
                     
 
         paths = [path for i, path in enumerate(paths) if i not in remove]
+        mlog.debug('merge time for {} paths is {}, ct is {}'.format(len(paths), time.time() - st, ct))
         return paths
         
 class Skanner:
@@ -231,10 +239,11 @@ class Skanner:
 
         paths = [path]
         for stmt in stmts:
+            st = time.time()
             mlog.debug("processing {} with {} paths".format(stmt, len(paths)))
             
             newpaths = []
-            for path in paths:
+            for i, path in enumerate(paths):
                 if isinstance(stmt, parserdata.SetVariable):
                     newpaths_ = self.parse_setvar(stmt, path)
                     newpaths.extend(newpaths_)
@@ -256,10 +265,14 @@ class Skanner:
                     raise NotImplementedError(
                         "cannot parse {}".format(stmt))
 
+                
+            mlog.debug("processing {} with {} paths: {}s".format(
+                stmt, len(paths), time.time() - st))
             paths = Path.merge(newpaths)
-            if len(paths) != len(newpaths):
-                mlog.debug("merge {} to {} paths".format(
-                    len(newpaths), len(paths)))
+            mlog.debug("merge {} to {} paths".format(
+                len(newpaths), len(paths)))
+            #if len(paths) != len(newpaths):
+                
         return paths
     
     def parse_conditionblock(self, stmt, path):
@@ -321,6 +334,7 @@ class Skanner:
 
     def parse_setvar(self, stmt, path):
         assert isinstance(stmt, parserdata.SetVariable), stmt
+
         nameexp = stmt.vnameexp
         token = stmt.token
         value = stmt.value
@@ -462,8 +476,8 @@ class Run:
         paths, subdirs = skanner.go()
 
         mlog.info("obtained {} paths".format(len(paths)))
-        for i, path in enumerate(paths):
-            mlog.debug("*** path {} ***\n{}".format(i, path))
+        mlog.debug('\n'.join("*** path {} ***\n{}".format(i, path)
+                             for i, path in enumerate(paths)))
         mlog.info("total {} paths".format(len(paths)))            
         return paths, subdirs
     
