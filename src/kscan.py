@@ -69,8 +69,6 @@ class  ZSolver:
         rs = [v for v in zip(vs, tvals)]
         rs.append(('typ', ttyp))
         ZSolver.__config_ct__ += 1
-        mlog.debug("# of config vars {}".format(
-            ZSolver.__config_ct__))
         return z3.Const(name, ttyp), dict(rs)
 
     @staticmethod
@@ -126,31 +124,12 @@ class Var(tuple):
     @property
     def val(self):
         return self._val
-    
-    # def __eq__(self, other):
-    #     return (self.name == other.name and 
-    #             self.val == other.val and
-    #             self.flavor == other.flavor)
 
     def __str__(self):
         token = "=" if self.flavor == Var.RECURSE else ":="
         return "{} {} {}".format(self.name, token, self.val)
 
-    # def append(self, val):
-    #     vals = self.uniq(val)
-    #     if vals:
-    #         val = ' ' + ' '.join(vals)
-    #         self._val += val
 
-    # def uniq(self, val):
-    #     vals = []
-    #     for v in val.split():
-    #         if v not in self._val_cache:
-    #             vals.append(v)
-    #             self._val_cache.add(v)
-
-    #     return vals
-    
     @staticmethod
     def get_flavor(token):
         if token == "=":
@@ -172,6 +151,9 @@ class Path:
         self.states = states
         Path.__ct__ += 1        
         #mlog.debug("# of paths {}".format(Path.__ct__))
+
+    def __del__(self):
+        Path.__ct__ -= 1
 
     def fork(self, newcond):
         """
@@ -223,38 +205,6 @@ class Path:
     @staticmethod
     def merge(paths):
         assert paths, paths
-
-        st = time.time()
-        if len(paths) == 1:
-            return paths
-
-        ct = 0 
-        remove = set()
-        for i in range(len(paths)):
-            if i in remove:
-                continue
-            
-            path_i = paths[i]
-            for j in range(i+1, len(paths)):
-                if j in remove:
-                    continue
-                ct += 1
-                path_j = paths[j]
-                if path_i.has_similar_state(path_j):
-                    path_i.cond = ZSolver.disj(path_i.cond, path_j.cond)
-                    
-                    remove.add(j)
-
-                    
-
-        merge_paths = [path for i, path in enumerate(paths) if i not in remove]
-        mlog.debug('merge {} -> {} paths in {}, ct {}'.format(
-            len(paths), len(merge_paths), time.time() - st, ct))
-        return merge_paths
-
-    @staticmethod
-    def fast_merge(paths):
-        assert paths, paths
         st = time.time()
 
         groups = {}
@@ -262,8 +212,10 @@ class Path:
             state_hash = path.state_hash
             if state_hash not in groups:
                 groups[state_hash] = []
-
             groups[state_hash].append(path)
+
+        if len(groups) == len(paths):
+            return paths
 
         merge_paths = []
         for gpaths in groups.itervalues():
@@ -272,8 +224,6 @@ class Path:
             path.cond = gcond
             merge_paths.append(path)
 
-        mlog.debug('fast merge {} -> {} paths in {}'.format(
-            len(paths), len(merge_paths), time.time() - st))
         return merge_paths
 
         
@@ -305,7 +255,7 @@ class Skanner:
         paths = [path]
         for stmt in stmts:
             st = time.time()
-            mlog.debug("processing {} with {} paths".format(stmt, len(paths)))
+            mlog.debug("processing '{}' with {} paths".format(stmt.to_source(), len(paths)))
             
             newpaths = []
             for i, path in enumerate(paths):
@@ -330,20 +280,11 @@ class Skanner:
                     raise NotImplementedError(
                         "cannot parse {}".format(stmt))
 
-                
-            mlog.debug("processing {} with {} paths: {}s".format(
-                stmt, len(paths), time.time() - st))
+            merge_paths = Path.merge(newpaths)            
+            mlog.debug("paths: orig {}, generated {}, merged {}, in memory {} , config vars {}".format(
+                len(paths), len(newpaths), len(merge_paths), Path.__ct__,  ZSolver.__config_ct__))
 
-            #paths = newpaths
-            paths = Path.fast_merge(newpaths)            
-            #paths = Path.merge(newpaths)
-            
-            # newpaths_ = [path.fork(path.cond) for path in newpaths]
-            # paths_ = Path.fast_merge(newpaths_)
-            
-            mlog.debug("merge {} to {} paths".format(
-                len(newpaths), len(paths)))
-            #if len(paths) != len(newpaths):
+            paths = merge_paths
                 
         return paths
     
@@ -364,7 +305,6 @@ class Skanner:
         paths = add_paths(if_cond, then_stmts)
 
         else_cond = z3.Not(if_cond)
-        
         
         if len(stmt) == 1:  #no else branch, treats as else: empty
             else_stmts = []
