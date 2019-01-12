@@ -83,16 +83,20 @@ class  ZSolver:
             if s1 not in d_:
                 raise NotimplementedError
             return d_[s1], s2
-        
-class Var:
+
+
+class Var(tuple):
     RECURSE = "RECURSE"   # =, define
     SIMPLY = "SIMPLY"  # := , ::=
-    
+
+    def __new__(cls, name, val, flavor):
+        return super(Var, cls).__new__(cls, (name, val, flavor))
+
     def __init__(self, name, val, flavor):
         self.name = name
         self._val = val
         self.flavor = flavor
-    
+        
     def fork(self):
         return Var(self.name, self.val, self.flavor)
 
@@ -149,7 +153,7 @@ class Path:
         """
         newstates = OrderedDict()
         for k,v in self.states.iteritems():
-            newstates[k] = v.fork()  #buggy
+            newstates[k] = v.fork()
         return Path(newcond, newstates)
         
     def __str__(self):
