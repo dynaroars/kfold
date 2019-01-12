@@ -45,11 +45,22 @@ class  ZSolver:
             return z3.simplify(z3.And(p, q))
 
     @staticmethod
+    def mconj(cs):
+        assert cs
+        return reduce(lambda p, q: ZSolver.conj(p,q), cs[1:], cs[0])        
+
+    @staticmethod
     def disj(p,q):
         if p is None or q is None:
             return None
         else:
             return z3.simplify(z3.Or(p, q))
+
+    @staticmethod
+    def mdisj(cs):
+        assert cs
+        return reduce(lambda p, q: ZSolver.disj(p,q), cs[1:], cs[0])
+        
 
     @staticmethod
     def get_tristate_sort(name):
@@ -90,44 +101,55 @@ class Var(tuple):
     SIMPLY = "SIMPLY"  # := , ::=
 
     def __new__(cls, name, val, flavor):
-        return super(Var, cls).__new__(cls, (name, val, flavor))
+        cache = set()
+        vals = []
+        for v in val.split():
+            if v not in cache:
+                cache.add(v)
+                vals.append(v)
+                
+        val = ' '.join(vals)
+        ret =  super(Var, cls).__new__(cls, (name, val, flavor))
+        return ret
 
     def __init__(self, name, val, flavor):
         self.name = name
-        self._val_cache = set()
-        self._val = ' '.join(self.uniq(val))
+        self._val = val
         self.flavor = flavor
 
     def fork(self):
         return Var(self.name, self.val, self.flavor)
 
+    def fork_val(self, val):
+        return Var(self.name, val, self.flavor)
+
     @property
     def val(self):
         return self._val
     
-    def __eq__(self, other):
-        return (self.name == other.name and 
-                self.val == other.val and
-                self.flavor == other.flavor)
+    # def __eq__(self, other):
+    #     return (self.name == other.name and 
+    #             self.val == other.val and
+    #             self.flavor == other.flavor)
 
     def __str__(self):
         token = "=" if self.flavor == Var.RECURSE else ":="
         return "{} {} {}".format(self.name, token, self.val)
 
-    def append(self, val):
-        vals = self.uniq(val)
-        if vals:
-            val = ' ' + ' '.join(vals)
-            self._val += val
+    # def append(self, val):
+    #     vals = self.uniq(val)
+    #     if vals:
+    #         val = ' ' + ' '.join(vals)
+    #         self._val += val
 
-    def uniq(self, val):
-        vals = []
-        for v in val.split():
-            if v not in self._val_cache:
-                vals.append(v)
-                self._val_cache.add(v)
+    # def uniq(self, val):
+    #     vals = []
+    #     for v in val.split():
+    #         if v not in self._val_cache:
+    #             vals.append(v)
+    #             self._val_cache.add(v)
 
-        return vals
+    #     return vals
     
     @staticmethod
     def get_flavor(token):
@@ -145,6 +167,7 @@ class Path:
     __ct__ = 0
     
     def __init__(self, cond, states):
+        assert isinstance(states, dict)
         self.cond = cond
         self.states = states
         Path.__ct__ += 1        
@@ -154,14 +177,14 @@ class Path:
         """
         Create a new path with newcond
         """
-        newstates = OrderedDict()
+        newstates = {}
         for k,v in self.states.iteritems():
             newstates[k] = v.fork()
         return Path(newcond, newstates)
         
     def __str__(self):
         ss = []
-        #ss.append("cond: {}".format(self.cond))
+        ss.append("cond: {}".format(self.cond))
         ss.append('; '.join(str(self.states[v]) for v in self.states))
         return '\n'.join(ss)
 
@@ -176,13 +199,13 @@ class Path:
             self.states[name] = Var(name, val, Var.get_flavor(token))                
         else:
             if token == "+=":
-                self.states[name].append(val)
+                new_val = self.states[name].val + ' ' +  val
+                self.states[name] = self.states[name].fork_val(new_val) #append(val)
+                #self.states[name].append(val)
             else:
                 raise NotImplementedError
                 
-
     def has_similar_state(self, other):
-        print self.state_hash
         if len(self.states) != len(other.states):
             return False
 
@@ -193,9 +216,9 @@ class Path:
 
     @property
     def state_hash(self):
-        state_items =  self.states.items()
-        print state_items
-        
+        fs = frozenset(sorted(self.states.items()))
+        ret = hash(fs)
+        return ret
         
     @staticmethod
     def merge(paths):
@@ -224,9 +247,36 @@ class Path:
 
                     
 
-        paths = [path for i, path in enumerate(paths) if i not in remove]
-        mlog.debug('merge time for {} paths is {}, ct is {}'.format(len(paths), time.time() - st, ct))
-        return paths
+        merge_paths = [path for i, path in enumerate(paths) if i not in remove]
+        mlog.debug('merge {} -> {} paths in {}, ct {}'.format(
+            len(paths), len(merge_paths), time.time() - st, ct))
+        return merge_paths
+
+    @staticmethod
+    def fast_merge(paths):
+        assert paths, paths
+        st = time.time()
+
+        groups = {}
+        for path in paths:
+            state_hash = path.state_hash
+            if state_hash not in groups:
+                groups[state_hash] = []
+
+            groups[state_hash].append(path)
+
+        merge_paths = []
+        for gpaths in groups.itervalues():
+            gcond = ZSolver.mdisj([path.cond for path in gpaths])
+            path = gpaths[0]
+            path.cond = gcond
+            merge_paths.append(path)
+
+        mlog.debug('fast merge {} -> {} paths in {}'.format(
+            len(paths), len(merge_paths), time.time() - st))
+        return merge_paths
+
+        
         
 class Skanner:
     def __init__(self, makefile):
@@ -283,7 +333,14 @@ class Skanner:
                 
             mlog.debug("processing {} with {} paths: {}s".format(
                 stmt, len(paths), time.time() - st))
-            paths = Path.merge(newpaths)
+
+            #paths = newpaths
+            paths = Path.fast_merge(newpaths)            
+            #paths = Path.merge(newpaths)
+            
+            # newpaths_ = [path.fork(path.cond) for path in newpaths]
+            # paths_ = Path.fast_merge(newpaths_)
+            
             mlog.debug("merge {} to {} paths".format(
                 len(newpaths), len(paths)))
             #if len(paths) != len(newpaths):
@@ -374,7 +431,6 @@ class Skanner:
         Example 1
         ts = [[('my-', None)], [('on', None)], [('-', None)], [('y', CONFIG_A == y), ('m', CONFIG_A == m)]]
         output = [('my-on-y', CONFIG_A == y), ('my-on-m', CONFIG_A == m)]
-
         """
         assert ts
 
@@ -386,7 +442,7 @@ class Skanner:
         comb = []
         for pair in itertools.product(*ts):
             ss, cs = zip(*pair)
-            c = reduce(lambda p,q: ZSolver.conj(p,q), cs, None)
+            c = ZSolver.mconj(cs)
             comb.append((delim.join(ss), c))
 
         #print 'comb', comb
@@ -491,8 +547,8 @@ class Run:
         paths, subdirs = skanner.go()
 
         mlog.info("obtained {} paths".format(len(paths)))
-        mlog.debug('\n'.join("*** path {} ***\n{}".format(i, path)
-                             for i, path in enumerate(paths)))
+        # mlog.debug('\n'.join("*** path {} ***\n{}".format(i, path)
+        #                      for i, path in enumerate(paths)))
         mlog.info("total {} paths".format(len(paths)))            
         return paths, subdirs
     
