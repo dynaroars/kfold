@@ -114,7 +114,7 @@ class Var(tuple):
         token = "=" if self.flavor == Var.RECURSE else ":="
         return "{} {} {}".format(self.name, token, self.val)
 
-    def append_val(self, val):
+    def append(self, val):
         vals = self.uniq(val)
         if vals:
             val = ' ' + ' '.join(vals)
@@ -139,9 +139,6 @@ class Var(tuple):
             raise NotImplementedError("token {}".format(token))
 
         return flavor
-
-    
-    
 
     
 class Path:
@@ -179,12 +176,13 @@ class Path:
             self.states[name] = Var(name, val, Var.get_flavor(token))                
         else:
             if token == "+=":
-                self.states[name].append_val(val)
+                self.states[name].append(val)
             else:
                 raise NotImplementedError
                 
 
     def has_similar_state(self, other):
+        print self.state_hash
         if len(self.states) != len(other.states):
             return False
 
@@ -192,6 +190,12 @@ class Path:
             return False
 
         return all(self.states[k] == other.states[k] for k in self.states)
+
+    @property
+    def state_hash(self):
+        state_items =  self.states.items()
+        print state_items
+        
         
     @staticmethod
     def merge(paths):
