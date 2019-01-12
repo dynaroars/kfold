@@ -94,16 +94,17 @@ class Var(tuple):
 
     def __init__(self, name, val, flavor):
         self.name = name
-        self._val = val
+        self._val_cache = set()
+        self._val = ' '.join(self.uniq(val))
         self.flavor = flavor
-        
+
     def fork(self):
         return Var(self.name, self.val, self.flavor)
 
     @property
     def val(self):
         return self._val
-
+    
     def __eq__(self, other):
         return (self.name == other.name and 
                 self.val == other.val and
@@ -113,19 +114,21 @@ class Var(tuple):
         token = "=" if self.flavor == Var.RECURSE else ":="
         return "{} {} {}".format(self.name, token, self.val)
 
-    def append(self, value):
-        assert isinstance(value, str), value
-        if not value:
-            return
+    def append_val(self, val):
+        vals = self.uniq(val)
+        if vals:
+            val = ' ' + ' '.join(vals)
+            self._val += val
 
-        cache = set(self.val.split())
-        for val in value.split():
-            if val in cache:
-                continue
+    def uniq(self, val):
+        vals = []
+        for v in val.split():
+            if v not in self._val_cache:
+                vals.append(v)
+                self._val_cache.add(v)
 
-            cache.add(val)
-            self._val = self._val + ' ' + val
-                
+        return vals
+    
     @staticmethod
     def get_flavor(token):
         if token == "=":
@@ -136,6 +139,9 @@ class Var(tuple):
             raise NotImplementedError("token {}".format(token))
 
         return flavor
+
+    
+    
 
     
 class Path:
@@ -157,7 +163,8 @@ class Path:
         return Path(newcond, newstates)
         
     def __str__(self):
-        ss = ["cond: {}".format(self.cond)]
+        ss = []
+        #ss.append("cond: {}".format(self.cond))
         ss.append('; '.join(str(self.states[v]) for v in self.states))
         return '\n'.join(ss)
 
@@ -172,7 +179,7 @@ class Path:
             self.states[name] = Var(name, val, Var.get_flavor(token))                
         else:
             if token == "+=":
-                self.states[name].append(val)
+                self.states[name].append_val(val)
             else:
                 raise NotImplementedError
                 
