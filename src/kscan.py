@@ -1,5 +1,5 @@
 import copy
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 import itertools
 import time
 
@@ -93,32 +93,21 @@ class  ZSolver:
                 raise NotimplementedError
             return d_[s1], s2
 
+BaseVar = namedtuple("BaseVar","name val flavor")
 
-class Var(tuple):
+class Var(BaseVar):
     RECURSE = "RECURSE"   # =, define
     SIMPLY = "SIMPLY"  # := , ::=
 
-    def __new__(cls, name, val, flavor):
-        val = Var.uniq(val)
-        ret =  super(Var, cls).__new__(cls, (name, val, flavor))
-        return ret
+    # def __new__(cls, name, val, flavor):
+    #     val = Var.uniq(val)
+    #     ret =  super(Var, cls).__new__(cls, (name, val, flavor))
+    #     return ret
 
-    def __init__(self, name, val, flavor):
-        self.name = name
-        self._val = self.uniq(val)
-        self.flavor = flavor
-
-    @staticmethod
-    def uniq(val):
-        cache = set()
-        vals = []
-        for v in val.split():
-            if v not in cache:
-                cache.add(v)
-                vals.append(v)
-                
-        val = ' '.join(vals)
-        return val
+    # def __init__(self, name, val, flavor):
+    #     self.name = name
+    #     self._val = self.uniq(val)
+    #     self.flavor = flavor
 
     def fork(self):
         return Var(self.name, self.val, self.flavor)
@@ -126,9 +115,9 @@ class Var(tuple):
     def fork_val(self, val):
         return Var(self.name, val, self.flavor)
 
-    @property
-    def val(self):
-        return self._val
+    # @property
+    # def val(self):
+    #     return self._val
 
     def __str__(self):
         token = "=" if self.flavor == Var.RECURSE else ":="
@@ -183,10 +172,11 @@ class Path:
         if name not in self.states or token in set(["="]):
             if name in self.states:
                 mlog.warn('need more precise semantics of {}'.format(token))
-            self.states[name] = Var(name, val, Var.get_flavor(token))                
+            self.states[name] = Var(name, uniq(val), Var.get_flavor(token))                
         else:
             if token == "+=":
                 new_val = self.states[name].val + ' ' +  val
+                new_val = uniq(new_val)
                 self.states[name] = self.states[name].fork_val(new_val) #append(val)
                 #self.states[name].append(val)
             else:
@@ -513,6 +503,19 @@ class Run:
             return None
         
         return os.path.abspath(makefile)
+
+
+
+def uniq(val):
+    cache = set()
+    vals = []
+    for v in val.split():
+        if v not in cache:
+            cache.add(v)
+            vals.append(v)
+
+    val = ' '.join(vals)
+    return val    
 
 if __name__ == '__main__':    
 
