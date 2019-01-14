@@ -99,6 +99,17 @@ class Var(tuple):
     SIMPLY = "SIMPLY"  # := , ::=
 
     def __new__(cls, name, val, flavor):
+        val = Var.uniq(val)
+        ret =  super(Var, cls).__new__(cls, (name, val, flavor))
+        return ret
+
+    def __init__(self, name, val, flavor):
+        self.name = name
+        self._val = self.uniq(val)
+        self.flavor = flavor
+
+    @staticmethod
+    def uniq(val):
         cache = set()
         vals = []
         for v in val.split():
@@ -107,13 +118,7 @@ class Var(tuple):
                 vals.append(v)
                 
         val = ' '.join(vals)
-        ret =  super(Var, cls).__new__(cls, (name, val, flavor))
-        return ret
-
-    def __init__(self, name, val, flavor):
-        self.name = name
-        self._val = val
-        self.flavor = flavor
+        return val
 
     def fork(self):
         return Var(self.name, self.val, self.flavor)
@@ -487,8 +492,8 @@ class Run:
         paths, subdirs = skanner.go()
 
         mlog.info("obtained {} paths".format(len(paths)))
-        # mlog.debug('\n'.join("*** path {} ***\n{}".format(i, path)
-        #                      for i, path in enumerate(paths)))
+        mlog.debug('\n'.join("*** path {} ***\n{}".format(i, path)
+                             for i, path in enumerate(paths)))
         mlog.info("total {} paths".format(len(paths)))            
         return paths, subdirs
     
