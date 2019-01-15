@@ -13,7 +13,7 @@ import vcommon as CM
 pause = CM.pause
 
 logger_level = 3
-class  ZSolver:
+class ZSolver:
     __config_ct__ = 0
     T = z3.BoolVal(True)
     F = z3.BoolVal(False)        
@@ -99,25 +99,11 @@ class Var(BaseVar):
     RECURSE = "RECURSE"   # =, define
     SIMPLY = "SIMPLY"  # := , ::=
 
-    # def __new__(cls, name, val, flavor):
-    #     val = Var.uniq(val)
-    #     ret =  super(Var, cls).__new__(cls, (name, val, flavor))
-    #     return ret
-
-    # def __init__(self, name, val, flavor):
-    #     self.name = name
-    #     self._val = self.uniq(val)
-    #     self.flavor = flavor
-
     def fork(self):
         return Var(self.name, self.val, self.flavor)
 
     def fork_val(self, val):
         return Var(self.name, val, self.flavor)
-
-    # @property
-    # def val(self):
-    #     return self._val
 
     def __str__(self):
         token = "=" if self.flavor == Var.RECURSE else ":="
@@ -135,7 +121,8 @@ class Var(BaseVar):
 
         return flavor
 
-    
+
+        
 class Path:
     __ct__ = 0
     
@@ -160,7 +147,7 @@ class Path:
         
     def __str__(self):
         ss = []
-        ss.append("cond: {}".format(self.cond))
+        #ss.append("cond: {}".format(self.cond))
         ss.append('; '.join(str(self.states[v]) for v in self.states))
         return '\n'.join(ss)
 
@@ -182,37 +169,33 @@ class Path:
             else:
                 raise NotImplementedError
                 
-    def has_similar_state(self, other):
-        if len(self.states) != len(other.states):
-            return False
-
-        if set(self.states) != set(other.states):
-            return False
-
-        return all(self.states[k] == other.states[k] for k in self.states)
-
     @property
     def state_hash(self):
         fs = frozenset(sorted(self.states.items()))
         ret = hash(fs)
         return ret
+
+
+class Paths(list):
+    def __str__(self):
+        return '\n'.join("*** path {} ***\n{}".format(i, path)
+                         for i, path in enumerate(self))
         
-    @staticmethod
-    def merge(paths):
-        assert paths, paths
+    def merge(self):
+        assert self, self
         st = time.time()
 
         groups = {}
-        for path in paths:
+        for path in self:
             state_hash = path.state_hash
             if state_hash not in groups:
                 groups[state_hash] = []
             groups[state_hash].append(path)
 
-        if len(groups) == len(paths):
-            return paths
+        if len(groups) == len(self):
+            return self
 
-        merge_paths = []
+        merge_paths = Paths()
         for gpaths in groups.itervalues():
             gcond = ZSolver.mdisj([path.cond for path in gpaths])
             path = gpaths[0]
@@ -220,8 +203,6 @@ class Path:
             merge_paths.append(path)
 
         return merge_paths
-
-        
         
 class Skanner:
     def __init__(self, makefile):
@@ -245,14 +226,17 @@ class Skanner:
         paths = self.parse_stmts(self.stmts, Path(None, {}))
         return paths, []
 
+
     def parse_stmts(self, stmts, path):
 
-        paths = [path]
+        paths = Paths()
+        paths.append(path)
+        
         for stmt in stmts:
             st = time.time()
             mlog.debug("processing '{}' with {} paths".format(stmt.to_source(), len(paths)))
             
-            newpaths = []
+            newpaths = Paths()
             for i, path in enumerate(paths):
                 if isinstance(stmt, parserdata.SetVariable):
                     newpaths_ = self.parse_setvar(stmt, path)
@@ -275,9 +259,10 @@ class Skanner:
                     raise NotImplementedError(
                         "cannot parse {}".format(stmt))
 
-            merge_paths = Path.merge(newpaths)            
+            merge_paths = newpaths.merge()            
             mlog.debug("paths: orig {}, generated {}, merged {}, in memory {} , config vars {}".format(
-                len(paths), len(newpaths), len(merge_paths), Path.__ct__,  ZSolver.__config_ct__))
+                len(paths), len(newpaths), len(merge_paths),
+                Path.__ct__,  ZSolver.__config_ct__))
 
             paths = merge_paths
                 
@@ -380,7 +365,6 @@ class Skanner:
             c = ZSolver.mconj(cs)
             comb.append((delim.join(ss), c))
 
-        #print 'comb', comb
         return comb
         
     def eval_value(self, value, path):
@@ -480,11 +464,8 @@ class Run:
         
         skanner = Skanner(makefile)
         paths, subdirs = skanner.go()
-
-        mlog.info("obtained {} paths".format(len(paths)))
-        mlog.debug('\n'.join("*** path {} ***\n{}".format(i, path)
-                             for i, path in enumerate(paths)))
-        mlog.info("total {} paths".format(len(paths)))            
+        mlog.debug(paths)
+        mlog.debug("total {} paths".format(len(paths)))
         return paths, subdirs
     
     @classmethod
