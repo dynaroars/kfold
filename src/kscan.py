@@ -32,7 +32,6 @@ class ZSolver:
         if f is None:  #equiv to True
             return True
         ret = self.check(f)
-        #print f, ret
         return ret == z3.sat
     
     @staticmethod
@@ -42,7 +41,7 @@ class ZSolver:
         elif q is None:
             return p
         else:
-            return z3.simplify(z3.And(p, q))
+            return z3.And(p, q)
 
     @staticmethod
     def mconj(cs):
@@ -50,11 +49,11 @@ class ZSolver:
         return reduce(lambda p, q: ZSolver.conj(p,q), cs[1:], cs[0])        
 
     @staticmethod
-    def disj(p,q):
+    def disj(p, q):
         if p is None or q is None:
             return None
         else:
-            return z3.simplify(z3.Or(p, q))
+            return z3.Or(p, q)
 
     @staticmethod
     def mdisj(cs):
@@ -66,10 +65,12 @@ class ZSolver:
     def get_tristate_sort(name):
         vs = ["y", "m"]
         ttyp, tvals = z3.EnumSort(name, vs)
-        rs = [v for v in zip(vs, tvals)]
-        rs.append(('typ', ttyp))
+        d = {}
+        d['typ'] = ttyp
+        d['vals'] = dict([v for v in zip(vs, tvals)])
+        #rs.append(('typ', ttyp))
         ZSolver.__config_ct__ += 1
-        return z3.Const(name, ttyp), dict(rs)
+        return z3.Const(name, ttyp), d
 
     @staticmethod
     def get_comparison_pair(s1, s2, d):
@@ -121,9 +122,8 @@ class Var(BaseVar):
 
         return flavor
 
-
-        
 class Path:
+    target_vars = set(['obj-', 'lib-'])    
     __ct__ = 0
     
     def __init__(self, cond, states):
@@ -131,23 +131,28 @@ class Path:
         self.cond = cond
         self.states = states
         Path.__ct__ += 1        
-        #mlog.debug("# of paths {}".format(Path.__ct__))
 
     def __del__(self):
         Path.__ct__ -= 1
 
-    def fork(self, newcond):
+
+    def fork(self, newcond, ignore_targets=False):
         """
         Create a new path with newcond
         """
         newstates = {}
         for k,v in self.states.iteritems():
+            if (ignore_targets and
+                any(k.startswith(x) for x in Path.target_vars)):
+                continue
             newstates[k] = v.fork()
         return Path(newcond, newstates)
-        
+
+    
+
     def __str__(self):
         ss = []
-        #ss.append("cond: {}".format(self.cond))
+        ss.append("cond: {}".format(self.cond))
         ss.append('; '.join(str(self.states[v]) for v in self.states))
         return '\n'.join(ss)
 
@@ -180,6 +185,35 @@ class Paths(list):
     def __str__(self):
         return '\n'.join("*** path {} ***\n{}".format(i, path)
                          for i, path in enumerate(self))
+
+
+    def split(self):
+        assert self, self
+        new_paths = Paths()
+        
+        for path in self:
+            if not path.states:  #no state
+                new_paths.append(path)  #keep path as is
+            else:
+                for name in path.states:
+                    if not any(name.startswith(x)
+                               for x in Path.target_vars):
+                        new_paths.append(path)  #keep path as is
+                    else:
+                        myvar = path.states[name]
+                        vals = myvar.val.split()
+                        if not vals:
+                            new_path = path.fork(path.cond, ignore_targets=True)
+                            new_path.states[name] = myvar.fork()
+                            new_paths.append(new_path)  #keep path as is
+                        else:
+                            for v in vals:
+                                new_path = path.fork(path.cond, ignore_targets=True)
+                                new_path.states[name] = myvar.fork_val(v)
+                                new_paths.append(new_path)
+
+        assert new_paths
+        return new_paths
         
     def merge(self):
         assert self, self
@@ -236,33 +270,42 @@ class Skanner:
             st = time.time()
             mlog.debug("processing '{}' with {} paths".format(stmt.to_source(), len(paths)))
             
-            newpaths = Paths()
+            new_paths = Paths()
             for i, path in enumerate(paths):
                 if isinstance(stmt, parserdata.SetVariable):
-                    newpaths_ = self.parse_setvar(stmt, path)
-                    newpaths.extend(newpaths_)
+                    new_paths_ = self.parse_setvar(stmt, path)
+                    new_paths.extend(new_paths_)
 
                 elif isinstance(stmt, parserdata.ConditionBlock):
-                    newpaths_ = self.parse_conditionblock(stmt, path)
-                    newpaths.extend(newpaths_)
+                    new_paths_ = self.parse_conditionblock(stmt, path)
+                    new_paths.extend(new_paths_)
                     
                 elif isinstance(stmt, (parserdata.Rule,
                                        parserdata.StaticPatternRule)):
                     mlog.warn("Cannot parse Rule: {}".format(stmt))
-                    newpaths.append(path)
+                    new_paths.append(path)
                     
                 elif isinstance(stmt, parserdata.Command):
                     mlog.warn("Cannot parse Command: {}".format(stmt))
-                    newpaths.append(path)
+                    new_paths.append(path)
 
                 else:
                     raise NotImplementedError(
                         "cannot parse {}".format(stmt))
 
-            merge_paths = newpaths.merge()            
-            mlog.debug("paths: orig {}, generated {}, merged {}, in memory {} , config vars {}".format(
-                len(paths), len(newpaths), len(merge_paths),
-                Path.__ct__,  ZSolver.__config_ct__))
+            st = time.time()
+            split_paths = new_paths.split()
+            mlog.debug("paths: orig {}, generated {}, split {}, in memory {} , configs {}, time {}".format(
+                len(paths), len(new_paths), len(split_paths),
+                Path.__ct__,  ZSolver.__config_ct__, time.time()-st))
+
+            new_paths = split_paths
+            
+            st = time.time()
+            merge_paths = new_paths.merge()            
+            mlog.debug("paths: orig {}, generated {}, merged {}, in memory {} , config{}, time {}".format(
+                len(paths), len(new_paths), len(merge_paths),
+                Path.__ct__,  ZSolver.__config_ct__, time.time()-st))
 
             paths = merge_paths
                 
@@ -274,8 +317,8 @@ class Skanner:
         def add_paths(cond, stmts):
             newcond = ZSolver.conj(path.cond, cond)
             if self.solver.is_sat(newcond):
-                newpath = path.fork(newcond)
-                paths = self.parse_stmts(stmts, newpath)
+                new_path = path.fork(newcond)
+                paths = self.parse_stmts(stmts, new_path)
                 return paths
 
             
@@ -333,15 +376,17 @@ class Skanner:
         names = self.eval_expansion(nameexp, path)
         values = self.eval_value(value, path)
         
-        newpaths = []        
+        new_paths = []        
         for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
             newcond = ZSolver.conj(path.cond, ZSolver.conj(ncond, vcond))
             if self.solver.is_sat(newcond):
-                newpath = path.fork(newcond)
-                newpath.set_var(name, token, val)
-                newpaths.append(newpath)
-
-        return newpaths
+                mlog.info('sat: {}'.format(newcond))
+                new_path = path.fork(newcond)
+                new_path.set_var(name, token, val)
+                new_paths.append(new_path)
+            else:
+                mlog.info('unsat: {}'.format(newcond))
+        return new_paths
 
 
     def combine(self, ts, delim=''):
@@ -427,8 +472,7 @@ class Skanner:
                 s, d = self.zvars[name]
                 
                 if do_eval:
-                    vals = [(k, s == d[k]) for k in d
-                            if k != "typ"]
+                    vals = [(k, s == d['vals'][k]) for k in d['vals']]
                 else:
                     vals = [(s, None)]
             else:
