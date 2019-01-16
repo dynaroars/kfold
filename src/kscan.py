@@ -152,17 +152,15 @@ class Path:
     def __del__(self):
         Path.__ct__ -= 1
 
-
     def fork(self, newcond, ignore_targets=False):
         """
         Create a new path with newcond
         """
         newstates = {}
-        for k,v in self.states.iteritems():
-            if (ignore_targets and
-                any(k.startswith(x) for x in Path.target_vars)):
+        for name, v in self.states.iteritems():
+            if ignore_targets and Path.is_target(name):
                 continue
-            newstates[k] = v.fork()
+            newstates[name] = v.fork()
         return Path(newcond, newstates)
 
     def __str__(self):
@@ -195,38 +193,72 @@ class Path:
         ret = hash(fs)
         return ret
 
+    @staticmethod
+    def is_target(name):
+        return any(name.startswith(x) for x in Path.target_vars)
+
+    @staticmethod
+    def is_not_target(name):
+        return not Path.is_target(name)
 
 class Paths(list):
     def __str__(self):
         return '\n'.join("*** path {} ***\n{}".format(i + 1, path)
                          for i, path in enumerate(self))
 
+
+    # def split(self):
+    #     assert self, self
+    #     new_paths = Paths()
+         
+    #     for path in self:
+    #         if not path.states:  #no state
+    #             new_paths.append(path)  #keep path as is
+    #         else:
+    #             for name in path.states:
+    #                 if not any(name.startswith(x)
+    #                            for x in Path.target_vars):
+    #                     new_paths.append(path)  #keep path as is
+    #                 else:
+    #                     myvar = path.states[name]
+    #                     vals = myvar.val.split()
+    #                     if not vals:
+    #                         new_path = path.fork(path.cond, ignore_targets=True)
+    #                         new_path.states[name] = myvar.fork()
+    #                         new_paths.append(new_path)  #keep path as is
+    #                     else:
+    #                         for v in vals:
+    #                             new_path = path.fork(path.cond, ignore_targets=True)
+    #                             new_path.states[name] = myvar.fork_val(v)
+    #                             new_paths.append(new_path)
+     
+
     def split(self):
         assert self, self
         new_paths = Paths()
         
         for path in self:
-            if not path.states:  #no state
+            if (not path.states or #no state
+                all(Path.is_not_target(name) for name in path.states)):
                 new_paths.append(path)  #keep path as is
             else:
                 for name in path.states:
-                    if not any(name.startswith(x)
-                               for x in Path.target_vars):
-                        new_paths.append(path)  #keep path as is
+                    if Path.is_not_target(name):
+                        continue
+                    myvar = path.states[name]
+                    vals = myvar.val.split()
+                    if not vals:
+                        new_path = path.fork(path.cond, ignore_targets=True)
+                        new_path.states[name] = myvar.fork()
+                        new_paths.append(new_path)
                     else:
-                        myvar = path.states[name]
-                        vals = myvar.val.split()
-                        if not vals:
+                        for v in vals:
                             new_path = path.fork(path.cond, ignore_targets=True)
-                            new_path.states[name] = myvar.fork()
-                            new_paths.append(new_path)  #keep path as is
-                        else:
-                            for v in vals:
-                                new_path = path.fork(path.cond, ignore_targets=True)
-                                new_path.states[name] = myvar.fork_val(v)
-                                new_paths.append(new_path)
-
+                            new_path.states[name] = myvar.fork_val(v)
+                            new_paths.append(new_path)
+                            
         assert new_paths
+        #mlog.debug("split out\n{}".format(new_paths))        
         return new_paths
         
     def merge(self):
@@ -284,9 +316,10 @@ class Skanner:
         paths = Paths()
         paths.append(path)
         
-        for stmt in stmts:
+        for i, stmt in enumerate(stmts):
             st = time()
-            mlog.debug("processing '{}' with {} paths".format(stmt.to_source(), len(paths)))
+            mlog.debug("{}/{}: '{}' with {} paths".format(
+                i + 1, len(stmts), stmt.to_source(), len(paths)))
             
             new_paths = Paths()
             for i, path in enumerate(paths):
@@ -311,20 +344,24 @@ class Skanner:
                     raise NotImplementedError(
                         "cannot parse {}".format(stmt))
 
+            mlog.debug("paths: orig {}, new {}, time {}".format(
+                len(paths), len(new_paths), time()-st))
+            
             #mlog.debug('orig\n{}'.format(paths))
             #mlog.debug('new\n{}'.format(new_paths))            
-            st = time()
+            st_sm = time()
             split_paths = new_paths.split()
-            mlog.debug('split {} {}'.format(len(split_paths), time() - st))
-            st = time()
-            merge_paths = split_paths.merge()
+            #mlog.debug('split {} {}'.format(len(split_paths), time() - st))
+            merge_paths = split_paths.merge()            
             #mlog.debug('merge\n{}'.format(merge_paths))
-            
-            mlog.debug("paths: orig {}, new {}, split {}, merge {}, in memory {} , config {}, time {}".format(
-                len(paths), len(new_paths), len(split_paths), len(merge_paths),
-                Path.__ct__,  ZSolver.__config_ct__, time()-st))
+
+
+            mlog.debug("split {}, merge {}, in mem {} , config {}, time {}".format(
+                len(split_paths), len(merge_paths),
+                Path.__ct__,  ZSolver.__config_ct__, time() - st_sm))
 
             paths = merge_paths
+
                 
         return paths
     
