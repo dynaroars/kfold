@@ -295,16 +295,9 @@ class Skanner:
 
             st = time.time()
             split_paths = new_paths.split()
-            mlog.debug("paths: orig {}, generated {}, split {}, in memory {} , configs {}, time {}".format(
-                len(paths), len(new_paths), len(split_paths),
-                Path.__ct__,  ZSolver.__config_ct__, time.time()-st))
-
-            new_paths = split_paths
-            
-            st = time.time()
-            merge_paths = new_paths.merge()            
-            mlog.debug("paths: orig {}, generated {}, merged {}, in memory {} , config{}, time {}".format(
-                len(paths), len(new_paths), len(merge_paths),
+            merge_paths = split_paths.merge()            
+            mlog.debug("paths: orig {}, generated {}, split {}, merged {}, in memory {} , config {}, time {}".format(
+                len(paths), len(new_paths), len(split_paths), len(merge_paths),
                 Path.__ct__,  ZSolver.__config_ct__, time.time()-st))
 
             paths = merge_paths
