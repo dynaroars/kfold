@@ -1,7 +1,7 @@
 import copy
 from collections import OrderedDict, namedtuple
 import itertools
-import time
+from time import time
 
 import os.path
 import pdb
@@ -15,17 +15,33 @@ pause = CM.pause
 logger_level = 3
 class ZSolver:
     __config_ct__ = 0
+    __simplify_cache__ = {}
     T = z3.BoolVal(True)
     F = z3.BoolVal(False)        
 
     def __init__(self):
         self.solver = z3.Solver()
 
+    @staticmethod
+    def simplify(f):
+
+        if f in ZSolver.__simplify_cache__:
+            return ZSolver.__simplify_cache__[f]
+        
+        assert z3.is_expr(f), f
+        t = z3.Tactic('ctx-solver-simplify')
+        f_ = t(f).as_expr()
+
+        ZSolver.__simplify_cache__[f] = f_
+        return f_
+    
     def check(self, f):
+        st = time()
         self.solver.push()
         self.solver.add(f)
         ret = self.solver.check()
-        self.solver.pop()        
+        self.solver.pop()
+        #mlog.debug("check (len = {}): {}".format(len(str(f)), time() - st))
         return ret
 
     def is_sat(self, f):
@@ -58,7 +74,8 @@ class ZSolver:
     @staticmethod
     def mdisj(cs):
         assert cs
-        return reduce(lambda p, q: ZSolver.disj(p,q), cs[1:], cs[0])
+        f = reduce(lambda p, q: ZSolver.disj(p,q), cs[1:], cs[0])
+        return f
         
 
     @staticmethod
@@ -148,8 +165,6 @@ class Path:
             newstates[k] = v.fork()
         return Path(newcond, newstates)
 
-    
-
     def __str__(self):
         ss = []
         ss.append("cond: {}".format(self.cond))
@@ -183,9 +198,8 @@ class Path:
 
 class Paths(list):
     def __str__(self):
-        return '\n'.join("*** path {} ***\n{}".format(i, path)
+        return '\n'.join("*** path {} ***\n{}".format(i + 1, path)
                          for i, path in enumerate(self))
-
 
     def split(self):
         assert self, self
@@ -217,7 +231,6 @@ class Paths(list):
         
     def merge(self):
         assert self, self
-        st = time.time()
 
         groups = {}
         for path in self:
@@ -231,12 +244,17 @@ class Paths(list):
 
         merge_paths = Paths()
         for gpaths in groups.itervalues():
-            gcond = ZSolver.mdisj([path.cond for path in gpaths])
-            path = gpaths[0]
-            path.cond = gcond
-            merge_paths.append(path)
+            assert len(gpaths)
 
+            path = gpaths[0]
+            if len(gpaths) > 1:
+                gcond = ZSolver.mdisj([path.cond for path in gpaths])
+                path.cond = ZSolver.simplify(gcond) if gcond is not None else gcond
+
+            merge_paths.append(path)
+  
         return merge_paths
+
         
 class Skanner:
     def __init__(self, makefile):
@@ -267,7 +285,7 @@ class Skanner:
         paths.append(path)
         
         for stmt in stmts:
-            st = time.time()
+            st = time()
             mlog.debug("processing '{}' with {} paths".format(stmt.to_source(), len(paths)))
             
             new_paths = Paths()
@@ -293,12 +311,18 @@ class Skanner:
                     raise NotImplementedError(
                         "cannot parse {}".format(stmt))
 
-            st = time.time()
+            #mlog.debug('orig\n{}'.format(paths))
+            #mlog.debug('new\n{}'.format(new_paths))            
+            st = time()
             split_paths = new_paths.split()
-            merge_paths = split_paths.merge()            
-            mlog.debug("paths: orig {}, generated {}, split {}, merged {}, in memory {} , config {}, time {}".format(
+            mlog.debug('split {} {}'.format(len(split_paths), time() - st))
+            st = time()
+            merge_paths = split_paths.merge()
+            #mlog.debug('merge\n{}'.format(merge_paths))
+            
+            mlog.debug("paths: orig {}, new {}, split {}, merge {}, in memory {} , config {}, time {}".format(
                 len(paths), len(new_paths), len(split_paths), len(merge_paths),
-                Path.__ct__,  ZSolver.__config_ct__, time.time()-st))
+                Path.__ct__,  ZSolver.__config_ct__, time()-st))
 
             paths = merge_paths
                 
@@ -373,12 +397,11 @@ class Skanner:
         for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
             newcond = ZSolver.conj(path.cond, ZSolver.conj(ncond, vcond))
             if self.solver.is_sat(newcond):
-                mlog.info('sat: {}'.format(newcond))
                 new_path = path.fork(newcond)
                 new_path.set_var(name, token, val)
                 new_paths.append(new_path)
             else:
-                mlog.info('unsat: {}'.format(newcond))
+                mlog.debug('unsat: cond len {}'.format(len(str(newcond))))
         return new_paths
 
 
