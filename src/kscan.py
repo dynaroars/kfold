@@ -206,33 +206,6 @@ class Paths(list):
         return '\n'.join("*** path {} ***\n{}".format(i + 1, path)
                          for i, path in enumerate(self))
 
-
-    # def split(self):
-    #     assert self, self
-    #     new_paths = Paths()
-         
-    #     for path in self:
-    #         if not path.states:  #no state
-    #             new_paths.append(path)  #keep path as is
-    #         else:
-    #             for name in path.states:
-    #                 if not any(name.startswith(x)
-    #                            for x in Path.target_vars):
-    #                     new_paths.append(path)  #keep path as is
-    #                 else:
-    #                     myvar = path.states[name]
-    #                     vals = myvar.val.split()
-    #                     if not vals:
-    #                         new_path = path.fork(path.cond, ignore_targets=True)
-    #                         new_path.states[name] = myvar.fork()
-    #                         new_paths.append(new_path)  #keep path as is
-    #                     else:
-    #                         for v in vals:
-    #                             new_path = path.fork(path.cond, ignore_targets=True)
-    #                             new_path.states[name] = myvar.fork_val(v)
-    #                             new_paths.append(new_path)
-     
-
     def split(self):
         assert self, self
         new_paths = Paths()
