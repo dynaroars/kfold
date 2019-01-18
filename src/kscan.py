@@ -13,6 +13,7 @@ import vcommon as CM
 pause = CM.pause
 
 logger_level = 3
+
 class ZSolver:
     __config_ct__ = 0
     __simplify_cache__ = {}
@@ -24,7 +25,7 @@ class ZSolver:
 
     @staticmethod
     def simplify(f):
-
+        assert z3.is_expr(f), f
         if f in ZSolver.__simplify_cache__:
             return ZSolver.__simplify_cache__[f]
         
@@ -36,25 +37,34 @@ class ZSolver:
         return f_
     
     def check(self, f):
+        assert z3.is_expr(f), f
+        
         st = time()
         self.solver.push()
         self.solver.add(f)
         ret = self.solver.check()
         self.solver.pop()
-        #mlog.debug("check (len = {}): {}".format(len(str(f)), time() - st))
         return ret
 
     def is_sat(self, f):
-        if f is None:  #equiv to True
+        assert z3.is_expr(f), f
+        if f is ZSolver.T:  #equiv to True
             return True
-        ret = self.check(f)
-        return ret == z3.sat
+        elif f is ZSolver.F:
+            assert False, 'ever get here?'
+            return False
+        else:
+            ret = self.check(f)
+            return ret == z3.sat
     
     @staticmethod
-    def conj(p,q):
-        if p is None:
+    def conj(p, q):
+        assert z3.is_expr(p), p
+        assert z3.is_expr(q), q
+        
+        if p is ZSolver.T:
             return q
-        elif q is None:
+        elif q is ZSolver.T:
             return p
         else:
             return z3.And(p, q)
@@ -66,8 +76,11 @@ class ZSolver:
 
     @staticmethod
     def disj(p, q):
-        if p is None or q is None:
-            return None
+        assert z3.is_expr(p), p
+        assert z3.is_expr(q), q
+        
+        if p is ZSolver.T or q is ZSolver.T:
+            return ZSolver.T
         else:
             return z3.Or(p, q)
 
@@ -85,7 +98,6 @@ class ZSolver:
         d = {}
         d['typ'] = ttyp
         d['vals'] = dict([v for v in zip(vs, tvals)])
-        #rs.append(('typ', ttyp))
         ZSolver.__config_ct__ += 1
         return z3.Const(name, ttyp), d
 
@@ -94,23 +106,30 @@ class ZSolver:
         assert z3.is_expr(s1) or (isinstance(s1, str) and s1), s1
         assert z3.is_expr(s2) or (isinstance(s2, str) and s2), s2
 
+        def get_val_expr(name, val):
+            _, d_ = d[str(name)]
+            vals = d_['vals']
+            if val not in vals:
+                raise NotImplementedError
+            return vals[val]
+            
+        
         if z3.is_expr(s1) and z3.is_expr(s2):
             return (s1, s2)
+        
         elif not z3.is_expr(s1) and not z3.is_expr(s2):
             raise NotImplementedError
+        
         elif z3.is_expr(s1) and not z3.is_expr(s2):
             #figure the type of s1
-            _, d_ = d[str(s1)]
-            if s2 not in d_:
-                raise NotImplementedError
-            return s1, d_[s2]
+            val = get_val_expr(s1, s2)
+            return s1, val
+        
         else:
             assert not z3.is_expr(s1) and z3.is_expr(s2)
-            _, d_ = d[str(s2)]
-            if s1 not in d_:
-                raise NotimplementedError
-            return d_[s1], s2
-
+            val = get_val_expr(s2, s1)
+            return s2, val
+        
 BaseVar = namedtuple("BaseVar","name val flavor")
 
 class Var(BaseVar):
@@ -177,7 +196,7 @@ class Path:
         if name not in self.states or token in set(["="]):
             if name in self.states:
                 mlog.warn('need more precise semantics of {}'.format(token))
-            self.states[name] = Var(name, uniq(val), Var.get_flavor(token))                
+            self.states[name] = Var(name, uniq(val), Var.get_flavor(token)) 
         else:
             if token == "+=":
                 new_val = self.states[name].val + ' ' +  val
@@ -194,12 +213,12 @@ class Path:
         return ret
 
     @staticmethod
-    def is_target(name):
-        return any(name.startswith(x) for x in Path.target_vars)
+    def is_target(t):
+        return any(t.startswith(x) for x in Path.target_vars)
 
     @staticmethod
-    def is_not_target(name):
-        return not Path.is_target(name)
+    def is_not_target(t):
+        return not Path.is_target(t)
 
 class Paths(list):
     def __str__(self):
@@ -231,7 +250,6 @@ class Paths(list):
                             new_paths.append(new_path)
                             
         assert new_paths
-        #mlog.debug("split out\n{}".format(new_paths))        
         return new_paths
         
     def merge(self):
@@ -254,7 +272,7 @@ class Paths(list):
             path = gpaths[0]
             if len(gpaths) > 1:
                 gcond = ZSolver.mdisj([path.cond for path in gpaths])
-                path.cond = ZSolver.simplify(gcond) if gcond is not None else gcond
+                path.cond = ZSolver.simplify(gcond)
 
             merge_paths.append(path)
   
@@ -280,7 +298,7 @@ class Skanner:
         self.subdirs = []
         
     def go(self):
-        paths = self.parse_stmts(self.stmts, Path(None, {}))
+        paths = self.parse_stmts(self.stmts, Path(ZSolver.T, {}))
         return paths, []
 
 
@@ -322,20 +340,21 @@ class Skanner:
             
             #mlog.debug('orig\n{}'.format(paths))
             #mlog.debug('new\n{}'.format(new_paths))            
-            st_sm = time()
+            st_split = time()
             split_paths = new_paths.split()
-            #mlog.debug('split {} {}'.format(len(split_paths), time() - st))
+            et_split = time() - st_split
+            
+            st_merge = time()
             merge_paths = split_paths.merge()            
-            #mlog.debug('merge\n{}'.format(merge_paths))
-
-
-            mlog.debug("split {}, merge {}, in mem {} , config {}, time {}".format(
-                len(split_paths), len(merge_paths),
-                Path.__ct__,  ZSolver.__config_ct__, time() - st_sm))
+            et_merge = time() - st_merge
 
             paths = merge_paths
+            
+            mlog.debug("split {} {}, merge {} {}, in mem {} , config {}".format(
+                len(split_paths), et_split,
+                len(merge_paths), et_merge,
+                Path.__ct__,  ZSolver.__config_ct__))
 
-                
         return paths
     
     def parse_conditionblock(self, stmt, path):
@@ -378,13 +397,13 @@ class Skanner:
         """
         if isinstance(cond, parserdata.EqCondition):
             exp1 = self.eval_expansion(cond.exp1, path, do_eval=False)
-            #[('CONFIG_A', None)]
-            assert len(exp1) == 1 and exp1[0][1] is None, exp1
+            #[('CONFIG_A', True)]
+            assert len(exp1) == 1 and exp1[0][1] is ZSolver.T, exp1
             exp1 = exp1[0][0]
             
             exp2 = self.eval_expansion(cond.exp2, path, do_eval=False)
-            #[('y', None)])
-            assert len(exp2) == 1 and exp2[0][1] is None, exp2            
+            #[('y', True)])
+            assert len(exp2) == 1 and exp2[0][1] is ZSolver.T, exp2            
             exp2 = exp2[0][0]
 
             exp1, exp2 = ZSolver.get_comparison_pair(exp1, exp2, self.zvars)
@@ -441,7 +460,7 @@ class Skanner:
     def eval_value(self, value, path):
         value = value.strip()
         if not value:
-            return [('', None)]
+            return [('', ZSolver.T)]
         
         values = []
         for value in value.split():
@@ -453,7 +472,7 @@ class Skanner:
         
     def eval_fake_expansion(self, expansion, path):
         if not '$' in expansion:
-            return [(expansion, None)]
+            return [(expansion, ZSolver.T)]
         else:
             stmts = parser.parsestring(expansion, None)
             assert len(stmts) == 1 and isinstance(stmts[0], parserdata.EmptyDirective), stmts
@@ -463,7 +482,7 @@ class Skanner:
 
     def eval_expansion(self, expansion, path, do_eval=True):
         if isinstance(expansion, data.StringExpansion): #'x'
-            return [(expansion.s, None)]
+            return [(expansion.s, ZSolver.T)]
         else:
             assert isinstance(expansion, data.Expansion), expansion
                 
@@ -473,7 +492,7 @@ class Skanner:
         
     def eval_elem(self, elem, isfun, path, do_eval=True):
         if isinstance(elem, str):  
-            return [(elem, None)]
+            return [(elem, ZSolver.T)]
         elif isfun: 
             if isinstance(elem, functions.VariableRef):
                 return self.eval_fun_VariableRef(elem, path, do_eval)
@@ -490,7 +509,7 @@ class Skanner:
         for name, _ in names:
             if name in path.states:
                 val = path.states[name].val
-                vals = [(val, None)]
+                vals = [(val, ZSolver.T)]
 
             elif name.startswith("CONFIG_"):
                 if name not in self.zvars:
@@ -500,10 +519,10 @@ class Skanner:
                 if do_eval:
                     vals = [(k, s == d['vals'][k]) for k in d['vals']]
                 else:
-                    vals = [(s, None)]
+                    vals = [(s, ZSolver.T)]
             else:
                 mlog.warn('cannot eval {}'.format(name))
-                vals = [('', None)]
+                vals = [('', ZSolver.T)]
                 
             rs.extend(vals)
 
