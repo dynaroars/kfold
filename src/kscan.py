@@ -13,7 +13,9 @@ import vcommon as CM
 pause = CM.pause
 
 logger_level = 3
-
+class Settings:
+    target_vars = set(['obj-', 'lib-'])
+    
 class ZSolver:
     __config_ct__ = 0
     __simplify_cache__ = {}
@@ -93,7 +95,7 @@ class ZSolver:
 
     @staticmethod
     def get_tristate_sort(name):
-        vs = ["y", "m"]
+        vs = ["y", "m", "undef"]
         ttyp, tvals = z3.EnumSort(name, vs)
         d = {}
         d['typ'] = ttyp
@@ -102,18 +104,19 @@ class ZSolver:
         return z3.Const(name, ttyp), d
 
     @staticmethod
+    def get_val_expr(name, val, d):
+        _, d_ = d[str(name)]
+        vals = d_['vals']
+        if val not in vals:
+            raise NotImplementedError
+        return vals[val]
+    
+
+    @staticmethod
     def get_comparison_pair(s1, s2, d):
         assert z3.is_expr(s1) or (isinstance(s1, str) and s1), s1
         assert z3.is_expr(s2) or (isinstance(s2, str) and s2), s2
 
-        def get_val_expr(name, val):
-            _, d_ = d[str(name)]
-            vals = d_['vals']
-            if val not in vals:
-                raise NotImplementedError
-            return vals[val]
-            
-        
         if z3.is_expr(s1) and z3.is_expr(s2):
             return (s1, s2)
         
@@ -122,12 +125,12 @@ class ZSolver:
         
         elif z3.is_expr(s1) and not z3.is_expr(s2):
             #figure the type of s1
-            val = get_val_expr(s1, s2)
+            val = ZSolver.get_val_expr(s1, s2, d)
             return s1, val
         
         else:
             assert not z3.is_expr(s1) and z3.is_expr(s2)
-            val = get_val_expr(s2, s1)
+            val = ZSolver.get_val_expr(s2, s1, d)
             return s2, val
         
 BaseVar = namedtuple("BaseVar","name val flavor")
@@ -159,7 +162,7 @@ class Var(BaseVar):
         return flavor
 
 class Path:
-    target_vars = set(['obj-', 'lib-'])    
+    
     __ct__ = 0
     
     def __init__(self, cond, states):
@@ -214,7 +217,7 @@ class Path:
 
     @staticmethod
     def is_target(t):
-        return any(t.startswith(x) for x in Path.target_vars)
+        return any(t.startswith(x) for x in Settings.target_vars)
 
     @staticmethod
     def is_not_target(t):
@@ -366,7 +369,8 @@ class Skanner:
                 new_path = path.fork(newcond)
                 paths = self.parse_stmts(stmts, new_path)
                 return paths
-
+            else:
+                return []
             
         if_cond, then_stmts = stmt[0] #if/then branch
         if_cond = self.eval_condition(if_cond, path)
@@ -389,7 +393,6 @@ class Skanner:
             
 
         return paths
-
     
     def eval_condition(self, cond, path):
         """
@@ -397,7 +400,7 @@ class Skanner:
         """
         if isinstance(cond, parserdata.EqCondition):
             exp1 = self.eval_expansion(cond.exp1, path, do_eval=False)
-            #[('CONFIG_A', True)]
+            #[(CONFIG_A, True)]
             assert len(exp1) == 1 and exp1[0][1] is ZSolver.T, exp1
             exp1 = exp1[0][0]
             
@@ -408,6 +411,20 @@ class Skanner:
 
             exp1, exp2 = ZSolver.get_comparison_pair(exp1, exp2, self.zvars)
             cond = exp1 == exp2
+            return cond
+        
+        elif isinstance(cond, parserdata.IfdefCondition):
+            assert isinstance(cond.exp, data.StringExpansion), cond.exp
+            exp = "$({})".format(cond.exp.s)
+            exp = self.eval_fake_expansion(exp, path, do_eval=False)
+            assert len(exp) == 1 and exp[0][1] is ZSolver.T, exp
+            exp = exp[0][0]
+            undef_val = ZSolver.get_val_expr(exp, 'undef', self.zvars) 
+            if cond.expected:
+                cond = exp != undef_val
+            else:  #ifndef ..
+                cond = exp == undef_val
+
             return cond
         else:
             mlog.warn("Cannot parse condition: {}".format(repr(cond)))
@@ -422,7 +439,7 @@ class Skanner:
         names = self.eval_expansion(nameexp, path)
         values = self.eval_value(value, path)
         
-        new_paths = []        
+        new_paths = []
         for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
             newcond = ZSolver.conj(path.cond, ZSolver.conj(ncond, vcond))
             if self.solver.is_sat(newcond):
@@ -470,13 +487,13 @@ class Skanner:
         comb = self.combine(values, delim=" ")
         return comb
         
-    def eval_fake_expansion(self, expansion, path):
+    def eval_fake_expansion(self, expansion, path, do_eval=True):
         if not '$' in expansion:
             return [(expansion, ZSolver.T)]
         else:
             stmts = parser.parsestring(expansion, None)
             assert len(stmts) == 1 and isinstance(stmts[0], parserdata.EmptyDirective), stmts
-            ret = self.eval_expansion(stmts[0].exp, path)
+            ret = self.eval_expansion(stmts[0].exp, path, do_eval)
             #print 'expansion {} evals to {}'.format(expansion, ret)
             return ret
 
@@ -512,14 +529,7 @@ class Skanner:
                 vals = [(val, ZSolver.T)]
 
             elif name.startswith("CONFIG_"):
-                if name not in self.zvars:
-                    self.zvars[name] = ZSolver.get_tristate_sort(name)
-                s, d = self.zvars[name]
-                
-                if do_eval:
-                    vals = [(k, s == d['vals'][k]) for k in d['vals']]
-                else:
-                    vals = [(s, ZSolver.T)]
+                vals = self.eval_var(name, do_eval)
             else:
                 mlog.warn('cannot eval {}'.format(name))
                 vals = [('', ZSolver.T)]
@@ -527,8 +537,20 @@ class Skanner:
             rs.extend(vals)
 
         return rs
-    
 
+    def eval_var(self, name, do_eval):
+        
+        if name not in self.zvars:
+            self.zvars[name] = ZSolver.get_tristate_sort(name)
+        s, d = self.zvars[name]
+
+        if do_eval:
+            vals = [(k, s == d['vals'][k]) for k in d['vals']]
+        else:
+            vals = [(s, ZSolver.T)]
+
+        return vals
+    
 class Run:
     def __init__(self, paths):
         self.paths = paths
