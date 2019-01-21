@@ -30,7 +30,7 @@ class ZSolver:
         assert z3.is_expr(f), f
         if f in ZSolver.__simplify_cache__:
             return ZSolver.__simplify_cache__[f]
-        
+            
         assert z3.is_expr(f), f
         t = z3.Tactic('ctx-solver-simplify')
         f_ = t(f).as_expr()
@@ -50,10 +50,9 @@ class ZSolver:
 
     def is_sat(self, f):
         assert z3.is_expr(f), f
-        if f is ZSolver.T:  #equiv to True
+        if f is ZSolver.T:
             return True
         elif f is ZSolver.F:
-            assert False, 'ever get here?'
             return False
         else:
             ret = self.check(f)
@@ -69,7 +68,7 @@ class ZSolver:
         elif q is ZSolver.T:
             return p
         else:
-            return z3.And(p, q)
+            return z3.simplify(z3.And(p, q))
 
     @staticmethod
     def mconj(cs):
@@ -84,7 +83,7 @@ class ZSolver:
         if p is ZSolver.T or q is ZSolver.T:
             return ZSolver.T
         else:
-            return z3.Or(p, q)
+            return z3.simplify(z3.Or(p, q))
 
     @staticmethod
     def mdisj(cs):
@@ -92,10 +91,9 @@ class ZSolver:
         f = reduce(lambda p, q: ZSolver.disj(p,q), cs[1:], cs[0])
         return f
         
-
     @staticmethod
     def get_tristate_sort(name):
-        vs = ["y", "m", "undef"]
+        vs = ["y", "m"] #, "undef"
         ttyp, tvals = z3.EnumSort(name, vs)
         d = {}
         d['typ'] = ttyp
@@ -196,7 +194,7 @@ class Path:
         assert isinstance(token, str) # and token in {'='}, token
         assert isinstance(val, str), val
 
-        if name not in self.states or token in set(["="]):
+        if name not in self.states or token in set(["=", ":="]):
             if name in self.states:
                 mlog.warn('need more precise semantics of {}'.format(token))
             self.states[name] = Var(name, uniq(val), Var.get_flavor(token)) 
@@ -205,7 +203,6 @@ class Path:
                 new_val = self.states[name].val + ' ' +  val
                 new_val = uniq(new_val)
                 self.states[name] = self.states[name].fork_val(new_val) #append(val)
-                #self.states[name].append(val)
             else:
                 raise NotImplementedError
                 
@@ -302,7 +299,7 @@ class Skanner:
         
     def go(self):
         paths = self.parse_stmts(self.stmts, Path(ZSolver.T, {}))
-        return paths, []
+        return paths, self.subdirs
 
 
     def parse_stmts(self, stmts, path):
@@ -338,25 +335,37 @@ class Skanner:
                     raise NotImplementedError(
                         "cannot parse {}".format(stmt))
 
-            mlog.debug("paths: orig {}, new {}, time {}".format(
-                len(paths), len(new_paths), time()-st))
+            et_mk = time() - st
+                
+            # mlog.debug(".format(
+            #     len(paths), len(new_paths), time()-st))
+
+            # print '--- ORIG ---'
+            # print paths
+            # print '--- NEW ---'
+            # print new_paths
             
-            #mlog.debug('orig\n{}'.format(paths))
-            #mlog.debug('new\n{}'.format(new_paths))            
             st_split = time()
             split_paths = new_paths.split()
             et_split = time() - st_split
-            
+
+            # print '--- SPLIT ---'
+            # print split_paths            
             st_merge = time()
             merge_paths = split_paths.merge()            
             et_merge = time() - st_merge
 
+            # print '--- MERGE ---'
+            # print merge_paths
+
             paths = merge_paths
             
-            mlog.debug("split {} {}, merge {} {}, in mem {} , config {}".format(
-                len(split_paths), et_split,
-                len(merge_paths), et_merge,
-                Path.__ct__,  ZSolver.__config_ct__))
+            mlog.debug("paths: orig {}, new {} ({:2f}), split {} ({:02f}), merge {} ({:02f}), mem {}, config {}, time {:02f}".format(
+                len(paths), len(new_paths), et_mk,
+                len(split_paths), et_split, 
+                len(merge_paths), et_merge, 
+                Path.__ct__,  ZSolver.__config_ct__,
+                time() - st))
 
         return paths
     
@@ -391,7 +400,6 @@ class Skanner:
         else:
             raise NotImplementedError
             
-
         return paths
     
     def eval_condition(self, cond, path):
@@ -446,8 +454,8 @@ class Skanner:
                 new_path = path.fork(newcond)
                 new_path.set_var(name, token, val)
                 new_paths.append(new_path)
-            else:
-                mlog.debug('unsat: cond len {}'.format(len(str(newcond))))
+            # else:
+            #     mlog.debug('unsat: cond len {}'.format(len(str(newcond))))
         return new_paths
 
 
