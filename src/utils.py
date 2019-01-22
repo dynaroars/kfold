@@ -33,7 +33,8 @@ class Analyze:
 
         counter = Counter(counter)
         ss = ["{}. {} has {} CONFIG vars".format(i+1, makefile, n_occurs)
-              for i, (makefile, n_occurs) in enumerate(counter.most_common())]
+              for i, (makefile, n_occurs) in enumerate(counter.most_common()[::-1])
+              if n_occurs]
         mlog.info("{} Kbuild makefiles\n{}".format(len(makefiles), '\n'.join(ss)))
         
         

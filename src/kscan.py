@@ -16,6 +16,7 @@ logger_level = 3
 class Settings:
     target_vars = set(['obj-', 'lib-'])
     do_mp = True
+    mp_task_len = 50  #start parallel processing when having >= mp_task_len
     
 class ZSolver:
     __config_ct__ = 0
@@ -24,7 +25,7 @@ class ZSolver:
     F = z3.BoolVal(False)
 
     #COptVals = ["y", "m", "undef"]
-    COptVals = ["y", "m"]
+    COptVals = ["y", "m", "undef"]
     COptTyp, COptSymVals = z3.EnumSort("TriState", COptVals)
     COptD = dict(zip(COptVals, COptSymVals))
 
@@ -360,17 +361,13 @@ class Paths(list):
                 else:
                     Q.put(rs)
 
-            mp_len = 50
-            if len(other_paths) >= mp_len:
-                mlog.debug("Multiprocessing on {} tasks".format(len(other_paths)))
-                
             wrs = CM.Miscs.runMP('merge', range(len(other_paths)),
                                  wprocess, chunksiz=2,
-                                 doMP=Settings.do_mp and len(other_paths) >= mp_len)
+                                 doMP=Settings.do_mp and
+                                 len(other_paths) >= Settings.mp_task_len)
 
             for i, cond_str in wrs:
                 cond = ZSolver.from_smt2_str(cond_str)
-                #print '****{} {} => {}'.format(i, other_paths[i].cond, cond)
                 if other_paths[i].cond not in ZSolver.__simplify_cache__:
                     ZSolver.__simplify_cache__[other_paths[i].cond] = cond
                     
@@ -630,10 +627,32 @@ class Skanner:
         elif isfun: 
             if isinstance(elem, functions.VariableRef):
                 return self.eval_fun_VariableRef(elem, path, do_eval)
+            elif isinstance(elem, functions.SubstFunction):
+                return self.eval_fun_SubstFunction(elem, path, do_eval)
             else:
-                raise NotImplementedError
+                raise NotImplementedError(type(elem))
         else:
             return self.eval_expansion(elem)
+
+    def eval_fun_SubstFunction(self, fun, path, do_eval=True):
+        assert isinstance(fun, functions.SubstFunction), fun
+        from_vals = self.eval_expansion(fun._arguments[0], path)
+        to_vals = self.eval_expansion(fun._arguments[1], path)
+        in_vals = self.eval_expansion(fun._arguments[2], path)
+
+        combines = [(fv, tv, iv) for fv in from_vals
+                    for tv in to_vals
+                    for iv in in_vals]
+
+        rs = []
+        for (fv, fc), (tv, tc), (iv, ic) in combines:
+            cond = ZSolver.mconj([fc, tc, ic])
+            if self.solver.is_sat(cond):
+                if tc is None: tc = ""
+                assert iv, iv
+                v = iv.replace(fv, tv)
+                rs.append((v, cond))
+        return rs
         
     def eval_fun_VariableRef(self, fun, path, do_eval=True):
         assert isinstance(fun, functions.VariableRef), fun
@@ -745,7 +764,7 @@ if __name__ == '__main__':
 
     ag('--case-study',
        type=str,
-       help="""avail options: busybox/linux""")
+       help="""avail options: busybox, linux, fromfile""")
     
     args = aparser.parse_args()
 
@@ -766,7 +785,23 @@ if __name__ == '__main__':
             path = args.paths[0]
             paths = [os.path.join(path, sdir) for sdir in os.listdir(path)]
             paths = [p for p in paths if os.path.isdir(p)]
+        elif case_study == "fromfile":
+            def _f(l):
+                parts = l.split()
+                if (not parts[0].startswith("#") and
+                    len(parts) > 1 and parts[1].startswith('/') and
+                    '/arm/' not in parts[1] and
+                    'Kbuild' in parts[1]):
+                    return parts[1]
+                else:
+                    return None
+            
+            path = args.paths[0]
+            #3. /path/to/Makefile has 2 CONFIG vars
+            paths = [_f(l) for l in CM.iread(path)]
+            paths = [p for p in paths if p]
 
+            
     myrun = Run(paths)        
     myrun.go()
     
