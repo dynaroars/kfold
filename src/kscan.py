@@ -12,6 +12,7 @@ import vcommon as CM
 pause = CM.pause
 
 logger_level = 3
+
 class Settings:
     target_vars = set(['obj-', 'lib-'])
     do_mp = True
@@ -22,7 +23,6 @@ class ZSolver:
     T = z3.BoolVal(True)
     F = z3.BoolVal(False)
 
-
     #COptVals = ["y", "m", "undef"]
     COptVals = ["y", "m"]
     COptTyp, COptSymVals = z3.EnumSort("TriState", COptVals)
@@ -32,22 +32,37 @@ class ZSolver:
         self.solver = z3.Solver()
 
     @staticmethod
+    def get_from_simplify_cache(f):
+        assert z3.is_expr(f), f
+        if f in ZSolver.__simplify_cache__:
+            return ZSolver.__simplify_cache__[f]
+        else:
+            return None
+
+    @staticmethod
     def to_smt2_str(f, status="unknown", name="benchmark", logic=""):
         v = (z3.Ast * 0)()
         s = z3.Z3_benchmark_to_smtlib_string(f.ctx_ref(), name, logic, status, "", 0, v, f.as_ast())
         return s
         
     @staticmethod
-    def from_stmt2_str(s):
-        return z3.parse_smt2_string(s)[0]
+    def from_smt2_str(s):
+        e = z3.parse_smt2_string(s)
+        if not e: # []
+            e = ZSolver.T
+        else:
+            e = e[0]
+        assert z3.is_expr(e), e
+        return e
     
     @staticmethod
     def simplify(f):
         assert z3.is_expr(f), f
-        if f in ZSolver.__simplify_cache__:
-            #print 'in cache {}'.format(f)
-            return ZSolver.__simplify_cache__[f]
-            
+
+        f_ = ZSolver.get_from_simplify_cache(f)
+        if f_ is not None:
+            return f_
+        
         assert z3.is_expr(f), f
         t = z3.Tactic('ctx-solver-simplify')
         f_ = t(f).as_expr()
@@ -101,7 +116,8 @@ class ZSolver:
         if p is ZSolver.T or q is ZSolver.T:
             return ZSolver.T
         else:
-            return z3.simplify(z3.Or(p, q))
+            f =  z3.simplify(z3.Or(p, q))
+            return f
 
     @staticmethod
     def mdisj(cs):
@@ -278,36 +294,22 @@ class Paths(list):
             return self
 
 
-        # tasks = groups.values()
-        # assert tasks
-
         def _merge(gpaths):
             assert len(gpaths)
             merge_paths = []
             path = gpaths[0]
             if len(gpaths) > 1:
                 gcond = ZSolver.mdisj([path.cond for path in gpaths])
-                path.cond = ZSolver.simplify(gcond)
+                assert gcond is not ZSolver.F
+                if path.cond is ZSolver.T or path.cond.decl().kind() == z3.Z3_OP_EQ:
+                    path.cond = gcond 
+                else:
+                    path.cond = ZSolver.simplify(gcond)
+
+                #path.cond = ZSolver.simplify(gcond)
             return path
 
 
-            
-        # def wprocess(tasks, Q):
-        #     rs = [z3.BoolVal("1") for _ in tasks]
-
-        #     if Q is None:
-        #         return rs
-        #     else:
-        #         Q.put(rs)
-
-        # wrs = CM.Miscs.runMP('merge', tasks, wprocess, chunksiz=2,
-        #                      doMP=Settings.do_mp and len(tasks) >= 2)
-
-        #merge_paths = Paths()
-        # for mpath in wrs:
-        #     merge_paths.append(mpath)
-        
-        # 
         merge_paths = Paths(_merge(gpaths) for gpaths in groups.itervalues())
         return merge_paths
 
@@ -315,7 +317,6 @@ class Paths(list):
     def merge_mp(self):
         assert self, self
 
-        st_0 = time()
         groups = {}
         for path in self:
             state_hash = path.state_hash
@@ -326,53 +327,56 @@ class Paths(list):
         if len(groups) == len(self):
             return self
 
-        et_0 = time()-st_0
-
-        st_1 = time()
         simplified_paths = []
         other_paths = []
         for gpaths in groups.itervalues():
             path = gpaths[0]
-            if len(gpaths) > 1:
-                path.cond = ZSolver.mdisj([path.cond for path in gpaths])
-                other_paths.append(path)
-            else:
+            if len(gpaths) == 1:
                 simplified_paths.append(path)
+            else:
+                path.cond = ZSolver.mdisj([path.cond for path in gpaths])
+                assert path.cond is not ZSolver.F
+                if path.cond is ZSolver.T or path.cond.decl().kind() == z3.Z3_OP_EQ:
+                    simplified_paths.append(path)
+                else:
+                    scond = ZSolver.get_from_simplify_cache(path.cond)
+                    if scond is not None:
+                        path.cond = scond
+                        simplified_paths.append(path)
+                    else:
+                        other_paths.append(path)
 
-        et_1 = time()-st_1
 
-
-        st_2 = time()
         if other_paths:
-            for path in other_paths:
-                path.cond = ZSolver.simplify(path.cond)
-
-
-        # tasks = other_paths
-        # if tasks:
-        #     def _simplify(i):
-        #         gcond = ZSolver.simplify(other_paths[i].cond)
-        #         #print "{} => \n{}".format(other_paths[i].cond, gcond)
-        #         other_paths[i].cond = gcond
-
-        #     def wprocess(tasks, Q):
-        #         rs = [_simplify(i) for i in range(len(tasks))]
-
-        #         if Q is None:
-        #             return rs
-        #         else:
-        #             Q.put(rs)
-
-        #     wrs = CM.Miscs.runMP('merge', tasks, wprocess, chunksiz=2,
-        #                          doMP=Settings.do_mp and len(tasks) >= 2)
-
-        #     for i in range(len(tasks)):
-        #         _simplify(i)
-
-        et_2 = time()-st_2
+            def _simplify(i):
+                gcond = ZSolver.simplify(other_paths[i].cond)
+                #print '{} => {}'.format(other_paths[i].cond, gcond)
+                return ZSolver.to_smt2_str(gcond)  #so that we can pickle Z3 objects
                 
+            def wprocess(tasks, Q):
+                rs = [(i, _simplify(i)) for i in tasks]
+                if Q is None:
+                    return rs
+                else:
+                    Q.put(rs)
+
+            mp_len = 50
+            if len(other_paths) >= mp_len:
+                mlog.debug("Multiprocessing on {} tasks".format(len(other_paths)))
+                
+            wrs = CM.Miscs.runMP('merge', range(len(other_paths)),
+                                 wprocess, chunksiz=2,
+                                 doMP=Settings.do_mp and len(other_paths) >= mp_len)
+
+            for i, cond_str in wrs:
+                cond = ZSolver.from_smt2_str(cond_str)
+                #print '****{} {} => {}'.format(i, other_paths[i].cond, cond)
+                if other_paths[i].cond not in ZSolver.__simplify_cache__:
+                    ZSolver.__simplify_cache__[other_paths[i].cond] = cond
+                    
+                other_paths[i].cond = cond
+
         merge_paths = Paths(simplified_paths + other_paths)
-        mlog.debug('t0 {}, t1 {}, t2 {}, total {}'.format(et_0,et_1,et_2,time()-et_2))
         return merge_paths
     
         
@@ -447,7 +451,7 @@ class Skanner:
             # print split_paths
             
             st_merge = time()
-            merge_paths = split_paths.merge()
+            merge_paths = split_paths.merge_mp()
             et_merge = time() - st_merge
 
             # print '--- MERGE ---'
