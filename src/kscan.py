@@ -2,11 +2,10 @@ import copy
 from collections import OrderedDict, namedtuple
 import itertools
 from time import time
-
 import os.path
 import pdb
 trace = pdb.set_trace
-
+from multiprocessing import Pool
 from pymake import parser, parserdata, data, functions
 import z3
 import vcommon as CM
@@ -15,20 +14,38 @@ pause = CM.pause
 logger_level = 3
 class Settings:
     target_vars = set(['obj-', 'lib-'])
+    do_mp = True
     
 class ZSolver:
     __config_ct__ = 0
     __simplify_cache__ = {}
     T = z3.BoolVal(True)
-    F = z3.BoolVal(False)        
+    F = z3.BoolVal(False)
+
+
+    #COptVals = ["y", "m", "undef"]
+    COptVals = ["y", "m"]
+    COptTyp, COptSymVals = z3.EnumSort("TriState", COptVals)
+    COptD = dict(zip(COptVals, COptSymVals))
 
     def __init__(self):
         self.solver = z3.Solver()
 
     @staticmethod
+    def to_smt2_str(f, status="unknown", name="benchmark", logic=""):
+        v = (z3.Ast * 0)()
+        s = z3.Z3_benchmark_to_smtlib_string(f.ctx_ref(), name, logic, status, "", 0, v, f.as_ast())
+        return s
+        
+    @staticmethod
+    def from_stmt2_str(s):
+        return z3.parse_smt2_string(s)[0]
+    
+    @staticmethod
     def simplify(f):
         assert z3.is_expr(f), f
         if f in ZSolver.__simplify_cache__:
+            #print 'in cache {}'.format(f)
             return ZSolver.__simplify_cache__[f]
             
         assert z3.is_expr(f), f
@@ -36,6 +53,7 @@ class ZSolver:
         f_ = t(f).as_expr()
 
         ZSolver.__simplify_cache__[f] = f_
+        #mlog.debug("{} =>\n{}".format(f, f_))
         return f_
     
     def check(self, f):
@@ -93,25 +111,19 @@ class ZSolver:
         
     @staticmethod
     def get_tristate_sort(name):
-        vs = ["y", "m"] #, "undef"
-        ttyp, tvals = z3.EnumSort(name, vs)
-        d = {}
-        d['typ'] = ttyp
-        d['vals'] = dict([v for v in zip(vs, tvals)])
         ZSolver.__config_ct__ += 1
-        return z3.Const(name, ttyp), d
+        return z3.Const(name, ZSolver.COptTyp)
 
+    
     @staticmethod
-    def get_val_expr(name, val, d):
-        _, d_ = d[str(name)]
-        vals = d_['vals']
-        if val not in vals:
+    def get_val_expr(name, val):
+        if val not in ZSolver.COptD:
             raise NotImplementedError
-        return vals[val]
+        return ZSolver.COptD[val]
     
 
     @staticmethod
-    def get_comparison_pair(s1, s2, d):
+    def get_comparison_pair(s1, s2):
         assert z3.is_expr(s1) or (isinstance(s1, str) and s1), s1
         assert z3.is_expr(s2) or (isinstance(s2, str) and s2), s2
 
@@ -123,7 +135,7 @@ class ZSolver:
         
         elif z3.is_expr(s1) and not z3.is_expr(s2):
             #figure the type of s1
-            val = ZSolver.get_val_expr(s1, s2, d)
+            val = ZSolver.get_val_expr(s1, s2)
             return s1, val
         
         else:
@@ -265,19 +277,104 @@ class Paths(list):
         if len(groups) == len(self):
             return self
 
-        merge_paths = Paths()
-        for gpaths in groups.itervalues():
-            assert len(gpaths)
 
+        # tasks = groups.values()
+        # assert tasks
+
+        def _merge(gpaths):
+            assert len(gpaths)
+            merge_paths = []
             path = gpaths[0]
             if len(gpaths) > 1:
                 gcond = ZSolver.mdisj([path.cond for path in gpaths])
                 path.cond = ZSolver.simplify(gcond)
+            return path
 
-            merge_paths.append(path)
-  
+
+            
+        # def wprocess(tasks, Q):
+        #     rs = [z3.BoolVal("1") for _ in tasks]
+
+        #     if Q is None:
+        #         return rs
+        #     else:
+        #         Q.put(rs)
+
+        # wrs = CM.Miscs.runMP('merge', tasks, wprocess, chunksiz=2,
+        #                      doMP=Settings.do_mp and len(tasks) >= 2)
+
+        #merge_paths = Paths()
+        # for mpath in wrs:
+        #     merge_paths.append(mpath)
+        
+        # 
+        merge_paths = Paths(_merge(gpaths) for gpaths in groups.itervalues())
         return merge_paths
 
+
+    def merge_mp(self):
+        assert self, self
+
+        st_0 = time()
+        groups = {}
+        for path in self:
+            state_hash = path.state_hash
+            if state_hash not in groups:
+                groups[state_hash] = []
+            groups[state_hash].append(path)
+
+        if len(groups) == len(self):
+            return self
+
+        et_0 = time()-st_0
+
+        st_1 = time()
+        simplified_paths = []
+        other_paths = []
+        for gpaths in groups.itervalues():
+            path = gpaths[0]
+            if len(gpaths) > 1:
+                path.cond = ZSolver.mdisj([path.cond for path in gpaths])
+                other_paths.append(path)
+            else:
+                simplified_paths.append(path)
+
+        et_1 = time()-st_1
+
+
+        st_2 = time()
+        if other_paths:
+            for path in other_paths:
+                path.cond = ZSolver.simplify(path.cond)
+
+
+        # tasks = other_paths
+        # if tasks:
+        #     def _simplify(i):
+        #         gcond = ZSolver.simplify(other_paths[i].cond)
+        #         #print "{} => \n{}".format(other_paths[i].cond, gcond)
+        #         other_paths[i].cond = gcond
+
+        #     def wprocess(tasks, Q):
+        #         rs = [_simplify(i) for i in range(len(tasks))]
+
+        #         if Q is None:
+        #             return rs
+        #         else:
+        #             Q.put(rs)
+
+        #     wrs = CM.Miscs.runMP('merge', tasks, wprocess, chunksiz=2,
+        #                          doMP=Settings.do_mp and len(tasks) >= 2)
+
+        #     for i in range(len(tasks)):
+        #         _simplify(i)
+
+        et_2 = time()-st_2
+                
+        merge_paths = Paths(simplified_paths + other_paths)
+        mlog.debug('t0 {}, t1 {}, t2 {}, total {}'.format(et_0,et_1,et_2,time()-et_2))
+        return merge_paths
+    
         
 class Skanner:
     def __init__(self, makefile):
@@ -337,9 +434,6 @@ class Skanner:
 
             et_mk = time() - st
                 
-            # mlog.debug(".format(
-            #     len(paths), len(new_paths), time()-st))
-
             # print '--- ORIG ---'
             # print paths
             # print '--- NEW ---'
@@ -350,9 +444,10 @@ class Skanner:
             et_split = time() - st_split
 
             # print '--- SPLIT ---'
-            # print split_paths            
+            # print split_paths
+            
             st_merge = time()
-            merge_paths = split_paths.merge()            
+            merge_paths = split_paths.merge()
             et_merge = time() - st_merge
 
             # print '--- MERGE ---'
@@ -374,6 +469,11 @@ class Skanner:
         
         def add_paths(cond, stmts):
             newcond = ZSolver.conj(path.cond, cond)
+
+            # new_path = path.fork(newcond)
+            # paths = self.parse_stmts(stmts, new_path)
+            # return paths
+            
             if self.solver.is_sat(newcond):
                 new_path = path.fork(newcond)
                 paths = self.parse_stmts(stmts, new_path)
@@ -417,7 +517,7 @@ class Skanner:
             assert len(exp2) == 1 and exp2[0][1] is ZSolver.T, exp2            
             exp2 = exp2[0][0]
 
-            exp1, exp2 = ZSolver.get_comparison_pair(exp1, exp2, self.zvars)
+            exp1, exp2 = ZSolver.get_comparison_pair(exp1, exp2)
             cond = exp1 == exp2
             return cond
         
@@ -427,7 +527,7 @@ class Skanner:
             exp = self.eval_fake_expansion(exp, path, do_eval=False)
             assert len(exp) == 1 and exp[0][1] is ZSolver.T, exp
             exp = exp[0][0]
-            undef_val = ZSolver.get_val_expr(exp, 'undef', self.zvars) 
+            undef_val = ZSolver.get_val_expr(exp, 'undef') 
             if cond.expected:
                 cond = exp != undef_val
             else:  #ifndef ..
@@ -450,12 +550,17 @@ class Skanner:
         new_paths = []
         for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
             newcond = ZSolver.conj(path.cond, ZSolver.conj(ncond, vcond))
+
+            # new_path = path.fork(newcond)
+            # new_path.set_var(name, token, val)
+            # new_paths.append(new_path)
+
             if self.solver.is_sat(newcond):
                 new_path = path.fork(newcond)
                 new_path.set_var(name, token, val)
                 new_paths.append(new_path)
-            # else:
-            #     mlog.debug('unsat: cond len {}'.format(len(str(newcond))))
+            else:
+                mlog.debug('unsat: cond len {}'.format(len(str(newcond))))
         return new_paths
 
 
@@ -550,10 +655,11 @@ class Skanner:
         
         if name not in self.zvars:
             self.zvars[name] = ZSolver.get_tristate_sort(name)
-        s, d = self.zvars[name]
+        s = self.zvars[name]
 
         if do_eval:
-            vals = [(k, s == d['vals'][k]) for k in d['vals']]
+            #vals = [(k, s == d['vals'][k]) for k in d['vals']]
+            vals = [(k, s == ZSolver.COptD[k]) for k in ZSolver.COptD]
         else:
             vals = [(s, ZSolver.T)]
 
