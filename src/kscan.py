@@ -380,9 +380,8 @@ class Paths(list):
 class Skanner:
     def __init__(self, makefile):
         assert os.path.isfile(makefile), makefile
-
-        self.solver = ZSolver()
         
+        self.solver = ZSolver()
         makefile_ = open(makefile, "rU")
         stmts = makefile_.read()
         makefile_.close()
@@ -414,24 +413,28 @@ class Skanner:
             for i, path in enumerate(paths):
                 if isinstance(stmt, parserdata.SetVariable):
                     new_paths_ = self.parse_setvar(stmt, path)
-                    new_paths.extend(new_paths_)
 
                 elif isinstance(stmt, parserdata.ConditionBlock):
                     new_paths_ = self.parse_conditionblock(stmt, path)
-                    new_paths.extend(new_paths_)
                     
                 elif isinstance(stmt, (parserdata.Rule,
                                        parserdata.StaticPatternRule)):
                     mlog.warn("Cannot parse Rule: {}".format(stmt))
-                    new_paths.append(path)
+                    new_paths_ = [path]
+
                     
                 elif isinstance(stmt, parserdata.Command):
                     mlog.warn("Cannot parse Command: {}".format(stmt))
-                    new_paths.append(path)
+                    new_paths_ = [path]                    
+
+                elif isinstance(stmt, parserdata.Include):
+                    new_paths_ = self.parse_include(stmt, path)
 
                 else:
                     raise NotImplementedError(
                         "cannot parse {}".format(stmt))
+
+                new_paths.extend(new_paths_)
 
             et_mk = time() - st
                 
@@ -464,39 +467,63 @@ class Skanner:
                 time() - st))
 
         return paths
+
+
+    def parse_include(self, stmt, path):
+
+        #TODO: change and reset topdir
+        
+        assert isinstance(stmt, parserdata.Include), stmt
+
+        exp = self.eval_expansion(stmt.exp, path)
+        paths = []
+        for include_file, include_cond in exp:
+            assert include_file, include_file
+            assert len(include_file.split()) == 1
+
+            if not os.path.exists(include_file):
+                mlog.warn("include file '{}' does not exist".format(include_file))
+                continue
+
+            fh = open(include_file, "rU")
+            stmts = fh.read()
+            fh.close()
+            stmts = parser.parsestring(stmts, fh.name)
+            paths_ = self.add_paths(path, include_cond, stmts)
+            paths.extend(paths_)
+            
+        return paths
+
+    
+    def add_paths(self, path, cond, stmts):
+        newcond = ZSolver.conj(path.cond, cond)
+        if self.solver.is_sat(newcond):
+            new_path = path.fork(newcond)
+            paths = self.parse_stmts(stmts, new_path)
+            return paths
+        else:
+            return []
+        
     
     def parse_conditionblock(self, stmt, path):
         assert isinstance(stmt, parserdata.ConditionBlock), stmt
         
-        def add_paths(cond, stmts):
-            newcond = ZSolver.conj(path.cond, cond)
-
-            # new_path = path.fork(newcond)
-            # paths = self.parse_stmts(stmts, new_path)
-            # return paths
-            
-            if self.solver.is_sat(newcond):
-                new_path = path.fork(newcond)
-                paths = self.parse_stmts(stmts, new_path)
-                return paths
-            else:
-                return []
             
         if_cond, then_stmts = stmt[0] #if/then branch
         if_cond = self.eval_condition(if_cond, path)
 
-        paths = add_paths(if_cond, then_stmts)
+        paths = self.add_paths(path, if_cond, then_stmts)
 
         else_cond = z3.Not(if_cond)
         
         if len(stmt) == 1:  #no else branch, treats as else: empty
             else_stmts = []
             paths_ = [path]  #continue with original path
-            paths_ = add_paths(else_cond, else_stmts)
+            #paths_ = self.add_paths(path, else_cond, else_stmts)
             paths.extend(paths_)
         elif len(stmt) == 2: #else branch
             _, else_stmts = stmt[1]
-            paths_ = add_paths(else_cond, else_stmts)
+            paths_ = self.add_paths(path, else_cond, else_stmts)
             paths.extend(paths_)
         else:
             raise NotImplementedError
@@ -666,6 +693,8 @@ class Skanner:
 
             elif name.startswith("CONFIG_"):
                 vals = self.eval_var(name, do_eval)
+            elif name == "src":
+                vals = [(self.topdir, ZSolver.T)]
             else:
                 mlog.warn('cannot eval {}'.format(name))
                 vals = [('', ZSolver.T)]
@@ -810,3 +839,21 @@ if __name__ == '__main__':
 
 #exploit 1
 #paths in makefiles have many same state contents, so can merge .  e.g.,  x$y  = ...  ,  2 diff paths but same state.
+
+
+
+
+    # def process_include(self, s, condition):
+    #     expanded_include = self.repack_singleton(self.process_expansion(s.exp))
+    #     for include_cond, include_files in expanded_include:
+    #         if include_files != None:
+    #             for include_file in include_files.split():
+    #                 obj = os.path.dirname(include_file)
+    #                 if os.path.exists(include_file):
+    #                     include_makefile = open(include_file, "rU")
+    #                     s = include_makefile.read()
+    #                     include_makefile.close()
+    #                     include_statements = parser.parsestring(s, include_makefile.name)
+    #                     self.process_statements(include_statements, include_cond)
+
+                        
