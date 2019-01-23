@@ -8,8 +8,11 @@ trace = pdb.set_trace
 from multiprocessing import Pool
 from pymake import parser, parserdata, data, functions
 import z3
+
 import vcommon as CM
 pause = CM.pause
+
+from zsolver import ZSolver
 
 logger_level = 3
 
@@ -18,148 +21,6 @@ class Settings:
     do_mp = True
     mp_task_len = 50  #start parallel processing when having >= mp_task_len
     
-class ZSolver:
-    __config_ct__ = 0
-    __simplify_cache__ = {}
-    T = z3.BoolVal(True)
-    F = z3.BoolVal(False)
-
-    #COptVals = ["y", "m", "undef"]
-    COptVals = ["y", "m", "undef"]
-    COptTyp, COptSymVals = z3.EnumSort("TriState", COptVals)
-    COptD = dict(zip(COptVals, COptSymVals))
-
-    def __init__(self):
-        self.solver = z3.Solver()
-
-    @staticmethod
-    def get_from_simplify_cache(f):
-        assert z3.is_expr(f), f
-        if f in ZSolver.__simplify_cache__:
-            return ZSolver.__simplify_cache__[f]
-        else:
-            return None
-
-    @staticmethod
-    def to_smt2_str(f, status="unknown", name="benchmark", logic=""):
-        v = (z3.Ast * 0)()
-        s = z3.Z3_benchmark_to_smtlib_string(f.ctx_ref(), name, logic, status, "", 0, v, f.as_ast())
-        return s
-        
-    @staticmethod
-    def from_smt2_str(s):
-        e = z3.parse_smt2_string(s)
-        if not e: # []
-            e = ZSolver.T
-        else:
-            e = e[0]
-        assert z3.is_expr(e), e
-        return e
-    
-    @staticmethod
-    def simplify(f):
-        assert z3.is_expr(f), f
-
-        f_ = ZSolver.get_from_simplify_cache(f)
-        if f_ is not None:
-            return f_
-        
-        assert z3.is_expr(f), f
-        t = z3.Tactic('ctx-solver-simplify')
-        f_ = t(f).as_expr()
-
-        ZSolver.__simplify_cache__[f] = f_
-        #mlog.debug("{} =>\n{}".format(f, f_))
-        return f_
-    
-    def check(self, f):
-        assert z3.is_expr(f), f
-        
-        st = time()
-        self.solver.push()
-        self.solver.add(f)
-        ret = self.solver.check()
-        self.solver.pop()
-        return ret
-
-    def is_sat(self, f):
-        assert z3.is_expr(f), f
-        if f is ZSolver.T:
-            return True
-        elif f is ZSolver.F:
-            return False
-        else:
-            ret = self.check(f)
-            return ret == z3.sat
-    
-    @staticmethod
-    def conj(p, q):
-        assert z3.is_expr(p), p
-        assert z3.is_expr(q), q
-        
-        if p is ZSolver.T:
-            return q
-        elif q is ZSolver.T:
-            return p
-        else:
-            return z3.simplify(z3.And(p, q))
-
-    @staticmethod
-    def mconj(cs):
-        assert cs
-        return reduce(lambda p, q: ZSolver.conj(p,q), cs[1:], cs[0])        
-
-    @staticmethod
-    def disj(p, q):
-        assert z3.is_expr(p), p
-        assert z3.is_expr(q), q
-        
-        if p is ZSolver.T or q is ZSolver.T:
-            return ZSolver.T
-        else:
-            f =  z3.simplify(z3.Or(p, q))
-            return f
-
-    @staticmethod
-    def mdisj(cs):
-        assert cs
-        f = reduce(lambda p, q: ZSolver.disj(p,q), cs[1:], cs[0])
-        return f
-        
-    @staticmethod
-    def get_tristate_sort(name):
-        ZSolver.__config_ct__ += 1
-        return z3.Const(name, ZSolver.COptTyp)
-
-    
-    @staticmethod
-    def get_val_expr(name, val):
-        if val not in ZSolver.COptD:
-            raise NotImplementedError
-        return ZSolver.COptD[val]
-    
-
-    @staticmethod
-    def get_comparison_pair(s1, s2):
-        assert z3.is_expr(s1) or (isinstance(s1, str) and s1), s1
-        assert z3.is_expr(s2) or (isinstance(s2, str) and s2), s2
-
-        if z3.is_expr(s1) and z3.is_expr(s2):
-            return (s1, s2)
-        
-        elif not z3.is_expr(s1) and not z3.is_expr(s2):
-            raise NotImplementedError
-        
-        elif z3.is_expr(s1) and not z3.is_expr(s2):
-            #figure the type of s1
-            val = ZSolver.get_val_expr(s1, s2)
-            return s1, val
-        
-        else:
-            assert not z3.is_expr(s1) and z3.is_expr(s2)
-            val = ZSolver.get_val_expr(s2, s1, d)
-            return s2, val
-        
 BaseVar = namedtuple("BaseVar","name val flavor")
 
 class Var(BaseVar):
@@ -176,7 +37,6 @@ class Var(BaseVar):
         token = "=" if self.flavor == Var.RECURSE else ":="
         return "{} {} {}".format(self.name, token, self.val)
 
-
     @staticmethod
     def get_flavor(token):
         if token == "=":
@@ -187,6 +47,11 @@ class Var(BaseVar):
             raise NotImplementedError("token {}".format(token))
 
         return flavor
+
+    @staticmethod
+    def src_var(topdir):
+        assert os.path.isdir(topdir), topdir
+        return Var("src", topdir, Var.RECURSE)
 
 class Path:
     
@@ -234,7 +99,7 @@ class Path:
                 self.states[name] = self.states[name].fork_val(new_val) #append(val)
             else:
                 raise NotImplementedError
-                
+
     @property
     def state_hash(self):
         fs = frozenset(sorted(self.states.items()))
@@ -248,6 +113,11 @@ class Path:
     @staticmethod
     def is_not_target(t):
         return not Path.is_target(t)
+
+    @classmethod
+    def get_default(cls, src_dir):
+        states = {'src': Var.src_var(src_dir)}
+        return cls(ZSolver.T, states)
 
 class Paths(list):
     def __str__(self):
@@ -380,24 +250,23 @@ class Paths(list):
 class Skanner:
     def __init__(self, makefile):
         assert os.path.isfile(makefile), makefile
+        mlog.info("parsing: '{}'".format(makefile))
         
-        self.solver = ZSolver()
+        
         makefile_ = open(makefile, "rU")
         stmts = makefile_.read()
         makefile_.close()
-
-        mlog.info("parsing: '{}'".format(makefile))
+        self.stmts = parser.parsestring(stmts, makefile_.name)
+        
         self.topdir = os.path.dirname(makefile)
         self.zvars = {}
-        
-        self.stmts = parser.parsestring(stmts, makefile_.name)
-
         self.subdirs = []
+        self.solver = ZSolver()
         
     def go(self):
-        paths = self.parse_stmts(self.stmts, Path(ZSolver.T, {}))
+        path = Path.get_default(self.topdir)
+        paths = self.parse_stmts(self.stmts, path)
         return paths, self.subdirs
-
 
     def parse_stmts(self, stmts, path):
 
@@ -471,8 +340,6 @@ class Skanner:
 
     def parse_include(self, stmt, path):
 
-        #TODO: change and reset topdir
-        
         assert isinstance(stmt, parserdata.Include), stmt
 
         exp = self.eval_expansion(stmt.exp, path)
@@ -485,20 +352,31 @@ class Skanner:
                 mlog.warn("include file '{}' does not exist".format(include_file))
                 continue
 
+            new_path = self.get_new_path(path, include_cond)
+            if not new_path:
+                continue
+            
             fh = open(include_file, "rU")
             stmts = fh.read()
             fh.close()
             stmts = parser.parsestring(stmts, fh.name)
-            paths_ = self.add_paths(path, include_cond, stmts)
+            paths_ = self.parse_stmts(stmts, new_path)
+
             paths.extend(paths_)
             
         return paths
-
     
-    def add_paths(self, path, cond, stmts):
+    def get_new_path(self, path, cond):
         newcond = ZSolver.conj(path.cond, cond)
         if self.solver.is_sat(newcond):
             new_path = path.fork(newcond)
+            return new_path
+        else:
+            return None
+        
+    def add_paths(self, path, cond, stmts):
+        new_path = self.get_new_path(path, cond)
+        if new_path:
             paths = self.parse_stmts(stmts, new_path)
             return paths
         else:
@@ -507,27 +385,29 @@ class Skanner:
     
     def parse_conditionblock(self, stmt, path):
         assert isinstance(stmt, parserdata.ConditionBlock), stmt
-        
             
         if_cond, then_stmts = stmt[0] #if/then branch
         if_cond = self.eval_condition(if_cond, path)
 
         paths = self.add_paths(path, if_cond, then_stmts)
-
-        else_cond = z3.Not(if_cond)
         
         if len(stmt) == 1:  #no else branch, treats as else: empty
-            else_stmts = []
-            paths_ = [path]  #continue with original path
-            #paths_ = self.add_paths(path, else_cond, else_stmts)
-            paths.extend(paths_)
+            pass  #TODO: 1/22 check this
+            # else_stmts = []
+            # paths_ = []  #continue with original path
+
         elif len(stmt) == 2: #else branch
+            else_cond = z3.Not(if_cond)
             _, else_stmts = stmt[1]
             paths_ = self.add_paths(path, else_cond, else_stmts)
             paths.extend(paths_)
+
         else:
+
             raise NotImplementedError
-            
+
+        
+        
         return paths
     
     def eval_condition(self, cond, path):
@@ -693,12 +573,12 @@ class Skanner:
 
             elif name.startswith("CONFIG_"):
                 vals = self.eval_var(name, do_eval)
-            elif name == "src":
-                vals = [(self.topdir, ZSolver.T)]
+            # elif name == "src":
+            #     vals = [(self.topdir, ZSolver.T)]
             else:
                 mlog.warn('cannot eval {}'.format(name))
                 vals = [('', ZSolver.T)]
-                
+                assert False
             rs.extend(vals)
 
         return rs
@@ -819,14 +699,16 @@ if __name__ == '__main__':
                 parts = l.split()
                 if (not parts[0].startswith("#") and
                     len(parts) > 1 and parts[1].startswith('/') and
-                    '/arm/' not in parts[1] and
-                    'Kbuild' in parts[1]):
+                    all(x not in parts[1] for x in set([
+                        '/tools/'
+                        '/arch/arm/', '/arch/arm64/', '/arch/sh', 
+                        '/arch/s390']))):
+                    #'Kbuild' in parts[1]):
                     return parts[1]
                 else:
                     return None
             
             path = args.paths[0]
-            #3. /path/to/Makefile has 2 CONFIG vars
             paths = [_f(l) for l in CM.iread(path)]
             paths = [p for p in paths if p]
 
@@ -840,20 +722,3 @@ if __name__ == '__main__':
 #exploit 1
 #paths in makefiles have many same state contents, so can merge .  e.g.,  x$y  = ...  ,  2 diff paths but same state.
 
-
-
-
-    # def process_include(self, s, condition):
-    #     expanded_include = self.repack_singleton(self.process_expansion(s.exp))
-    #     for include_cond, include_files in expanded_include:
-    #         if include_files != None:
-    #             for include_file in include_files.split():
-    #                 obj = os.path.dirname(include_file)
-    #                 if os.path.exists(include_file):
-    #                     include_makefile = open(include_file, "rU")
-    #                     s = include_makefile.read()
-    #                     include_makefile.close()
-    #                     include_statements = parser.parsestring(s, include_makefile.name)
-    #                     self.process_statements(include_statements, include_cond)
-
-                        
