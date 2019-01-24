@@ -1,3 +1,4 @@
+import zsolver
 from zsolver import ZSolver
 import vcommon as CM
 import z3
@@ -119,7 +120,7 @@ class Path:
     @classmethod
     def get_default(cls, src_dir):
         states = {'src': Var.src_var(src_dir)}
-        return cls(ZSolver.T, states)
+        return cls(zsolver.T, states)
 
 
 class Paths(list):
@@ -173,14 +174,14 @@ class Paths(list):
             merge_paths = []
             path = gpaths[0]
             if len(gpaths) > 1:
-                gcond = ZSolver.mdisj([path.cond for path in gpaths])
-                assert gcond is not ZSolver.F
-                if path.cond is ZSolver.T or path.cond.decl().kind() == z3.Z3_OP_EQ:
+                gcond = zsolver.mdisj([path.cond for path in gpaths])
+                assert gcond is not zsolver.F
+                if path.cond is zsolver.T or path.cond.decl().kind() == z3.Z3_OP_EQ:
                     path.cond = gcond
                 else:
-                    path.cond = ZSolver.simplify(gcond)
+                    path.cond = zsolver.simplify(gcond)
 
-                #path.cond = ZSolver.simplify(gcond)
+                #path.cond = zsolver.simplify(gcond)
             return path
 
         merge_paths = Paths(_merge(gpaths) for gpaths in groups.itervalues())
@@ -206,12 +207,12 @@ class Paths(list):
             if len(gpaths) == 1:
                 simplified_paths.append(path)
             else:
-                path.cond = ZSolver.mdisj([path.cond for path in gpaths])
-                assert path.cond is not ZSolver.F
-                if path.cond is ZSolver.T or path.cond.decl().kind() == z3.Z3_OP_EQ:
+                path.cond = zsolver.mdisj([path.cond for path in gpaths])
+                assert path.cond is not zsolver.F
+                if path.cond is zsolver.T or path.cond.decl().kind() == z3.Z3_OP_EQ:
                     simplified_paths.append(path)
                 else:
-                    scond = ZSolver.get_from_simplify_cache(path.cond)
+                    scond = zsolver.get_from_simplify_cache(path.cond)
                     if scond is not None:
                         path.cond = scond
                         simplified_paths.append(path)
@@ -220,10 +221,10 @@ class Paths(list):
 
         if other_paths:
             def _simplify(i):
-                gcond = ZSolver.simplify(other_paths[i].cond)
+                gcond = zsolver.simplify(other_paths[i].cond)
                 #print '{} => {}'.format(other_paths[i].cond, gcond)
                 # so that we can pickle Z3 objects
-                return ZSolver.to_smt2_str(gcond)
+                return zsolver.to_smt2_str(gcond)
 
             def wprocess(tasks, Q):
                 rs = [(i, _simplify(i)) for i in tasks]
@@ -238,9 +239,9 @@ class Paths(list):
                                  len(other_paths) >= Settings.mp_task_len)
 
             for i, cond_str in wrs:
-                cond = ZSolver.from_smt2_str(cond_str)
-                if other_paths[i].cond not in ZSolver.__simplify_cache__:
-                    ZSolver.__simplify_cache__[other_paths[i].cond] = cond
+                cond = zsolver.from_smt2_str(cond_str)
+                if other_paths[i].cond not in zsolver.__simplify_cache__:
+                    zsolver.__simplify_cache__[other_paths[i].cond] = cond
 
                 other_paths[i].cond = cond
 
@@ -366,7 +367,7 @@ class Skanner:
         return paths
 
     def get_new_path(self, path, cond):
-        newcond = ZSolver.conj(path.cond, cond)
+        newcond = zsolver.conj(path.cond, cond)
         if self.solver.is_sat(newcond):
             new_path = path.fork(newcond)
             return new_path
@@ -413,15 +414,15 @@ class Skanner:
         if isinstance(cond, parserdata.EqCondition):
             exp1 = self.eval_expansion(cond.exp1, path, do_eval=False)
             #[(CONFIG_A, True)]
-            assert len(exp1) == 1 and exp1[0][1] is ZSolver.T, exp1
+            assert len(exp1) == 1 and exp1[0][1] is zsolver.T, exp1
             exp1 = exp1[0][0]
 
             exp2 = self.eval_expansion(cond.exp2, path, do_eval=False)
             # [('y', True)])
-            assert len(exp2) == 1 and exp2[0][1] is ZSolver.T, exp2
+            assert len(exp2) == 1 and exp2[0][1] is zsolver.T, exp2
             exp2 = exp2[0][0]
 
-            exp1, exp2 = ZSolver.get_comparison_pair(exp1, exp2)
+            exp1, exp2 = zsolver.get_comparison_pair(exp1, exp2)
             cond = exp1 == exp2
             return cond
 
@@ -429,9 +430,9 @@ class Skanner:
             assert isinstance(cond.exp, data.StringExpansion), cond.exp
             exp = "$({})".format(cond.exp.s)
             exp = self.eval_fake_expansion(exp, path, do_eval=False)
-            assert len(exp) == 1 and exp[0][1] is ZSolver.T, exp
+            assert len(exp) == 1 and exp[0][1] is zsolver.T, exp
             exp = exp[0][0]
-            undef_val = ZSolver.get_val_expr(exp, 'undef')
+            undef_val = zsolver.get_val_expr(exp, 'undef')
             if cond.expected:
                 cond = exp != undef_val
             else:  # ifndef ..
@@ -452,7 +453,7 @@ class Skanner:
 
         new_paths = []
         for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
-            newcond = ZSolver.conj(path.cond, ZSolver.conj(ncond, vcond))
+            newcond = zsolver.conj(path.cond, zsolver.conj(ncond, vcond))
 
             # new_path = path.fork(newcond)
             # new_path.set_var(name, token, val)
@@ -484,7 +485,7 @@ class Skanner:
         comb = []
         for pair in itertools.product(*ts):
             ss, cs = zip(*pair)
-            c = ZSolver.mconj(cs)
+            c = zsolver.mconj(cs)
             comb.append((delim.join(ss), c))
 
         return comb
@@ -492,7 +493,7 @@ class Skanner:
     def eval_value(self, value, path):
         value = value.strip()
         if not value:
-            return [('', ZSolver.T)]
+            return [('', zsolver.T)]
 
         values = []
         for value in value.split():
@@ -504,7 +505,7 @@ class Skanner:
 
     def eval_fake_expansion(self, expansion, path, do_eval=True):
         if not '$' in expansion:
-            return [(expansion, ZSolver.T)]
+            return [(expansion, zsolver.T)]
         else:
             stmts = parser.parsestring(expansion, None)
             assert len(stmts) == 1 and isinstance(
@@ -515,7 +516,7 @@ class Skanner:
 
     def eval_expansion(self, expansion, path, do_eval=True):
         if isinstance(expansion, data.StringExpansion):  # 'x'
-            return [(expansion.s, ZSolver.T)]
+            return [(expansion.s, zsolver.T)]
         else:
             assert isinstance(expansion, data.Expansion), expansion
 
@@ -525,7 +526,7 @@ class Skanner:
 
     def eval_elem(self, elem, isfun, path, do_eval=True):
         if isinstance(elem, str):
-            return [(elem, ZSolver.T)]
+            return [(elem, zsolver.T)]
         elif isfun:
             if isinstance(elem, functions.VariableRef):
                 return self.eval_fun_VariableRef(elem, path, do_eval)
@@ -548,7 +549,7 @@ class Skanner:
 
         rs = []
         for (fv, fc), (tv, tc), (iv, ic) in combines:
-            cond = ZSolver.mconj([fc, tc, ic])
+            cond = zsolver.mconj([fc, tc, ic])
             if self.solver.is_sat(cond):
                 if tc is None:
                     tc = ""
@@ -565,15 +566,15 @@ class Skanner:
         for name, _ in names:
             if name in path.states:
                 val = path.states[name].val
-                vals = [(val, ZSolver.T)]
+                vals = [(val, zsolver.T)]
 
             elif name.startswith("CONFIG_"):
                 vals = self.eval_var(name, do_eval)
             # elif name == "src":
-            #     vals = [(self.topdir, ZSolver.T)]
+            #     vals = [(self.topdir, zsolver.T)]
             else:
                 mlog.warn("cannot eval '{}' in this path".format(name))
-                vals = [('', ZSolver.T)]
+                vals = [('', zsolver.T)]
             rs.extend(vals)
 
         return rs
@@ -586,9 +587,9 @@ class Skanner:
 
         if do_eval:
             #vals = [(k, s == d['vals'][k]) for k in d['vals']]
-            vals = [(k, s == ZSolver.COptD[k]) for k in ZSolver.COptD]
+            vals = [(k, s == zsolver.COptD[k]) for k in zsolver.COptD]
         else:
-            vals = [(s, ZSolver.T)]
+            vals = [(s, zsolver.T)]
 
         return vals
 
@@ -699,8 +700,8 @@ if __name__ == '__main__':
                     len(parts) > 1 and parts[1].startswith('/') and
                     all(x not in parts[1] for x in set([
                         '/tools/'
-                        '/arch/arm/', '/arch/arm64/', '/arch/sh',
-                        '/arch/s390']))):
+                        '/arch/arm/', '/arch/arm64/',
+                        '/arch/sh', '/arch/s390']))):
                     # 'Kbuild' in parts[1]):
                     return parts[1]
                 else:
