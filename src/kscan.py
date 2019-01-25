@@ -21,6 +21,7 @@ class Settings:
     do_mp = True
     mp_task_len = 50  # start parallel processing when having >= mp_task_len
     trace_target = "__TRACE__"
+    sym_prefix = "CONFIG_"
 
 
 BaseVar = namedtuple("BaseVar", "name val flavor")
@@ -133,9 +134,22 @@ class Path:
 
 class Paths(list):
     def __str__(self):
-        return '\n'.join(
-            "*** path {} ***\n{}".format(i+1, path)
-            for i, path in enumerate(self))
+        n_paths = len(self)
+
+        paths = []
+        for path in self:
+            s = str(path)
+            if s:
+                paths.append(s)
+
+        ss = ["{}. {}".format(i+1, path)
+              for i, path in enumerate(paths)]
+
+        diff = n_paths - len(paths)
+        if diff:
+            ss.append("Paths: shown {}, hidden {}, total {}".format(
+                len(paths), diff, n_paths))
+        return '\n'.join(ss)
 
     def split(self):
         assert self, self
@@ -414,56 +428,92 @@ class Skanner:
         paths.extend(paths_)
         return paths
 
+    @staticmethod
+    def get_eq_cond(exps1, exps2):
+        """
+        Create a condition that represent exps1 == exps2
+
+        1. exps = [('y', CONFIG_A == y), ('m', CONFIG_A == m)]
+        2. exps = [('y', CONFIG_B == y), ('m', CONFIG_B == m)]
+        3. exps = [('y', T)]
+        3a. exps = ['m', T]
+        # subs, note 'y' has 2 conds
+        4. exps = [('y', CONFIG_B == y), ('y', CONFIG_B == m)]
+        5. exps = [('1',f1) , ('2',f2), ('m', f3)]
+        6. exps = [('m', f4), ('2', f2a)]
+
+        1,2: CONFIG_A == CONFIG_B => (CONFIG_A == y && CONFIG_B== y) || (CONFIG_A == m && CONFIG_B == m)
+        1,3: CONFIG_A == 'y'  =>  CONFIG_A == y
+        1,3a:  CONFIG_A == 'm'  =>  CONFIG_A == m
+        3,4:  CONFIG_B =y || CONFIG_B == m
+        3, 3a:  [] => False
+        3, 3:  T
+        3a, 4:  [] => False
+        5,6:  f3 && f4  or   f2 and f2a
+        """
+        keys1 = set([v for v, _ in exps1])
+        keys2 = set([v for v, _ in exps2])
+        keys = set.intersection(keys1, keys2)
+
+        merge_d = {}
+        for v, c in exps1 + exps2:
+            if v not in keys:
+                continue
+
+            if v not in merge_d:
+                merge_d[v] = []
+            merge_d[v].append(c)
+
+        assert all(len(merge_d[k]) >= 2 for k in merge_d), merge_d
+
+        disjs = [zsolver.mconj(cs) for cs in merge_d.itervalues()]
+        if not disjs:
+            return zsolver.F
+        elif len(disjs) == 1:
+            return disjs[0]
+        else:
+            assert all(disj is not zsolver.T for disj in disjs), disjs
+            return zsolver.mdisj(disjs)
+
     def eval_condition(self, cond, path):
         """
         evaluation arguments of the condition and return a Z3 condition
         """
         if isinstance(cond, parserdata.EqCondition):
-            exp1 = self.eval_expansion(cond.exp1, path, do_eval=False)
-            # [(CONFIG_A, True)]
-            assert len(exp1) == 1 and exp1[0][1] is zsolver.T, exp1
-            exp1 = exp1[0][0]
+            exps1 = self.eval_expansion(cond.exp1, path)
+            exps2 = self.eval_expansion(cond.exp2, path)
 
-            exp2 = self.eval_expansion(cond.exp2, path, do_eval=False)
-            # [('y', True)])
-            assert len(exp2) == 1 and exp2[0][1] is zsolver.T, exp2
-            exp2 = exp2[0][0]
+            eq_cond = self.get_eq_cond(exps1, exps2)
 
-            exp1, exp2 = zsolver.get_comparison_pair(exp1, exp2)
-            if z3.is_expr(exp1) and z3.is_expr(exp2):
-                expr = exp1 == exp2 if cond.expected else exp1 != exp2
-            else:
-                assert isinstance(exp1, str) and isinstance(exp2, str)
-                is_eq = exp1 == exp2
-                if cond.expected:
-                    expr = zsolver.T if is_eq else zsolver.F
-                else:
-                    expr = zsolver.F if is_eq else zsolver.T
-
-            assert z3.is_expr(expr)
-            return expr
+            return eq_cond if cond.expected else zsolver.neg(eq_cond)
 
         elif isinstance(cond, parserdata.IfdefCondition):
             assert isinstance(cond.exp, data.StringExpansion), cond.exp
             exp = "$({})".format(cond.exp.s)
-            exp = self.eval_fake_expansion(exp, path, do_eval=False)
-            assert len(exp) == 1 and exp[0][1] is zsolver.T, exp
-            exp = exp[0][0]
+            exp = self.eval_fake_expansion(exp, path)
 
-            if z3.is_expr(exp):  # defined var, e.g., var = ... somwhere
-                undef_val = zsolver.get_val_expr(exp, 'undef')
-                if cond.expected:
-                    cond = exp != undef_val
-                else:  # ifndef ..
-                    cond = exp == undef_val
-            else:
-                assert isinstance(exp, str), exp
-                exp = exp.strip()
-                if cond.expected:
-                    # True if not '' else False
-                    cond = zsolver.T if exp else zsolver.F
-                else:
-                    cond = zsolver.F if exp else zsolver.T
+            exp_undef = [(zsolver.Undef_Val, zsolver.T)]
+            undef_cond = self.get_eq_cond(exp, exp_undef)
+
+            return zsolver.neg(undef_cond) if cond.expected else undef_cond
+
+            # assert len(exp) == 1 and exp[0][1] is zsolver.T, exp
+            # exp = exp[0][0]
+
+            # if z3.is_expr(exp):  # defined var, e.g., var = ... somwhere
+            #     undef_val = zsolver.get_val_expr(exp, 'undef')
+            #     if cond.expected:
+            #         cond = exp != undef_val
+            #     else:  # ifndef ..
+            #         cond = exp == undef_val
+            # else:
+            #     assert isinstance(exp, str), exp
+            #     exp = exp.strip()
+            #     if cond.expected:
+            #         # True if not '' else False
+            #         cond = zsolver.T if exp else zsolver.F
+            #     else:
+            #         cond = zsolver.F if exp else zsolver.T
 
             return cond
 
@@ -533,40 +583,40 @@ class Skanner:
         comb = self.combine(values, delim=" ")
         return comb
 
-    def eval_fake_expansion(self, expansion, path, do_eval=True):
+    def eval_fake_expansion(self, expansion, path):
         if '$' not in expansion:
             return [(expansion, zsolver.T)]
         else:
             stmts = parser.parsestring(expansion, None)
             assert len(stmts) == 1 and isinstance(
                 stmts[0], parserdata.EmptyDirective), stmts
-            ret = self.eval_expansion(stmts[0].exp, path, do_eval)
+            ret = self.eval_expansion(stmts[0].exp, path)
             return ret
 
-    def eval_expansion(self, expansion, path, do_eval=True):
+    def eval_expansion(self, expansion, path):
         if isinstance(expansion, data.StringExpansion):  # 'x'
             return [(expansion.s, zsolver.T)]
         else:
             assert isinstance(expansion, data.Expansion), expansion
 
-            elems = [self.eval_elem(elem, isfun, path, do_eval)
+            elems = [self.eval_elem(elem, isfun, path)
                      for elem, isfun in expansion]
             return self.combine(elems)
 
-    def eval_elem(self, elem, isfun, path, do_eval=True):
+    def eval_elem(self, elem, isfun, path):
         if isinstance(elem, str):
             return [(elem, zsolver.T)]
         elif isfun:
             if isinstance(elem, functions.VariableRef):
-                return self.eval_fun_VariableRef(elem, path, do_eval)
+                return self.eval_fun_VariableRef(elem, path)
             elif isinstance(elem, functions.SubstFunction):
-                return self.eval_fun_SubstFunction(elem, path, do_eval)
+                return self.eval_fun_SubstFunction(elem, path)
             else:
                 raise NotImplementedError(type(elem))
         else:
             return self.eval_expansion(elem)
 
-    def eval_fun_SubstFunction(self, fun, path, do_eval=True):
+    def eval_fun_SubstFunction(self, fun, path):
         assert isinstance(fun, functions.SubstFunction), fun
         from_vals = self.eval_expansion(fun._arguments[0], path)
         to_vals = self.eval_expansion(fun._arguments[1], path)
@@ -576,7 +626,7 @@ class Skanner:
                     for tv in to_vals
                     for iv in in_vals]
 
-        rs = []
+        d = OrderedDict()
         for (fv, fc), (tv, tc), (iv, ic) in combines:
             cond = zsolver.mconj([fc, tc, ic])
             if self.solver.is_sat(cond):
@@ -584,42 +634,42 @@ class Skanner:
                     tc = ""
                 assert iv, iv
                 v = iv.replace(fv, tv)
-                rs.append((v, cond))
+
+                if v not in d:
+                    d[v] = cond
+                else:
+                    d[v] = zsolver.disj(d[v], cond)
+
+        rs = d.items()
         return rs
 
-    def eval_fun_VariableRef(self, fun, path, do_eval=True):
+    def eval_fun_VariableRef(self, fun, path):
         assert isinstance(fun, functions.VariableRef), fun
 
-        names = self.eval_expansion(fun.vname, path)  # CONFIG_FOO
+        names = self.eval_expansion(fun.vname, path)
         rs = []
         for name, _ in names:
             if name in path.states:
                 val = path.states[name].val
                 vals = [(val, zsolver.T)]
 
-            elif name.startswith("CONFIG_"):
-                vals = self.eval_var(name, do_eval)
-            # elif name == "src":
-            #     vals = [(self.topdir, zsolver.T)]
+            elif name.startswith(Settings.sym_prefix):
+                vals = self.eval_config_var(name)
             else:
-                mlog.warn("cannot eval '{}' in this path".format(name))
-                vals = [('', zsolver.T)]
+                mlog.warn("'{}' undefined in path".format(name))
+                vals = [(zsolver.Undef_Val, zsolver.T)]
             rs.extend(vals)
 
         return rs
 
-    def eval_var(self, name, do_eval):
+    def eval_config_var(self, name):
+        assert name.startswith(Settings.sym_prefix), name
 
         if name not in self.zvars:
             self.zvars[name] = ZSolver.get_tristate_sort(name)
         s = self.zvars[name]
 
-        if do_eval:
-            # vals = [(k, s == d['vals'][k]) for k in d['vals']]
-            vals = [(k, s == zsolver.COptD[k]) for k in zsolver.COptD]
-        else:
-            vals = [(s, zsolver.T)]
-
+        vals = [(k, s == zsolver.COptD[k]) for k in zsolver.COptD]
         return vals
 
 

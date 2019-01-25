@@ -4,10 +4,10 @@ import z3
 __simplify_cache__ = {}
 T = z3.BoolVal(True)
 F = z3.BoolVal(False)
-
-Undef_Val = "undef"
+Undef_Val = ''
+COptNameSymVals = ["y", "m", "undef"]
 COptVals = ["y", "m", Undef_Val]
-COptTyp, COptSymVals = z3.EnumSort("TriState", COptVals)
+COptTyp, COptSymVals = z3.EnumSort("TriState", COptNameSymVals)
 COptD = dict(zip(COptVals, COptSymVals))
 
 
@@ -52,7 +52,7 @@ def neg(p):
     elif p is F:
         return T
     else:
-        return z3.Not(p)
+        return z3.simplify(z3.Not(p))
 
 
 def conj(p, q):
