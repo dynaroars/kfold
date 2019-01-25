@@ -389,21 +389,17 @@ class Skanner:
 
         paths = self.add_paths(path, if_cond, then_stmts)
 
+        #else branch
+        else_cond = z3.Not(if_cond)
         if len(stmt) == 1:  # no else branch, treats as else: empty
-            pass  # TODO: 1/22 check this
-            # else_stmts = []
-            # paths_ = []  #continue with original path
-
+            else_stmts = []
         elif len(stmt) == 2:  # else branch
-            else_cond = z3.Not(if_cond)
             _, else_stmts = stmt[1]
-            paths_ = self.add_paths(path, else_cond, else_stmts)
-            paths.extend(paths_)
-
         else:
+            raise NotImplementedError("{} stmts".format(len(stmt)))
 
-            raise NotImplementedError
-
+        paths_ = self.add_paths(path, else_cond, else_stmts)
+        paths.extend(paths_)
         return paths
 
     def eval_condition(self, cond, path):
@@ -431,13 +427,29 @@ class Skanner:
             exp = self.eval_fake_expansion(exp, path, do_eval=False)
             assert len(exp) == 1 and exp[0][1] is zsolver.T, exp
             exp = exp[0][0]
-            undef_val = zsolver.get_val_expr(exp, 'undef')
-            if cond.expected:
-                cond = exp != undef_val
-            else:  # ifndef ..
-                cond = exp == undef_val
+
+            if not z3.is_expr(exp):  #defined var, e.g., var = ... somwhere
+                assert isinstance(exp, str), exp
+                exp = exp.strip()
+                if cond.expected:
+                    # True if not '' else False
+                    cond = zsolver.T if exp else zsolver.F
+                else:
+                    cond = zsolver.F if exp else zsolver.T
+                        
+            else:
+                
+                undef_val = zsolver.get_val_expr(exp, 'undef')
+
+                if cond.expected:
+
+                    cond = exp != undef_val
+
+                else:  # ifndef ..
+                    cond = exp == undef_val
 
             return cond
+        
         else:
             mlog.warn("Cannot parse condition: {}".format(repr(cond)))
 
