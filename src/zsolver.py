@@ -45,6 +45,16 @@ def simplify(f):
     return f_
 
 
+def neg(p):
+    assert z3.is_expr(p), p
+    if p is T:
+        return F
+    elif p is F:
+        return T
+    else:
+        return z3.Not(p)
+
+
 def conj(p, q):
     assert z3.is_expr(p), p
     assert z3.is_expr(q), q
@@ -93,7 +103,10 @@ def get_comparison_pair(s1, s2):
         return (s1, s2)
 
     elif not z3.is_expr(s1) and not z3.is_expr(s2):
-        raise NotImplementedError
+        # comparing btw 2 str values (e.g., when variables are fully
+        # evaluated
+        assert isinstance(s1, str) and isinstance(s2, str), (s1, s2)
+        return (s1, s2)
 
     elif z3.is_expr(s1) and not z3.is_expr(s2):
         # figure the type of s1

@@ -402,7 +402,7 @@ class Skanner:
         paths = self.add_paths(path, if_cond, then_stmts)
 
         # else branch
-        else_cond = z3.Not(if_cond)
+        else_cond = zsolver.neg(if_cond)
         if len(stmt) == 1:  # no else branch, treats as else: empty
             else_stmts = []
         elif len(stmt) == 2:  # else branch
@@ -430,8 +430,18 @@ class Skanner:
             exp2 = exp2[0][0]
 
             exp1, exp2 = zsolver.get_comparison_pair(exp1, exp2)
-            cond = exp1 == exp2
-            return cond
+            if z3.is_expr(exp1) and z3.is_expr(exp2):
+                expr = exp1 == exp2 if cond.expected else exp1 != exp2
+            else:
+                assert isinstance(exp1, str) and isinstance(exp2, str)
+                is_eq = exp1 == exp2
+                if cond.expected:
+                    expr = zsolver.T if is_eq else zsolver.F
+                else:
+                    expr = zsolver.F if is_eq else zsolver.T
+
+            assert z3.is_expr(expr)
+            return expr
 
         elif isinstance(cond, parserdata.IfdefCondition):
             assert isinstance(cond.exp, data.StringExpansion), cond.exp
