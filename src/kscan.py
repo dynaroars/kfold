@@ -20,7 +20,6 @@ class Settings:
     do_mp = True
     mp_task_len = 50  # start parallel processing when having >= mp_task_len
 
-
 BaseVar = namedtuple("BaseVar", "name val flavor")
 
 

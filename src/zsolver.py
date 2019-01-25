@@ -5,8 +5,8 @@ __simplify_cache__ = {}
 T = z3.BoolVal(True)
 F = z3.BoolVal(False)
 
-# COptVals = ["y", "m", "undef"]
-COptVals = ["y", "m"]
+Undef_Val = "undef"
+COptVals = ["y", "m", Undef_Val]
 COptTyp, COptSymVals = z3.EnumSort("TriState", COptVals)
 COptD = dict(zip(COptVals, COptSymVals))
 
@@ -81,7 +81,7 @@ def mdisj(cs):
 
 def get_val_expr(name, val):
     if val not in COptD:
-        raise NotImplementedError
+        raise NotImplementedError(val)
     return COptD[val]
 
 
@@ -102,7 +102,7 @@ def get_comparison_pair(s1, s2):
 
     else:
         assert not z3.is_expr(s1) and z3.is_expr(s2)
-        val = get_val_expr(s2, s1, d)
+        val = get_val_expr(s2, s1)
         return s2, val
 
 
