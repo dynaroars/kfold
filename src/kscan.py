@@ -20,6 +20,7 @@ class Settings:
     do_mp = True
     mp_task_len = 50  # start parallel processing when having >= mp_task_len
 
+
 BaseVar = namedtuple("BaseVar", "name val flavor")
 
 
@@ -170,7 +171,6 @@ class Paths(list):
 
         def _merge(gpaths):
             assert len(gpaths)
-            merge_paths = []
             path = gpaths[0]
             if len(gpaths) > 1:
                 gcond = zsolver.mdisj([path.cond for path in gpaths])
@@ -179,8 +179,6 @@ class Paths(list):
                     path.cond = gcond
                 else:
                     path.cond = zsolver.simplify(gcond)
-
-                #path.cond = zsolver.simplify(gcond)
             return path
 
         merge_paths = Paths(_merge(gpaths) for gpaths in groups.itervalues())
@@ -389,7 +387,7 @@ class Skanner:
 
         paths = self.add_paths(path, if_cond, then_stmts)
 
-        #else branch
+        # else branch
         else_cond = z3.Not(if_cond)
         if len(stmt) == 1:  # no else branch, treats as else: empty
             else_stmts = []
@@ -428,7 +426,13 @@ class Skanner:
             assert len(exp) == 1 and exp[0][1] is zsolver.T, exp
             exp = exp[0][0]
 
-            if not z3.is_expr(exp):  #defined var, e.g., var = ... somwhere
+            if z3.is_expr(exp):  # defined var, e.g., var = ... somwhere
+                undef_val = zsolver.get_val_expr(exp, 'undef')
+                if cond.expected:
+                    cond = exp != undef_val
+                else:  # ifndef ..
+                    cond = exp == undef_val
+            else:
                 assert isinstance(exp, str), exp
                 exp = exp.strip()
                 if cond.expected:
@@ -436,22 +440,12 @@ class Skanner:
                     cond = zsolver.T if exp else zsolver.F
                 else:
                     cond = zsolver.F if exp else zsolver.T
-                        
-            else:
-                
-                undef_val = zsolver.get_val_expr(exp, 'undef')
-
-                if cond.expected:
-
-                    cond = exp != undef_val
-
-                else:  # ifndef ..
-                    cond = exp == undef_val
 
             return cond
-        
+
         else:
-            mlog.warn("Cannot parse condition: {}".format(repr(cond)))
+            raise NotImplementedError(
+                "Cannot parse condition: {}".format(repr(cond)))
 
     def parse_setvar(self, stmt, path):
         assert isinstance(stmt, parserdata.SetVariable), stmt
@@ -515,14 +509,13 @@ class Skanner:
         return comb
 
     def eval_fake_expansion(self, expansion, path, do_eval=True):
-        if not '$' in expansion:
+        if '$' not in expansion:
             return [(expansion, zsolver.T)]
         else:
             stmts = parser.parsestring(expansion, None)
             assert len(stmts) == 1 and isinstance(
                 stmts[0], parserdata.EmptyDirective), stmts
             ret = self.eval_expansion(stmts[0].exp, path, do_eval)
-            #print 'expansion {} evals to {}'.format(expansion, ret)
             return ret
 
     def eval_expansion(self, expansion, path, do_eval=True):
@@ -693,8 +686,7 @@ if __name__ == '__main__':
     logger_level = getLogLevel(logger_level)
     mlog = getLogger(__name__, logger_level)
     if __debug__:
-        mlog.warn(
-            "DEBUG MODE ON. Can be slow! (Use python -O ... for optimization)")
+        mlog.warn("DEBUG MODE ON. Can be slow! (Use python -O to optimize)")
 
     paths = args.paths
     case_study = args.case_study
