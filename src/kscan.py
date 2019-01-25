@@ -1,9 +1,9 @@
-import zsolver
-from zsolver import ZSolver
-import vcommon as CM
 import z3
+import vcommon as CM
+from zsolver import ZSolver
+import zsolver
 from pymake import parser, parserdata, data, functions
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 import itertools
 from time import time
 import os.path
@@ -16,9 +16,11 @@ logger_level = 3
 
 
 class Settings:
-    target_vars = set(['obj-', 'lib-'])
+    target_vars = frozenset(["obj-", "lib-"])
+    ignore_vars = frozenset(["src"])
     do_mp = True
     mp_task_len = 50  # start parallel processing when having >= mp_task_len
+    trace_target = "__TRACE__"
 
 
 BaseVar = namedtuple("BaseVar", "name val flavor")
@@ -37,6 +39,10 @@ class Var(BaseVar):
     def __str__(self):
         token = "=" if self.flavor == Var.RECURSE else ":="
         return "{} {} {}".format(self.name, token, self.val)
+
+    @property
+    def ignorable(self):
+        return self.name in Settings.ignore_vars
 
     @staticmethod
     def get_flavor(token):
@@ -72,18 +78,20 @@ class Path:
         """
         Create a new path with newcond
         """
-        newstates = {}
+        new_states = OrderedDict()
         for name, v in self.states.iteritems():
             if ignore_targets and Path.is_target(name):
                 continue
-            newstates[name] = v.fork()
-        return Path(newcond, newstates)
+            new_states[name] = v.fork()
+        return Path(newcond, new_states)
 
     def __str__(self):
-        ss = []
-        ss.append("cond: {}".format(self.cond))
-        ss.append('; '.join(str(self.states[v]) for v in self.states))
-        return '\n'.join(ss)
+
+        ss = (v for v in self.states.itervalues() if not v.ignorable)
+        ss = '; '.join(map(str, ss))
+        if ss:
+            ss = "{}\n{}".format("cond: {}".format(self.cond), ss)
+        return ss
 
     def set_var(self, name, token, val):
         assert isinstance(name, str), name
@@ -125,8 +133,9 @@ class Path:
 
 class Paths(list):
     def __str__(self):
-        return '\n'.join("*** path {} ***\n{}".format(i + 1, path)
-                         for i, path in enumerate(self))
+        return '\n'.join(
+            "*** path {} ***\n{}".format(i+1, path)
+            for i, path in enumerate(self))
 
     def split(self):
         assert self, self
@@ -155,34 +164,6 @@ class Paths(list):
 
         assert new_paths
         return new_paths
-
-    def merge(self):
-        assert self, self
-
-        groups = {}
-        for path in self:
-            state_hash = path.state_hash
-            if state_hash not in groups:
-                groups[state_hash] = []
-            groups[state_hash].append(path)
-
-        if len(groups) == len(self):
-            return self
-
-        def _merge(gpaths):
-            assert len(gpaths)
-            path = gpaths[0]
-            if len(gpaths) > 1:
-                gcond = zsolver.mdisj([path.cond for path in gpaths])
-                assert gcond is not zsolver.F
-                if path.cond is zsolver.T or path.cond.decl().kind() == z3.Z3_OP_EQ:
-                    path.cond = gcond
-                else:
-                    path.cond = zsolver.simplify(gcond)
-            return path
-
-        merge_paths = Paths(_merge(gpaths) for gpaths in groups.itervalues())
-        return merge_paths
 
     def merge_mp(self):
         assert self, self
@@ -219,7 +200,7 @@ class Paths(list):
         if other_paths:
             def _simplify(i):
                 gcond = zsolver.simplify(other_paths[i].cond)
-                #print '{} => {}'.format(other_paths[i].cond, gcond)
+                # print '{} => {}'.format(other_paths[i].cond, gcond)
                 # so that we can pickle Z3 objects
                 return zsolver.to_smt2_str(gcond)
 
@@ -257,14 +238,28 @@ class Skanner:
         self.stmts = parser.parsestring(stmts, makefile_.name)
 
         self.topdir = os.path.dirname(makefile)
-        self.zvars = {}
+        self.zvars = OrderedDict()
         self.subdirs = []
         self.solver = ZSolver()
+
+        # store individual states collected at __TRACE__ points
+        self.traces = OrderedDict()
 
     def go(self):
         path = Path.get_default(self.topdir)
         paths = self.parse_stmts(self.stmts, path)
         return paths, self.subdirs
+
+    @staticmethod
+    def get_trace_loc(stmt):
+        """Return the trace location if stmt is a trace command. Otherwise
+        return None.
+        """
+        if (isinstance(stmt, parserdata.Rule) and
+                stmt.targetexp.s == Settings.trace_target):
+            return str(stmt.targetexp.loc)
+        else:
+            return None
 
     def parse_stmts(self, stmts, path):
 
@@ -286,8 +281,7 @@ class Skanner:
 
                 elif isinstance(stmt, (parserdata.Rule,
                                        parserdata.StaticPatternRule)):
-                    mlog.warn("Cannot parse Rule: {}".format(stmt))
-                    new_paths_ = [path]
+                    new_paths_ = self.parse_rule(stmt, path)
 
                 elif isinstance(stmt, parserdata.Command):
                     mlog.warn("Cannot parse Command: {}".format(stmt))
@@ -332,7 +326,27 @@ class Skanner:
                 Path.__ct__,  ZSolver.__config_ct__,
                 time() - st))
 
+            tloc = self.get_trace_loc(stmt)
+            if tloc:
+                mlog.debug("Symbolic traces at '{}'\n{}".format(
+                    tloc, self.traces[tloc]))
+
         return paths
+
+    def parse_rule(self, stmt, path):
+        assert isinstance(
+            stmt, (parserdata.Rule, parserdata.StaticPatternRule)), stmt
+        tloc = self.get_trace_loc(stmt)
+        if tloc:
+            if tloc not in self.traces:
+                self.traces[tloc] = Paths()
+            self.traces[tloc].append(path)
+
+        else:
+            mlog.warn("Cannot parse Rule: {}".format(stmt))
+
+        new_paths = [path]
+        return new_paths
 
     def parse_include(self, stmt, path):
 
@@ -406,7 +420,7 @@ class Skanner:
         """
         if isinstance(cond, parserdata.EqCondition):
             exp1 = self.eval_expansion(cond.exp1, path, do_eval=False)
-            #[(CONFIG_A, True)]
+            # [(CONFIG_A, True)]
             assert len(exp1) == 1 and exp1[0][1] is zsolver.T, exp1
             exp1 = exp1[0][0]
 
@@ -474,10 +488,11 @@ class Skanner:
 
     def combine(self, ts, delim=''):
         """
-        take in a list of tuple(str, cond) and 
+        take in a list of tuple(str, cond) and
         combine the strs if cond is satisfied
         Example 1
-        ts = [[('my-', None)], [('on', None)], [('-', None)], [('y', CONFIG_A == y), ('m', CONFIG_A == m)]]
+        ts = [[('my-', None)], [('on', None)], [('-', None)],
+                [('y', CONFIG_A == y), ('m', CONFIG_A == m)]]
         output = [('my-on-y', CONFIG_A == y), ('my-on-m', CONFIG_A == m)]
         """
         assert ts
@@ -485,7 +500,7 @@ class Skanner:
         if len(ts) == 1:
             return ts[0]
 
-        #print 'ts', ts
+        # print 'ts', ts
 
         comb = []
         for pair in itertools.product(*ts):
@@ -590,7 +605,7 @@ class Skanner:
         s = self.zvars[name]
 
         if do_eval:
-            #vals = [(k, s == d['vals'][k]) for k in d['vals']]
+            # vals = [(k, s == d['vals'][k]) for k in d['vals']]
             vals = [(k, s == zsolver.COptD[k]) for k in zsolver.COptD]
         else:
             vals = [(s, zsolver.T)]
@@ -622,8 +637,8 @@ class Run:
 
         skanner = Skanner(makefile)
         paths, subdirs = skanner.go()
-        mlog.debug(paths)
-        mlog.debug("total {} paths".format(len(paths)))
+
+        mlog.debug("Results ({} paths):\n{}".format(len(paths), paths))
         return paths, subdirs
 
     @classmethod
