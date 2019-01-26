@@ -1,17 +1,19 @@
-import z3
-import vcommon as CM
-from zsolver import ZSolver
-import zsolver
-from pymake import parser, parserdata, data, functions
 from collections import namedtuple, OrderedDict
 import itertools
 from time import time
 import os.path
 import pdb
+
+from pymake import parser, parserdata, data, functions
+import z3
+
+import vcommon as CM
+
+from zsolver import ZSolver
+import zsolver
+
 trace = pdb.set_trace
-
 pause = CM.pause
-
 logger_level = 3
 
 
@@ -497,26 +499,6 @@ class Skanner:
 
             return zsolver.neg(undef_cond) if cond.expected else undef_cond
 
-            # assert len(exp) == 1 and exp[0][1] is zsolver.T, exp
-            # exp = exp[0][0]
-
-            # if z3.is_expr(exp):  # defined var, e.g., var = ... somwhere
-            #     undef_val = zsolver.get_val_expr(exp, 'undef')
-            #     if cond.expected:
-            #         cond = exp != undef_val
-            #     else:  # ifndef ..
-            #         cond = exp == undef_val
-            # else:
-            #     assert isinstance(exp, str), exp
-            #     exp = exp.strip()
-            #     if cond.expected:
-            #         # True if not '' else False
-            #         cond = zsolver.T if exp else zsolver.F
-            #     else:
-            #         cond = zsolver.F if exp else zsolver.T
-
-            return cond
-
         else:
             raise NotImplementedError(
                 "Cannot parse condition: {}".format(repr(cond)))
@@ -571,27 +553,24 @@ class Skanner:
         return comb
 
     def eval_value(self, value, path):
+        assert isinstance(value, str), value
+
         value = value.strip()
         if not value:
             return [('', zsolver.T)]
-
-        values = []
-        for value in value.split():
-            values_ = self.eval_fake_expansion(value, path)
-            values.append(values_)
-
-        comb = self.combine(values, delim=" ")
-        return comb
+        else:
+            val = self.eval_fake_expansion(value, path)
+            return val
 
     def eval_fake_expansion(self, expansion, path):
-        if '$' not in expansion:
-            return [(expansion, zsolver.T)]
-        else:
-            stmts = parser.parsestring(expansion, None)
-            assert len(stmts) == 1 and isinstance(
-                stmts[0], parserdata.EmptyDirective), stmts
-            ret = self.eval_expansion(stmts[0].exp, path)
-            return ret
+        assert isinstance(expansion, str), expansion
+
+        stmts = parser.parsestring(expansion, None)
+        assert len(stmts) == 1 and isinstance(
+            stmts[0], parserdata.EmptyDirective), stmts
+        ret = self.eval_expansion(stmts[0].exp, path)
+
+        return ret
 
     def eval_expansion(self, expansion, path):
         if isinstance(expansion, data.StringExpansion):  # 'x'
@@ -601,7 +580,8 @@ class Skanner:
 
             elems = [self.eval_elem(elem, isfun, path)
                      for elem, isfun in expansion]
-            return self.combine(elems)
+            comb = self.combine(elems)
+            return comb
 
     def eval_elem(self, elem, isfun, path):
         if isinstance(elem, str):
@@ -611,10 +591,40 @@ class Skanner:
                 return self.eval_fun_VariableRef(elem, path)
             elif isinstance(elem, functions.SubstFunction):
                 return self.eval_fun_SubstFunction(elem, path)
+            elif isinstance(elem, functions.AddPrefixFunction):
+                return self.eval_fun_AddPrefixFunction(elem, path)
             else:
                 raise NotImplementedError(type(elem))
         else:
             return self.eval_expansion(elem)
+
+    def eval_fun_AddPrefixFunction(self, fun, path):
+        """
+        $(addprefix src/,foo bar)
+        produces the result 'src/foo src/bar'.
+        """
+        assert isinstance(fun, functions.AddPrefixFunction), fun
+
+        # [('pfx/', True)]
+        prefixes = self.eval_expansion(fun._arguments[0], path)
+
+        # [(' first second y', CONFIG_G == y), (' first second ',
+        # CONFIG_G == undef), (' first second m', CONFIG_G == m)]
+        names = self.eval_expansion(fun._arguments[1], path)
+
+        # important: do not prefix.
+        # e.g., $(addprefix pfx/  , g) is diff than $(addprefix pfx/,  g)
+
+        combines = [(pv, nv) for pv in prefixes for nv in names]
+        d = OrderedDict()
+        for (pv, pc), (nv, nc) in combines:
+            cond = zsolver.conj(pc, nc)
+            if self.solver.is_sat(cond):
+                v = " ".join(pv + n for n in nv.split())
+                d[v] = cond
+
+        rs = d.items()
+        return rs
 
     def eval_fun_SubstFunction(self, fun, path):
         assert isinstance(fun, functions.SubstFunction), fun
@@ -630,11 +640,7 @@ class Skanner:
         for (fv, fc), (tv, tc), (iv, ic) in combines:
             cond = zsolver.mconj([fc, tc, ic])
             if self.solver.is_sat(cond):
-                if tc is None:
-                    tc = ""
-                assert iv, iv
                 v = iv.replace(fv, tv)
-
                 if v not in d:
                     d[v] = cond
                 else:
@@ -795,3 +801,24 @@ if __name__ == '__main__':
 
 # exploit 1
 # paths in makefiles have many same state contents, so can merge .  e.g.,  x$y  = ...  ,  2 diff paths but same state.
+
+    # def process_fun_AddPrefixFunction(self, function):
+    #     prefixes = self.mk_Multiverse(self.process_expansion(function._arguments[0]))
+    #     token_strings = self.mk_Multiverse(self.process_expansion(function._arguments[1]))
+
+    #     hoisted_results = []
+    #     for (prefix_cond, prefix_zcond, prefix) in prefixes:
+    #         for (tokens_cond, tokens_zcond, token_string) in token_strings:
+    #             resulting_cond = conj(prefix_cond, tokens_cond)
+    #             resulting_zcond = z3.And(prefix_zcond, tokens_zcond)
+
+    #             if resulting_cond != self.F:
+    #                 # append prefix to each token in the token_string
+    #                 if token_string is None:
+    #                     prefixed_tokens = ""
+    #                 else:
+    #                     prefixed_tokens = " ".join(prefix + token
+    #                                                for token in token_string.split())
+    #                 hoisted_results.append(CondDef(resulting_cond, resulting_zcond, prefixed_tokens))
+
+    #     return Multiverse(hoisted_results)
