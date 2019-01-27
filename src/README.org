@@ -19,3 +19,12 @@ Potential bug (exact same line): https://github.com/coreboot/coreboot/blob/maste
 
 * Existing works
 ** Kmax:  does it fully evaluate right hand side ? 
+
+
+* TODO
+** remove old subdirs after process them
+** diff btw := , =  , :  , += etc
+** create new structures/makefiles for busybox/linux
+** tests with busybox/linux
+** optimize path creations/mergining (major)
+** Try nontrivla examples from presentation slides

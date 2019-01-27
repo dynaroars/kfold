@@ -272,10 +272,10 @@ class Kbuild:
         # store individual states collected at __TRACE__ points
         self.traces = OrderedDict()
 
-    def go(self, cond):
+    def symexe(self, cond):
         assert cond is None or z3.is_expr(cond), cond
 
-        mlog.info("parsing: '{}'".format(self.makefile))
+        mlog.info("symexe '{}'".format(self.makefile))
 
         path = Path.get_default(cond, self.topdir)
         self.paths = self.parse_stmts(self.stmts, path)
@@ -702,34 +702,33 @@ class Run:
 
     def go(self):
 
+        def get_makefiles(file_paths, cond):
+            makefiles = [self.get_makefile(p) for p in file_paths]
+            return [(makefile, cond) for makefile in makefiles if makefile]
+
         def analyze(makefile, cond):
             assert os.path.isfile(makefile), makefile
             assert cond is None or z3.is_expr(cond), cond
 
             kbuild = Kbuild(makefile)
-            kbuild.go(cond)
+            kbuild.symexe(cond)
             return kbuild
 
-        kbuilds = []
-
-        makefiles = [self.get_makefile(p) for p in self.makefile_paths]
-        makefiles = [(f, None) for f in makefiles if f]
+        kbuilds = []  # results
+        makefiles = get_makefiles(self.makefile_paths, cond=None)
         while makefiles:
 
             # parallel
-            # print 'yoyoo', len(makefiles), makefiles
-            kbuilds_ = [analyze(makefile, path)
-                        for makefile, path in makefiles]
-            makefiles = []
+            kbuilds_ = [analyze(makefile, cond)
+                        for makefile, cond in makefiles]
+            kbuilds.extend(kbuilds_)
 
+            # recurse to subdirs if any
+            makefiles = []
             for kbuild in kbuilds_:
-                kbuilds.append(kbuild)
-                print 'kbuild {} has {} paths'.format(
-                    kbuild.topdir, len(kbuild.paths))
                 for path in kbuild.paths:
-                    makefiles_ = [self.get_makefile(subdir)
-                                  for subdir in path.subdirs(kbuild.topdir)]
-                    makefiles_ = [(f, path.cond) for f in makefiles_ if f]
+                    makefiles_ = get_makefiles(
+                        path.subdirs(kbuild.topdir), path.cond)
                     makefiles.extend(makefiles_)
 
         return kbuilds
