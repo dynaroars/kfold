@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 from collections import namedtuple, OrderedDict
 import itertools
 from time import time
@@ -47,6 +49,11 @@ class Var(BaseVar):
     def ignorable(self):
         return self.name in Settings.ignore_vars
 
+    def subdirs(self, topdir):
+        sd = [os.path.join(topdir, v)
+              for v in self.val.split() if v.endswith("/")]
+        return sd
+
     @staticmethod
     def get_flavor(token):
         if token == "=":
@@ -77,6 +84,18 @@ class Path:
     def __del__(self):
         Path.__ct__ -= 1
 
+    def __str__(self):
+
+        ss = (v for v in self.states.itervalues() if not v.ignorable)
+        ss = '; '.join(map(str, ss))
+        if ss:
+            ss = "{} => {}".format(self.cond, ss)
+        return ss
+
+    def subdirs(self, topdir):
+        subdirs_ = [self.states[v].subdirs(topdir) for v in self.states]
+        return list(itertools.chain(*subdirs_))
+
     def fork(self, newcond, ignore_targets=False):
         """
         Create a new path with newcond
@@ -87,14 +106,6 @@ class Path:
                 continue
             new_states[name] = v.fork()
         return Path(newcond, new_states)
-
-    def __str__(self):
-
-        ss = (v for v in self.states.itervalues() if not v.ignorable)
-        ss = '; '.join(map(str, ss))
-        if ss:
-            ss = "{}\n{}".format("cond: {}".format(self.cond), ss)
-        return ss
 
     def set_var(self, name, token, val):
         assert isinstance(name, str), name
@@ -129,9 +140,12 @@ class Path:
         return not Path.is_target(t)
 
     @classmethod
-    def get_default(cls, src_dir):
+    def get_default(cls, cond, src_dir):
+        assert cond is None or z3.is_expr(cond), cond
+        assert os.path.isdir(src_dir)
+
         states = {'src': Var.src_var(src_dir)}
-        return cls(zsolver.T, states)
+        return cls(zsolver.T if cond is None else cond, states)
 
 
 class Paths(list):
@@ -201,9 +215,10 @@ class Paths(list):
             if len(gpaths) == 1:
                 simplified_paths.append(path)
             else:
-                path.cond = zsolver.mdisj([path.cond for path in gpaths])
+                path.cond = zsolver.mdisj([p.cond for p in gpaths])
                 assert path.cond is not zsolver.F
-                if path.cond is zsolver.T or path.cond.decl().kind() == z3.Z3_OP_EQ:
+                if (path.cond is zsolver.T or
+                        path.cond.decl().kind() == z3.Z3_OP_EQ):
                     simplified_paths.append(path)
                 else:
                     scond = zsolver.get_from_simplify_cache(path.cond)
@@ -216,8 +231,6 @@ class Paths(list):
         if other_paths:
             def _simplify(i):
                 gcond = zsolver.simplify(other_paths[i].cond)
-                # print '{} => {}'.format(other_paths[i].cond, gcond)
-                # so that we can pickle Z3 objects
                 return zsolver.to_smt2_str(gcond)
 
             def wprocess(tasks, Q):
@@ -243,10 +256,9 @@ class Paths(list):
         return merge_paths
 
 
-class Skanner:
+class Kbuild:
     def __init__(self, makefile):
         assert os.path.isfile(makefile), makefile
-        mlog.info("parsing: '{}'".format(makefile))
 
         makefile_ = open(makefile, "rU")
         stmts = makefile_.read()
@@ -254,17 +266,22 @@ class Skanner:
         self.stmts = parser.parsestring(stmts, makefile_.name)
 
         self.topdir = os.path.dirname(makefile)
+        self.makefile = makefile
         self.zvars = OrderedDict()
-        self.subdirs = []
         self.solver = ZSolver()
-
         # store individual states collected at __TRACE__ points
         self.traces = OrderedDict()
 
-    def go(self):
-        path = Path.get_default(self.topdir)
-        paths = self.parse_stmts(self.stmts, path)
-        return paths, self.subdirs
+    def go(self, cond):
+        assert cond is None or z3.is_expr(cond), cond
+
+        mlog.info("parsing: '{}'".format(self.makefile))
+
+        path = Path.get_default(cond, self.topdir)
+        self.paths = self.parse_stmts(self.stmts, path)
+
+        mlog.debug("'{}' has {} paths:\n{}".format(
+            self.makefile, len(self.paths), self.paths))
 
     @staticmethod
     def get_trace_loc(stmt):
@@ -444,7 +461,8 @@ class Skanner:
         5. exps = [('1',f1) , ('2',f2), ('m', f3)]
         6. exps = [('m', f4), ('2', f2a)]
 
-        1,2: CONFIG_A == CONFIG_B => (CONFIG_A == y && CONFIG_B== y) || (CONFIG_A == m && CONFIG_B == m)
+        1,2: CONFIG_A == CONFIG_B =>
+        (CONFIG_A == y && CONFIG_B== y) || (CONFIG_A == m && CONFIG_B == m)
         1,3: CONFIG_A == 'y'  =>  CONFIG_A == y
         1,3a:  CONFIG_A == 'm'  =>  CONFIG_A == m
         3,4:  CONFIG_B =y || CONFIG_B == m
@@ -516,16 +534,11 @@ class Skanner:
         for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
             newcond = zsolver.conj(path.cond, zsolver.conj(ncond, vcond))
 
-            # new_path = path.fork(newcond)
-            # new_path.set_var(name, token, val)
-            # new_paths.append(new_path)
-
             if self.solver.is_sat(newcond):
                 new_path = path.fork(newcond)
                 new_path.set_var(name, token, val)
                 new_paths.append(new_path)
-            else:
-                mlog.debug('unsat: cond len {}'.format(len(str(newcond))))
+
         return new_paths
 
     def combine(self, ts, delim=''):
@@ -680,46 +693,62 @@ class Skanner:
 
 
 class Run:
-    def __init__(self, paths):
-        self.paths = paths
+    def __init__(self, makefile_paths):
+        """makefile_paths is a list of makefile path (either a real makefile
+        or directory)
+
+        """
+        self.makefile_paths = makefile_paths
 
     def go(self):
-        results = []
-        remaining = list(self.paths)
-        while remaining:
+
+        def analyze(makefile, cond):
+            assert os.path.isfile(makefile), makefile
+            assert cond is None or z3.is_expr(cond), cond
+
+            kbuild = Kbuild(makefile)
+            kbuild.go(cond)
+            return kbuild
+
+        kbuilds = []
+
+        makefiles = [self.get_makefile(p) for p in self.makefile_paths]
+        makefiles = [(f, None) for f in makefiles if f]
+        while makefiles:
+
             # parallel
-            results_ = [self.extract(path) for path in remaining]
-            remaining = []
-            for paths, subdirs in results_:
-                results.append(paths)
-                remaining.extend(subdirs)
-        return results
+            # print 'yoyoo', len(makefiles), makefiles
+            kbuilds_ = [analyze(makefile, path)
+                        for makefile, path in makefiles]
+            makefiles = []
 
-    def extract(self, path):
-        makefile = self.get_makefile(path)
-        if not makefile:
-            mlog.warn("{}: cannot process".format(path))
-            return None
+            for kbuild in kbuilds_:
+                kbuilds.append(kbuild)
+                print 'kbuild {} has {} paths'.format(
+                    kbuild.topdir, len(kbuild.paths))
+                for path in kbuild.paths:
+                    makefiles_ = [self.get_makefile(subdir)
+                                  for subdir in path.subdirs(kbuild.topdir)]
+                    makefiles_ = [(f, path.cond) for f in makefiles_ if f]
+                    makefiles.extend(makefiles_)
 
-        skanner = Skanner(makefile)
-        paths, subdirs = skanner.go()
-
-        mlog.debug("Results ({} paths):\n{}".format(len(paths), paths))
-        return paths, subdirs
+        return kbuilds
 
     @classmethod
-    def get_makefile(cls, path):
+    def get_makefile(cls, makefile_path):
         # use Kbuild file if found, otherwise try Makefile
-        if not os.path.exists(path):
+        if not os.path.exists(makefile_path):
+            mlog.warn("{} does not exist".format(makefile_path))
             return None
 
-        makefile = path
-        if os.path.isdir(path):
-            makefile = os.path.join(path, "Kbuild")
+        makefile = makefile_path
+        if os.path.isdir(makefile_path):
+            makefile = os.path.join(makefile_path, "Kbuild")
             if not os.path.isfile(makefile):
-                makefile = os.path.join(path, "Makefile")
+                makefile = os.path.join(makefile_path, "Makefile")
 
         if not os.path.isfile(makefile):
+            mlog.warn("{} has no makefile".format(makefile_path))
             return None
 
         return os.path.abspath(makefile)
@@ -801,24 +830,3 @@ if __name__ == '__main__':
 
 # exploit 1
 # paths in makefiles have many same state contents, so can merge .  e.g.,  x$y  = ...  ,  2 diff paths but same state.
-
-    # def process_fun_AddPrefixFunction(self, function):
-    #     prefixes = self.mk_Multiverse(self.process_expansion(function._arguments[0]))
-    #     token_strings = self.mk_Multiverse(self.process_expansion(function._arguments[1]))
-
-    #     hoisted_results = []
-    #     for (prefix_cond, prefix_zcond, prefix) in prefixes:
-    #         for (tokens_cond, tokens_zcond, token_string) in token_strings:
-    #             resulting_cond = conj(prefix_cond, tokens_cond)
-    #             resulting_zcond = z3.And(prefix_zcond, tokens_zcond)
-
-    #             if resulting_cond != self.F:
-    #                 # append prefix to each token in the token_string
-    #                 if token_string is None:
-    #                     prefixed_tokens = ""
-    #                 else:
-    #                     prefixed_tokens = " ".join(prefix + token
-    #                                                for token in token_string.split())
-    #                 hoisted_results.append(CondDef(resulting_cond, resulting_zcond, prefixed_tokens))
-
-    #     return Multiverse(hoisted_results)

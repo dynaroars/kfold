@@ -1,3 +1,8 @@
+#! /usr/bin/env python3
+
+
+import vcommon as CM
+import z3
 import copy
 from collections import OrderedDict, Counter
 import itertools
@@ -11,8 +16,6 @@ import sys
 import pdb
 trace = pdb.set_trace
 
-import z3
-import vcommon as CM
 pause = CM.pause
 
 logger_level = 3
@@ -21,7 +24,7 @@ logger_level = 3
 class Analyze:
     def __init__(self, path):
         self.path = path
-        
+
     def go(self):
         makefiles = self.get_makefiles(self.path)
 
@@ -35,15 +38,15 @@ class Analyze:
         ss = ["{}. {} has {} CONFIG vars".format(i+1, makefile, n_occurs)
               for i, (makefile, n_occurs) in enumerate(counter.most_common()[::-1])
               if n_occurs]
-        mlog.info("{} Kbuild makefiles\n{}".format(len(makefiles), '\n'.join(ss)))
-        
-        
+        mlog.info("{} Kbuild makefiles\n{}".format(
+            len(makefiles), '\n'.join(ss)))
+
     @staticmethod
     def get_makefiles(topdir):
         kbuild_files = []
         for root, subdirs, files in os.walk(os.path.abspath(topdir)):
             subdirs[:] = [sdir for sdir in subdirs if not sdir.startswith('.')]
-            
+
             kbuild_file = os.path.join(root, 'Kbuild')
             if os.path.isfile(kbuild_file):
                 kbuild_files.append(kbuild_file)
@@ -51,9 +54,8 @@ class Analyze:
                 kbuild_file = os.path.join(root, 'Makefile')
                 if os.path.isfile(kbuild_file):
                     kbuild_files.append(kbuild_file)
-                
-        return kbuild_files
 
+        return kbuild_files
 
     @staticmethod
     def count_var_CONFIG(makefile):
@@ -64,38 +66,39 @@ class Analyze:
 
         results = set(results)
         return len(results)
-        
-if __name__ == '__main__':    
 
-    import argparse    
-    aparser = argparse.ArgumentParser("find interactions from Kbuild Makefiles")
+
+if __name__ == '__main__':
+
+    import argparse
+    aparser = argparse.ArgumentParser(
+        "find interactions from Kbuild Makefiles")
     ag = aparser.add_argument
     ag('path',
        type=str,
        help="""path to Linux Makefiles or dirs""")
-    
+
     ag("--log_level", "-log_level",
        help="set logger info",
-       type=int, 
-       choices=range(5),
-       default = 3)
+       type=int,
+       choices=list(range(5)),
+       default=3)
 
     ag('--case-study',
        type=str,
        help="""avail options: busybox/linux""")
-    
+
     args = aparser.parse_args()
 
-    from vcommon import getLogLevel , getLogger
+    from vcommon import getLogLevel, getLogger
     if args.log_level != logger_level and 0 <= args.log_level <= 4:
         logger_level = args.log_level
 
     logger_level = getLogLevel(logger_level)
-    mlog = getLogger(__name__, logger_level)    
+    mlog = getLogger(__name__, logger_level)
     if __debug__:
-        mlog.warn("DEBUG MODE ON. Can be slow! (Use python -O ... for optimization)")
+        mlog.warn(
+            "DEBUG MODE ON. Can be slow! (Use python -O ... for optimization)")
 
-    myrun = Analyze(args.path)        
+    myrun = Analyze(args.path)
     myrun.go()
-    
-    

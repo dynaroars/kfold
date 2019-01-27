@@ -5,3 +5,17 @@
 ** Detect dead code / unused files
 
 
+
+* Benchmarks
+
+** Coreboot:  https://github.com/coreboot/coreboot  
+Potential bug (exact same line): https://github.com/coreboot/coreboot/blob/master/src/drivers/net/Makefile.inc
+
+
+
+* General Links
+- https://events.linuxfoundation.org/wp-content/uploads/2017/11/A-Dive-into-Kbuild-Cao-Jin-Fujitsu.pdf
+
+
+* Existing works
+** Kmax:  does it fully evaluate right hand side ? 
