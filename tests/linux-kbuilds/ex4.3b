@@ -1,0 +1,4 @@
+#scripts/kconfig/Makefile
+hostprogs-y   := qconf
+qconf-cxxobjs := qconf.o
+qconf-objs    := check.o

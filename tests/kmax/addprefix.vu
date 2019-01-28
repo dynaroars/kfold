@@ -1,0 +1,12 @@
+#simple = hello world
+# a = A
+# test = one$(CONFIG_$a)
+#nada = one $(CONFIG_B) two $(CONFIG_A)
+
+# test = $(addprefix pfx/, first second $(CONFIG_G))
+test = $(addprefix pfx/,        g       h      )
+test2 = $(addprefix pfx1/, )
+all:
+	@echo $(test)
+
+#NEED to split out hello world into different thing ? values is a set of string, instead of a string.

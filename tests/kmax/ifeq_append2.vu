@@ -1,0 +1,9 @@
+# Interesting, Kbuild-Se smart enough to figure out CONFIG_A doesn't matter
+
+ifeq ($(CONFIG_A),y)
+obj-$(CONFIG_B) += 1.o
+else
+obj-$(CONFIG_B) += 1.o
+endif
+
+

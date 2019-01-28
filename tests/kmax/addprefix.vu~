@@ -1,0 +1,6 @@
+simple = hello world
+nada = one two $(three)
+test = $(addprefix pfx/, first second)
+all:
+	echo $(test)
+

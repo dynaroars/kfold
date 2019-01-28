@@ -1,0 +1,21 @@
+(declare-datatypes () ((S A B C)))
+(declare-const x S)
+(declare-const y S)
+(declare-const z S)
+(declare-const u S)
+(assert (distinct x y z))
+(check-sat)
+(assert (distinct x y z u))
+(check-sat)
+
+
+
+
+; (set-info :status unknown)
+; (declare-datatypes ((CONFIG_B 0)) (((y) (m))))
+;  (declare-datatypes ((CONFIG_A 0)) (((y) (m))))
+;  (declare-fun CONFIG_B () CONFIG_B)
+; (declare-fun CONFIG_A () CONFIG_A)
+; (assert
+;  (or (and (= CONFIG_A y) (= CONFIG_B y)) (and (= CONFIG_A y) (= CONFIG_B m)) (and (= CONFIG_A m) (= CONFIG_B y))))
+; ; (check-sat)

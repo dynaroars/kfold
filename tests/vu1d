@@ -1,0 +1,4 @@
+lib-$(CONFIG_A) += a.o
+lib-$(CONFIG_B) += b.o
+lib-$(CONFIG_C) += c.o
+lib-$(CONFIG_D) += c.o

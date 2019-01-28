@@ -11,3 +11,11 @@
 /src/mytest.py
 /src/mytest.py~
 /src/out
+*.pyc
+/src/settings.py~
+/src/todo.org
+/src/todo.org~
+/src/unused.py
+/src/out.1
+/src/out1
+/src/out~

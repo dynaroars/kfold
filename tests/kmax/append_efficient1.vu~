@@ -1,0 +1,8 @@
+obj-$(CONFIG_USB_UAS)		+= uas.o
+obj-$(CONFIG_USB_STORAGE)	+= usb-storage.o
+
+
+
+ifndef CONFIG_USB_STORAGE
+obj-y	+= conflict1.o
+endif

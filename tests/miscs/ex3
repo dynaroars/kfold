@@ -1,0 +1,6 @@
+obj-$(XFS_FS) += xfs.o
+ifeq ($(XFS_QUOTA),y)
+	xfs-$(PROC_FS) += quota/xfs_qm_stats.o
+endif
+
+#RESULTS: xfs_qm_stats.o : (XFS_FS=y || XFS_FS=m) && PROC_FS=y && XFS_QUOTA=y

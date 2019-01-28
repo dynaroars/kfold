@@ -1,0 +1,44 @@
+#v1 := 1
+#__TRACE__:
+#v2 := 2
+# lib-$(CONFIG_A) += a
+# lib-$(CONFIG_B) += a
+# lib-$(CONFIG_C) += k
+
+# a := A
+# ifeq ($(CONFIG_$a), y)
+#   BITS := 32
+# else
+#   BITS := 64
+# endif
+
+
+ifneq ($(CONFIG_B), $(CONFIG_A))
+  BBITS := 32
+else
+  BBITS := 64
+endif
+
+
+ifeq ($(subst m,y,$(CONFIG_IPV6)), y)
+obj-$(CONFIG_X86) += kcmp.o
+else
+obj-$(CONFIG_X86) += y.o	
+endif
+
+
+MyVar := 
+
+ifdef MyVar
+obj-y += 1
+endif
+
+test:
+	@echo $(MyVar)
+	@echo $(obj-y)
+
+
+
+#test subdirs
+obj-y += foo/
+obj-$(CONFIG_1) += bar/

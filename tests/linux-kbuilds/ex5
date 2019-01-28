@@ -1,0 +1,2 @@
+		#lib/Makefile
+		clean-files := crc32table.h

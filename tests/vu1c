@@ -1,0 +1,5 @@
+lib-y:=
+lib-$(CONFIG_HALT) += halt.o
+lib-$(CONFIG_POWEROFF) += halt.o
+
+

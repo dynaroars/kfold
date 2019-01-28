@@ -1,0 +1,5 @@
+ifeq ($(srctree),$(objtree))
+srctree_slash = foo
+else
+srctree_slash = $(srctree)/
+endif
