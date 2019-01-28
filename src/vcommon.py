@@ -7,8 +7,9 @@ import inspect
 
 import logging
 
+
 def pause(s=None):
-    try: #python2
+    try:  # python2
         raw_input("Press any key to continue ..." if s is None else s)
     except NameError:
         input("Press any key to continue ..." if s is None else s)
@@ -17,34 +18,40 @@ def pause(s=None):
 def whoami():
     return inspect.stack()[1][3]
 
+
 def vcmd(cmd, inp=None, shell=True):
-    proc = sp.Popen(cmd,shell=shell,stdin=sp.PIPE,stdout=sp.PIPE,stderr=sp.PIPE)
+    proc = sp.Popen(cmd, shell=shell, stdin=sp.PIPE,
+                    stdout=sp.PIPE, stderr=sp.PIPE)
     return proc.communicate(input=inp)
-        
-def vload(filename,mode='rb'):
+
+
+def vload(filename, mode='rb'):
     try:
         import cPickle as pickle
-    except ImportError:  #Python3
+    except ImportError:  # Python3
         import pickle
 
-    with open(filename,mode) as fh:
+    with open(filename, mode) as fh:
         pickler = pickle.Unpickler(fh)
         sobj = pickler.load()
     return sobj
 
-def vsave(filename,sobj,mode='wb'):
+
+def vsave(filename, sobj, mode='wb'):
     try:
         import cPickle as pickle
-    except ImportError:  #Python3
+    except ImportError:  # Python3
         import pickle
-        
-    with open(filename,mode) as fh:
-        pickler = pickle.Pickler(fh,-1)
+
+    with open(filename, mode) as fh:
+        pickler = pickle.Pickler(fh, -1)
         pickler.dump(sobj)
+
 
 def vread(filename):
     with open(filename, 'r') as fh:
         return fh.read()
+
 
 def iread(filename):
     """ return a generator """
@@ -52,13 +59,15 @@ def iread(filename):
         for line in fh:
             yield line
 
+
 def strip_contents(lines, strip_c='#'):
     lines = (l.strip() for l in lines)
     lines = (l for l in lines if l)
     if strip_c:
         lines = (l for l in lines if not l.startswith(strip_c))
     return lines
-    
+
+
 def iread_strip(filename, strip_c='#'):
     """
     like iread but also strip out comments and empty line
@@ -66,14 +75,20 @@ def iread_strip(filename, strip_c='#'):
     return strip_contents(iread(filename), strip_c)
 
 
-vmul = lambda l: reduce(operator.mul, l, 1)
+def vmul(l): return reduce(operator.mul, l, 1)
 
-getpath = lambda f: os.path.realpath(os.path.expanduser(f))
-file_basename = lambda filename: os.path.splitext(filename)[0]
 
-iflatten = lambda l: itertools.chain.from_iterable(l) #return a generator
+def getpath(f): return os.path.realpath(os.path.expanduser(f))
+
+
+def file_basename(filename): return os.path.splitext(filename)[0]
+
+
+def iflatten(l): return itertools.chain.from_iterable(l)  # return a generator
 
 # log utils
+
+
 def getLogger(name, level):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
@@ -84,9 +99,10 @@ def getLogger(name, level):
     logger.addHandler(ch)
     return logger
 
+
 def getLogLevel(level):
     assert level in set(range(5))
-    
+
     if level == 0:
         return logging.CRITICAL
     elif level == 1:
@@ -97,7 +113,6 @@ def getLogLevel(level):
         return logging.INFO
     else:
         return logging.DEBUG
-
 
 
 class Miscs:
@@ -123,25 +138,24 @@ class Miscs:
         assert maxProcessces >= 1, maxProcessces
         assert chunksiz >= 1, chunksiz
 
-        #determine # of processes
+        # determine # of processes
         ntasks = len(tasks)
         nprocesses = int(round(ntasks/float(chunksiz)))
         if nprocesses > maxProcessces:
             nprocesses = maxProcessces
 
-        #determine workloads 
+        # determine workloads
         cs = int(round(ntasks/float(nprocesses)))
         wloads = []
         for i in range(nprocesses):
             s = i*cs
             e = s+cs if i < nprocesses-1 else ntasks
             wl = tasks[s:e]
-            if wl:  #could be 0, e.g., getWorkloads(range(12),7,1)
+            if wl:  # could be 0, e.g., getWorkloads(range(12),7,1)
                 wloads.append(wl)
 
-        return wloads        
+        return wloads
 
-    
     @classmethod
     def runMP(cls, taskname, tasks, wprocess, chunksiz, doMP):
         """
@@ -149,19 +163,21 @@ class Miscs:
         """
         if doMP:
             from multiprocessing import (Process, Queue, cpu_count)
-            Q=Queue()
+            Q = Queue()
             wloads = cls.getWorkloads(
                 tasks, maxProcessces=cpu_count(), chunksiz=chunksiz)
 
             # mlog.debug("workloads '{}' {}: {}"
             #            .format(taskname, len(wloads), map(len,wloads)))
 
-            workers = [Process(target=wprocess, args=(wl,Q)) for wl in wloads]
-                       
-            for w in workers: w.start()
+            workers = [Process(target=wprocess, args=(wl, Q)) for wl in wloads]
+
+            for w in workers:
+                w.start()
             wrs = []
-            for _ in workers: wrs.extend(Q.get())
+            for _ in workers:
+                wrs.extend(Q.get())
         else:
             wrs = wprocess(tasks, Q=None)
-                            
-        return wrs    
+
+        return wrs

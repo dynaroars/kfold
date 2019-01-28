@@ -47,7 +47,7 @@ def fileOK(makefile):
 
 def create_makefiles(from_dir, to_dir, fileOK):
     assert os.path.isdir(from_dir) and os.path.isabs(from_dir), from_dir
-    assert os.path.isdir(to_dir) and os.path.isabs(to_dir), to_dir
+    #assert os.path.isdir(to_dir) and os.path.isabs(to_dir), to_dir
 
     makefiles = get_makefiles(from_dir)
     if fileOK is not None:
@@ -98,8 +98,8 @@ def count_var_CONFIG(makefile):
 
 
 # scripts
-from_dir = os.path.abspath(os.path.expanduser("~/Src/LOCAL/EXP/kmax/busybox/"))
+from_dir = os.path.abspath(os.path.expanduser("~/Src/LOCAL/EXP/kmax/linux/"))
 to_dir = os.path.abspath(os.path.expanduser(
-    "~/Src/LOCAL/EXP/kmax/busybox_makefiles_only"))
+    "~/Src/LOCAL/EXP/kmax/linux_makefiles_only"))
 
 create_makefiles(from_dir, to_dir, fileOK)

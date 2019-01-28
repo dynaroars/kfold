@@ -3,6 +3,7 @@
 from collections import namedtuple, OrderedDict
 import itertools
 from time import time
+from datetime import datetime
 import os.path
 import pdb
 
@@ -89,16 +90,18 @@ class Path:
         subdirs_ = [self.states[v].subdirs(topdir) for v in self.states]
         return list(itertools.chain(*subdirs_))
 
-    def fork(self, newcond, ignore_targets=False):
+    def fork(self, new_cond, ignore_targets=False):
         """
         Create a new path with newcond
         """
+        assert z3.is_expr(new_cond), new_cond
+
         new_states = OrderedDict()
         for name, v in self.states.iteritems():
             if ignore_targets and Path.is_target(name):
                 continue
             new_states[name] = v.fork()
-        return Path(newcond, new_states)
+        return Path(new_cond, new_states)
 
     def set_var(self, name, token, val):
         assert isinstance(name, str), name
@@ -118,6 +121,32 @@ class Path:
             else:
                 raise NotImplementedError
 
+    def split(self):
+        new_paths = []
+        assert self.states
+        if all(self.is_not_target(name) for name in self.states):
+            new_paths.append(self)  # keep path as is
+        else:
+            for name in self.states:
+                if Path.is_not_target(name):  # don't split value of this var
+                    continue
+
+                myvar = self.states[name]
+                vals = myvar.val.split()
+                if not vals:
+                    new_path = self.fork(self.cond, ignore_targets=True)
+                    new_path.states[name] = myvar.fork()
+                    new_paths.append(new_path)
+                else:
+                    for v in vals:
+                        new_path = self.fork(
+                            self.cond, ignore_targets=True)
+                        new_path.states[name] = myvar.fork_val(v)
+                        new_paths.append(new_path)
+
+        assert new_paths
+        return new_paths
+
     @property
     def state_hash(self):
         fs = frozenset(sorted(self.states.items()))
@@ -134,11 +163,11 @@ class Path:
 
     @classmethod
     def get_default(cls, cond, src_dir):
-        assert cond is None or z3.is_expr(cond), cond
+        assert z3.is_expr(cond), cond
         assert os.path.isdir(src_dir)
 
         states = {'src': Var.src_var(src_dir)}
-        return cls(zsolver.T if cond is None else cond, states)
+        return cls(cond, states)
 
 
 class Paths(list):
@@ -163,32 +192,14 @@ class Paths(list):
     def split(self):
         assert self, self
         new_paths = Paths()
-
         for path in self:
-            if (not path.states or  # no state
-                    all(Path.is_not_target(name) for name in path.states)):
-                new_paths.append(path)  # keep path as is
-            else:
-                for name in path.states:
-                    if Path.is_not_target(name):
-                        continue
-                    myvar = path.states[name]
-                    vals = myvar.val.split()
-                    if not vals:
-                        new_path = path.fork(path.cond, ignore_targets=True)
-                        new_path.states[name] = myvar.fork()
-                        new_paths.append(new_path)
-                    else:
-                        for v in vals:
-                            new_path = path.fork(
-                                path.cond, ignore_targets=True)
-                            new_path.states[name] = myvar.fork_val(v)
-                            new_paths.append(new_path)
+            new_paths_ = path.split()
+            new_paths.extend(new_paths_)
 
         assert new_paths
         return new_paths
 
-    def merge_mp(self):
+    def merge(self):
         assert self, self
 
         groups = {}
@@ -266,15 +277,17 @@ class Kbuild:
         self.traces = OrderedDict()
 
     def symexe(self, cond):
-        assert cond is None or z3.is_expr(cond), cond
-
-        mlog.info("symexe '{}'".format(self.makefile))
+        assert z3.is_expr(cond), cond
+        st = time()
+        mlog.info("{}: symexe '{}'".format(
+            datetime.now().strftime("%Y-%m-%d %H:%M"), self.makefile))
 
         path = Path.get_default(cond, self.topdir)
         self.paths = self.parse_stmts(self.stmts, path)
 
-        mlog.debug("'{}' has {} paths:\n{}".format(
-            self.makefile, len(self.paths), self.paths))
+        mlog.info("found {} paths ({}s)".format(
+            len(self.paths), time() - st))
+        mlog.debug(self.paths)
 
     @staticmethod
     def get_trace_loc(stmt):
@@ -324,23 +337,23 @@ class Kbuild:
 
             et_mk = time() - st
 
-            # print '--- ORIG ---'
+            # print '--- ORIG --- ({} paths)'.format(len(paths))
             # print paths
-            # print '--- NEW ---'
+            # print '--- NEW --- ({} paths)'.format(len(new_paths))
             # print new_paths
 
             st_split = time()
             split_paths = new_paths.split()
             et_split = time() - st_split
 
-            # print '--- SPLIT ---'
+            # print '--- SPLIT --- ({} paths)'.format(len(split_paths))
             # print split_paths
 
             st_merge = time()
-            merge_paths = split_paths.merge_mp()
+            merge_paths = split_paths.merge()
             et_merge = time() - st_merge
 
-            # print '--- MERGE ---'
+            # print '--- MERGE --- ({} paths)'.format(len(merge_paths))
             # print merge_paths
 
             paths = merge_paths
@@ -702,13 +715,12 @@ class Run:
         def analyze(makefile, cond):
             assert os.path.isfile(makefile), makefile
             assert cond is None or z3.is_expr(cond), cond
-
             kbuild = Kbuild(makefile)
             kbuild.symexe(cond)
             return kbuild
 
         kbuilds = []  # results
-        makefiles = get_makefiles(self.makefile_paths, cond=None)
+        makefiles = get_makefiles(self.makefile_paths, cond=zsolver.T)
         while makefiles:
 
             # parallel
@@ -724,6 +736,7 @@ class Run:
                         path.subdirs(kbuild.topdir), path.cond)
                     makefiles.extend(makefiles_)
 
+        mlog.info("analyzed {} kbuild makefiles".format(len(kbuilds)))
         return kbuilds
 
     @classmethod
