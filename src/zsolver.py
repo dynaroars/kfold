@@ -5,9 +5,11 @@ __simplify_cache__ = {}
 T = z3.BoolVal(True)
 F = z3.BoolVal(False)
 Undef_Val = ''
-#COptNameSymVals = ["y", "m", "undef"]
+# COptNameSymVals = ["y", "m", "undef"]
+# COptVals = ["y", "m", Undef_Val]
+
 COptNameSymVals = ["y", "m"]
-COptVals = ["y", "m", Undef_Val]
+COptVals = ["y", "m"]
 COptTyp, COptSymVals = z3.EnumSort("TriState", COptNameSymVals)
 COptD = dict(zip(COptVals, COptSymVals))
 
