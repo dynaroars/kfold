@@ -25,10 +25,15 @@ trace = pdb.set_trace
 pause = CM.pause
 
 
+class SomeUndefined(Exception):
+    def __init__(self, undef_var):
+        self.undef_var = undef_var
+
+
 class Eval(object):
     def __init__(self, path, solver, zvars):
-        assert isinstance(path, Path), path
-
+        # path is None => spy
+        assert path is None or isinstance(path, Path), path
         self.path = path
         self.solver = solver
         self.zvars = zvars
@@ -157,17 +162,22 @@ class Eval(object):
         assert isinstance(fun, functions.VariableRef), fun
 
         names = self.do_expansion(fun.vname)
+
         rs = []
         for name, _ in names:
-            if name in self.path.states:
-                val = self.path.states[name].val
-                vals = [(val, zsolver.T)]
-
-            elif name.startswith(settings.sym_prefix):
+            if name.startswith(settings.sym_prefix):
                 vals = self.do_config_var(name)
             else:
-                mlog.warn("'{}' undefined in path".format(name))
-                vals = [(zsolver.Undef_Val, zsolver.T)]
+                if self.path:
+                    if name in self.path.states:
+                        vals = self.path.states[name].vals
+                        vals = [(vals, zsolver.T)]
+                    else:
+                        mlog.warn("'{}' undefined in path".format(name))
+                        vals = [(zsolver.Undef_Val, zsolver.T)]
+                else:  # spy
+                    raise SomeUndefined(name)
+
             rs.extend(vals)
 
         return rs
@@ -185,6 +195,7 @@ class Eval(object):
 
 class ParserData(object):
     def __init__(self, stmt, paths, solver, zvars):
+        assert isinstance(paths, Paths), paths
         self.stmt = stmt
         self.paths = paths
         self.solver = solver
@@ -195,6 +206,7 @@ class ParserData(object):
         for i, path in enumerate(self.paths):
             new_paths_ = self.parse_single(path)
             new_paths.extend(new_paths_)
+
         return new_paths
 
     def get_new_path(self, path, cond):
@@ -236,8 +248,8 @@ class StatementList(ParserData):
                 cls = SetVariable
             elif isinstance(stmt, parserdata.ConditionBlock):
                 cls = ConditionBlock
-            elif isinstance(stmt, (parserdata.Rule,
-                                   parserdata.StaticPatternRule)):
+            elif isinstance(stmt,
+                            (parserdata.Rule, parserdata.StaticPatternRule)):
                 cls = Rule
             elif isinstance(stmt, parserdata.Include):
                 cls = Include
@@ -247,27 +259,29 @@ class StatementList(ParserData):
                 raise NotImplementedError("cannot parse {}".format(stmt))
 
             new_paths = cls(stmt, paths, self.solver, self.zvars).parse()
-
             et_mk = time() - st
 
-            # print '--- ORIG --- ({} paths)'.format(len(paths))
-            # print paths
-            # print '--- NEW --- ({} paths)'.format(len(new_paths))
-            # print new_paths
+            if settings.detail:
+                print '--- ORIG --- ({} paths)'.format(len(paths))
+                print paths
+                print '--- NEW --- ({} paths)'.format(len(new_paths))
+                print new_paths
 
             st_split = time()
             split_paths = new_paths.split()
             et_split = time() - st_split
 
-            # print '--- SPLIT --- ({} paths)'.format(len(split_paths))
-            # print split_paths
+            if settings.detail:
+                print '--- SPLIT --- ({} paths)'.format(len(split_paths))
+                print split_paths
 
             st_merge = time()
             merge_paths = split_paths.merge()
             et_merge = time() - st_merge
 
-            # print '--- MERGE --- ({} paths)'.format(len(merge_paths))
-            # print merge_paths
+            if settings.detail:
+                print '--- MERGE --- ({} paths)'.format(len(merge_paths))
+                print merge_paths
 
             paths = merge_paths
 
@@ -281,11 +295,6 @@ class StatementList(ParserData):
                            Path.__ct__,  ZSolver.__config_ct__,
                            time() - st))
 
-            tloc = self.get_trace_loc(stmt)
-            if tloc:
-                mlog.debug("Symbolic traces at '{}'\n{}".format(
-                    tloc, self.traces[tloc]))
-
         return paths
 
 
@@ -294,17 +303,71 @@ class SetVariable(ParserData):
         assert isinstance(stmt, parserdata.SetVariable), stmt
         super(SetVariable, self).__init__(stmt, paths, solver, zvars)
 
+    # def myoptimize(self, names, values, token):
+    #     new_paths = Paths([])
+
+    #     for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
+    #         val_exist = False
+    #         some_sat = False
+
+    #         cond = zsolver.conj(ncond, vcond)
+    #         vals = frozenset(val.split())
+
+    #         for path in self.paths:
+    #             new_cond = zsolver.conj(path.cond, cond)
+    #             if self.solver.is_sat(new_cond):
+    #                 some_sat = True
+    #                 if vals.issubset(path.vals):  # TODO,  subset or equal ?
+    #                     val_exist = True
+
+    #                     new_path = path.fork(zsolver.disj(path.cond, cond))
+    #                     new_paths.append(new_path)
+
+    #                 else:
+    #                     new_paths.append(path)
+
+    #         if some_sat and not val_exist:
+    #             new_path = path.fork(cond)
+    #             new_path.set_var(name, token, frozenset(val.split()))
+    #             new_paths.append(new_path)
+
+    #     return new_paths
+
+    def parse(self):
+        # try:
+        #     names, values, token = self.parse_single(None)
+        #     # fast approach
+        #     new_paths = self.myoptimize(names, values, token)
+        #     print 'hello', new_paths
+        #     pause()
+        # except SomeUndefined as e:
+        #     print e.undef_var
+        #     # slow approach
+
+        new_paths = Paths()
+        for i, path in enumerate(self.paths):
+            new_paths_ = self.parse_single(path)
+            new_paths.extend(new_paths_)
+
+        return new_paths
+
     def parse_single(self, path):
+
+        # path is None => spy_mode
+        assert path is None or isinstance(path, Path), path
+
         nameexp = self.stmt.vnameexp
         token = self.stmt.token
         value = self.stmt.value
 
         eval = Eval(path, self.solver, self.zvars)
-
         names = eval.do_expansion(nameexp)
         values = eval.do_value(value)
 
-        new_paths = []
+        if path is None:
+            return names, values, token
+
+        new_paths = Paths()
         for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
             newcond = zsolver.conj(path.cond, zsolver.conj(ncond, vcond))
 
@@ -345,7 +408,7 @@ class ConditionBlock(ParserData):
         new_path = self.get_new_path(path, cond)
         if new_path:
             stmt_list = StatementList(
-                stmts, [new_path], self.solver, self.zvars)
+                stmts, Paths([new_path]), self.solver, self.zvars)
             paths = stmt_list.parse()
             return paths
         else:
@@ -444,7 +507,7 @@ class Rule(ParserData):
         else:
             mlog.warn("Cannot parse Rule: {}".format(self.stmt))
 
-        new_paths = [path]
+        new_paths = Paths([path])
         return new_paths
 
 
@@ -489,7 +552,7 @@ class Command(ParserData):
 
     def parse_single(self, path):
         mlog.warn("Cannot parse Command: {}".format(self.stmt))
-        return [path]
+        return Paths([path])
 
 
 class Kbuild:
@@ -515,8 +578,9 @@ class Kbuild:
             datetime.now().strftime("%Y-%m-%d %H:%M"), self.makefile))
 
         path = Path.get_default(cond, self.topdir)
-        stmt_list = StatementList(self.stmts, [path], self.solver, self.zvars)
-        self.paths = stmt_list.parse()
+        stmts = StatementList(self.stmts, Paths([path]),
+                              self.solver, self.zvars)
+        self.paths = stmts.parse()
 
         mlog.info("found {} paths ({}s)".format(
             len(self.paths), time() - st))

@@ -1,4 +1,6 @@
 lib-$(CONFIG_A) += a
-#lib-$(CONFIG_B) += a
-
+#obj-$(CONFIG_A) += c
 lib-$(CONFIG_B) += b
+lib-$(CONFIG_C) += a
+
+

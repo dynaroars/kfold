@@ -2,17 +2,13 @@
 
 from collections import namedtuple, OrderedDict
 import itertools
-from time import time
-from datetime import datetime
 import os.path
 import pdb
 
-from pymake import parser, parserdata, data, functions
 import z3
 
 import vcommon as CM
 
-from zsolver import ZSolver
 import zsolver
 
 import settings
@@ -22,22 +18,35 @@ trace = pdb.set_trace
 pause = CM.pause
 
 
-BaseVar = namedtuple("BaseVar", "name val flavor")
+BaseVar = namedtuple("BaseVar", "name vals flavor")
 
 
 class Var(BaseVar):
     RECURSE = "RECURSE"   # =, define
     SIMPLY = "SIMPLY"  # := , ::=
 
-    def fork(self):
-        return Var(self.name, self.val, self.flavor)
+    def __init__(self, name, vals, flavor):
+        assert isinstance(name, str) and name, name
+        assert isinstance(vals, frozenset), vals
+        assert flavor in set([Var.RECURSE, Var.SIMPLY]), flavor
 
-    def fork_val(self, val):
-        return Var(self.name, val, self.flavor)
+        super(Var, self).__init__(name, vals, flavor)
+
+    def issubset(self, name, values):
+        assert isinstance(values, frozenset), values
+        return self.name == name and values.issubset(self.values)
+
+    def fork(self):
+        return Var(self.name, self.vals, self.flavor)
+
+    def fork_val(self, vals):
+        assert isinstance(vals, frozenset) and vals, vals
+        return Var(self.name, vals, self.flavor)
 
     def __str__(self):
         token = "=" if self.flavor == Var.RECURSE else ":="
-        return "{} {} {}".format(self.name, token, self.val)
+        return "{} {} {}".format(
+            self.name, token, ' '.join(sorted(self.vals)))
 
     @property
     def ignorable(self):
@@ -45,7 +54,7 @@ class Var(BaseVar):
 
     def subdirs(self, topdir):
         sd = [os.path.join(topdir, v)
-              for v in self.val.split() if v.endswith("/")]
+              for v in self.vals if v.endswith("/")]
         return sd
 
     @staticmethod
@@ -62,7 +71,7 @@ class Var(BaseVar):
     @staticmethod
     def src_var(topdir):
         assert os.path.isdir(topdir), topdir
-        return Var("src", topdir, Var.RECURSE)
+        return Var("src", frozenset([topdir]), Var.RECURSE)
 
 
 class Path:
@@ -108,16 +117,19 @@ class Path:
         assert isinstance(token, str)  # and token in {'='}, token
         assert isinstance(val, str), val
 
+        vals = val.split()
+
         if name not in self.states or token in set(["=", ":="]):
             if name in self.states:
                 mlog.warn('need more precise semantics of {}'.format(token))
-            self.states[name] = Var(name, uniq(val), Var.get_flavor(token))
+            self.states[name] = Var(
+                name, frozenset(vals), Var.get_flavor(token))
         else:
+            myvar = self.states[name]
             if token == "+=":
-                new_val = self.states[name].val + ' ' + val
-                new_val = uniq(new_val)
-                self.states[name] = self.states[name].fork_val(
-                    new_val)  # append(val)
+                new_vals = frozenset(list(myvar.vals) + vals)
+                self.states[name] = myvar.fork_val(
+                    new_vals)  # append(val)
             else:
                 raise NotImplementedError
 
@@ -132,16 +144,15 @@ class Path:
                     continue
 
                 myvar = self.states[name]
-                vals = myvar.val.split()
-                if not vals:
+                if not myvar.vals:
                     new_path = self.fork(self.cond, ignore_targets=True)
                     new_path.states[name] = myvar.fork()
                     new_paths.append(new_path)
                 else:
-                    for v in vals:
+                    for v in myvar.vals:
                         new_path = self.fork(
                             self.cond, ignore_targets=True)
-                        new_path.states[name] = myvar.fork_val(v)
+                        new_path.states[name] = myvar.fork_val(frozenset([v]))
                         new_paths.append(new_path)
 
         assert new_paths
@@ -164,7 +175,7 @@ class Path:
     @classmethod
     def get_default(cls, cond, src_dir):
         assert z3.is_expr(cond), cond
-        assert os.path.isdir(src_dir)
+        assert os.path.isdir(src_dir), src_dir
 
         states = {'src': Var.src_var(src_dir)}
         return cls(cond, states)
@@ -260,16 +271,16 @@ class Paths(list):
         return merge_paths
 
 
-def uniq(val):
-    cache = set()
-    vals = []
-    for v in val.split():
-        if v not in cache:
-            cache.add(v)
-            vals.append(v)
+# def uniq(val):
+#     cache = set()
+#     vals = []
+#     for v in val.split():
+#         if v not in cache:
+#             cache.add(v)
+#             vals.append(v)
 
-    val = ' '.join(vals)
-    return val
+#     val = ' '.join(vals)
+#     return val
 
 
 # exploit 1
