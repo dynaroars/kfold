@@ -25,15 +25,10 @@ trace = pdb.set_trace
 pause = CM.pause
 
 
-class SomeUndefined(Exception):
-    def __init__(self, undef_var):
-        self.undef_var = undef_var
-
-
 class Eval(object):
     def __init__(self, path, solver, zvars):
         # path is None => spy
-        assert path is None or isinstance(path, Path), path
+        assert isinstance(path, Path), path
         self.path = path
         self.solver = solver
         self.zvars = zvars
@@ -48,7 +43,7 @@ class Eval(object):
                 [('y', CONFIG_A == y), ('m', CONFIG_A == m)]]
         output = [('my-on-y', CONFIG_A == y), ('my-on-m', CONFIG_A == m)]
         """
-        assert ts
+        assert ts, ts
 
         if len(ts) == 1:
             return ts[0]
@@ -69,6 +64,7 @@ class Eval(object):
             return [('', zsolver.T)]
         else:
             val = self.do_fake_expansion(value)
+
             return val
 
     def do_fake_expansion(self, expansion):
@@ -165,19 +161,14 @@ class Eval(object):
 
         rs = []
         for name, _ in names:
-            if name.startswith(settings.sym_prefix):
+            if name in self.path.states:
+                vals = self.path.states[name].vals_str
+                vals = [(vals, zsolver.T)]
+            elif name.startswith(settings.sym_prefix):
                 vals = self.do_config_var(name)
             else:
-                if self.path:
-                    if name in self.path.states:
-                        vals = self.path.states[name].vals
-                        vals = [(vals, zsolver.T)]
-                    else:
-                        mlog.warn("'{}' undefined in path".format(name))
-                        vals = [(zsolver.Undef_Val, zsolver.T)]
-                else:  # spy
-                    raise SomeUndefined(name)
-
+                mlog.warn("'{}' undefined in path".format(name))
+                vals = [(zsolver.Undef_Val, zsolver.T)]
             rs.extend(vals)
 
         return rs
@@ -255,6 +246,8 @@ class StatementList(ParserData):
                 cls = Include
             elif isinstance(stmt, parserdata.Command):
                 cls = Command
+            elif isinstance(stmt, parserdata.EmptyDirective):
+                cls = EmptyDirective
             else:
                 raise NotImplementedError("cannot parse {}".format(stmt))
 
@@ -303,46 +296,7 @@ class SetVariable(ParserData):
         assert isinstance(stmt, parserdata.SetVariable), stmt
         super(SetVariable, self).__init__(stmt, paths, solver, zvars)
 
-    # def myoptimize(self, names, values, token):
-    #     new_paths = Paths([])
-
-    #     for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
-    #         val_exist = False
-    #         some_sat = False
-
-    #         cond = zsolver.conj(ncond, vcond)
-    #         vals = frozenset(val.split())
-
-    #         for path in self.paths:
-    #             new_cond = zsolver.conj(path.cond, cond)
-    #             if self.solver.is_sat(new_cond):
-    #                 some_sat = True
-    #                 if vals.issubset(path.vals):  # TODO,  subset or equal ?
-    #                     val_exist = True
-
-    #                     new_path = path.fork(zsolver.disj(path.cond, cond))
-    #                     new_paths.append(new_path)
-
-    #                 else:
-    #                     new_paths.append(path)
-
-    #         if some_sat and not val_exist:
-    #             new_path = path.fork(cond)
-    #             new_path.set_var(name, token, frozenset(val.split()))
-    #             new_paths.append(new_path)
-
-    #     return new_paths
-
     def parse(self):
-        # try:
-        #     names, values, token = self.parse_single(None)
-        #     # fast approach
-        #     new_paths = self.myoptimize(names, values, token)
-        #     print 'hello', new_paths
-        #     pause()
-        # except SomeUndefined as e:
-        #     print e.undef_var
-        #     # slow approach
 
         new_paths = Paths()
         for i, path in enumerate(self.paths):
@@ -352,9 +306,7 @@ class SetVariable(ParserData):
         return new_paths
 
     def parse_single(self, path):
-
-        # path is None => spy_mode
-        assert path is None or isinstance(path, Path), path
+        assert isinstance(path, Path), path
 
         nameexp = self.stmt.vnameexp
         token = self.stmt.token
@@ -362,17 +314,20 @@ class SetVariable(ParserData):
 
         eval = Eval(path, self.solver, self.zvars)
         names = eval.do_expansion(nameexp)
-        values = eval.do_value(value)
 
-        if path is None:
-            return names, values, token
+        # [('CFLAGS_wp512.o', True)]
+        if (len(names) == 1 and
+            names[0][0].startswith("CFLAGS") or
+                names[0][0].endswith("extract_certs")):
+            return Paths([path])
+
+        values = eval.do_value(value)
 
         new_paths = Paths()
         for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
-            newcond = zsolver.conj(path.cond, zsolver.conj(ncond, vcond))
-
-            if self.solver.is_sat(newcond):
-                new_path = path.fork(newcond)
+            new_cond = zsolver.conj(path.cond, zsolver.conj(ncond, vcond))
+            if self.solver.is_sat(new_cond):
+                new_path = path.fork(new_cond)
                 new_path.set_var(name, token, val)
                 new_paths.append(new_path)
 
@@ -498,14 +453,15 @@ class Rule(ParserData):
         super(Rule, self).__init__(stmt, paths, solver, zvars)
 
     def parse_single(self, path):
-        tloc = self.get_trace_loc(self.stmt)
-        if tloc:
-            if tloc not in self.traces:
-                self.traces[tloc] = Paths()
-            self.traces[tloc].append(path)
+        mlog.warn("Cannot parse Rule: {}".format(self.stmt))
+        # tloc = self.get_trace_loc(self.stmt)
+        # if tloc:
+        #     if tloc not in self.traces:
+        #         self.traces[tloc] = Paths()
+        #     self.traces[tloc].append(path)
 
-        else:
-            mlog.warn("Cannot parse Rule: {}".format(self.stmt))
+        # else:
+        #     mlog.warn("Cannot parse Rule: {}".format(self.stmt))
 
         new_paths = Paths([path])
         return new_paths
@@ -552,6 +508,16 @@ class Command(ParserData):
 
     def parse_single(self, path):
         mlog.warn("Cannot parse Command: {}".format(self.stmt))
+        return Paths([path])
+
+
+class EmptyDirective(ParserData):
+    def __init__(self, stmt, paths, solver, zvars):
+        assert isinstance(stmt, parserdata.EmptyDirective), stmt
+        super(EmptyDirective, self).__init__(stmt, paths, solver, zvars)
+
+    def parse_single(self, path):
+        mlog.warn("Cannot parse EmptyDirective: {}".format(self.stmt))
         return Paths([path])
 
 

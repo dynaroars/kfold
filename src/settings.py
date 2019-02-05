@@ -6,4 +6,6 @@ mp_task_len = 50  # start parallel processing when having >= mp_task_len
 trace_target = "__TRACE__"
 sym_prefix = "CONFIG_"
 
+ignore_setvar_startswith = {}
+ignore_setvar_endswith = {}
 detail = False

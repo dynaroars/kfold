@@ -32,6 +32,10 @@ class Var(BaseVar):
 
         super(Var, self).__init__(name, vals, flavor)
 
+    @property
+    def vals_str(self):
+        return ' '.join(sorted(self.vals))
+
     def issubset(self, name, values):
         assert isinstance(values, frozenset), values
         return self.name == name and values.issubset(self.values)
@@ -114,7 +118,8 @@ class Path:
 
     def set_var(self, name, token, val):
         assert isinstance(name, str), name
-        assert isinstance(token, str)  # and token in {'='}, token
+        # and token in {'='}, token
+        assert isinstance(token, str) and token, token
         assert isinstance(val, str), val
 
         vals = val.split()

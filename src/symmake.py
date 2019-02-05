@@ -5,8 +5,12 @@ import os.path
 
 
 class CaseStudy:
-    def __init__(self, topdir):
+    __ignore_setvar_starswith__ = set()
+    __ignore_setvar_endswith__ = set()
+
+    def __init__(self, topdir, settings):
         self.topdir = os.path.abspath(topdir)
+        self.settings = settings
 
     def go(self):
         dirs = self.get_makefile_dirs()
@@ -55,7 +59,7 @@ class Linux(CaseStudy):
         "arch/i386",
         # "block", seems OK
         # "certs",  problem
-        # "crypto",   problem
+        # "crypto",   seems ok
         # "drivers", seems OK
         # "firmware", problem FilterFunction not implemented
         # "fs", seems ok
@@ -75,6 +79,9 @@ class Linux(CaseStudy):
         # '"usr/$(datafile_y)"'
         # "virt"  no make file ?
     ]
+
+    __ignore_setvar_starswith__ = set(["CFLAGS"])
+    __ignore_setvar_endswith__ = set(["extract_certs"])
 
 
 if __name__ == '__main__':
@@ -127,29 +134,6 @@ if __name__ == '__main__':
         import alg
         myrun = alg.Run(makefile_paths)
         myrun.go()
-
-    # if case_study == "alldirs":
-    #     path = args.paths[0]
-    #     paths = [os.path.join(path, sdir) for sdir in os.listdir(path)]
-    #     paths = [p for p in paths if os.path.isdir(p)]
-    # elif case_study == "fromfile":
-    #     def _f(l):
-    #         parts = l.split()
-    #         if (not parts[0].startswith("#") and
-    #             len(parts) > 1 and parts[1].startswith('/') and
-    #             all(x not in parts[1] for x in set([
-    #                 '/tools/'
-    #                 '/arch/arm/', '/arch/arm64/',
-    #                 '/arch/sh', '/arch/s390']))):
-    #             # 'Kbuild' in parts[1]):
-    #             return parts[1]
-    #         else:
-    #             return None
-
-    #     path = args.paths[0]
-    #     paths = [_f(l) for l in CM.iread(path)]
-    #     paths = [p for p in paths if p]
-
 
 # exploit 1
 # paths in makefiles have many same state contents, so can merge .  e.g.,  x$y  = ...  ,  2 diff paths but same state.

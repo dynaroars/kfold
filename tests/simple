@@ -1,6 +1,6 @@
 lib-$(CONFIG_A) += a
-#obj-$(CONFIG_A) += c
-lib-$(CONFIG_B) += b
-lib-$(CONFIG_C) += a
+# #obj-$(CONFIG_A) += c
+# lib-$(CONFIG_B) += b
+# lib-$(CONFIG_C) += a
 
 

@@ -5,11 +5,11 @@ __simplify_cache__ = {}
 T = z3.BoolVal(True)
 F = z3.BoolVal(False)
 Undef_Val = ''
-# COptNameSymVals = ["y", "m", "undef"]
-# COptVals = ["y", "m", Undef_Val]
+COptNameSymVals = ["y", "m", "undef"]
+COptVals = ["y", "m", Undef_Val]
 
-COptNameSymVals = ["y", "m"]
-COptVals = ["y", "m"]
+#COptNameSymVals = ["y", "m"]
+#COptVals = ["y", "m"]
 COptTyp, COptSymVals = z3.EnumSort("TriState", COptNameSymVals)
 COptD = dict(zip(COptVals, COptSymVals))
 
@@ -130,8 +130,6 @@ class ZSolver:
 
     def check(self, f):
         assert z3.is_expr(f), f
-
-        st = time()
         self.solver.push()
         self.solver.add(f)
         ret = self.solver.check()
