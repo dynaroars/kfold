@@ -1,0 +1,4 @@
+obj-y = $(addprefix src/,foo bar)
+
+test:
+	@echo $(obj-y)
