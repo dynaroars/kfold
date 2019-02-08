@@ -96,6 +96,8 @@ class Eval(object):
                 return self.do_fun_VariableRef(elem)
             elif isinstance(elem, functions.SubstFunction):
                 return self.do_fun_SubstFunction(elem)
+            elif isinstance(elem, functions.PatSubstFunction):
+                return self.do_fun_PatSubstFunction(elem)
             elif isinstance(elem, functions.AddPrefixFunction):
                 return self.do_fun_AddPrefixFunction(elem)
             else:
@@ -131,15 +133,32 @@ class Eval(object):
         rs = d.items()
         return rs
 
+    def do_fun_PatSubstFunction(self, fun):
+        assert isinstance(fun, functions.PatSubstFunction), fun
+        import re
+
+        combines = self.get_from_to_in_vals(fun)
+
+        d = OrderedDict()
+        for (fv, fc), (tv, tc), (iv, ic) in combines:
+            cond = zsolver.mconj([fc, tc, ic])
+            if self.solver.is_sat(cond):
+                pattern = "^" + fv.replace(r"%", r"(.*)", 1) + "$"
+                replacement = tv.replace(r"%", r"\1", 1)
+
+                v = " ".join(re.sub(pattern, replacement, v)
+                             for v in iv.split())
+                if v not in d:
+                    d[v] = cond
+                else:
+                    d[v] = zsolver.disj(d[v], cond)
+
+        rs = d.items()
+        return rs
+
     def do_fun_SubstFunction(self, fun):
         assert isinstance(fun, functions.SubstFunction), fun
-        from_vals = self.do_expansion(fun._arguments[0])
-        to_vals = self.do_expansion(fun._arguments[1])
-        in_vals = self.do_expansion(fun._arguments[2])
-
-        combines = [(fv, tv, iv) for fv in from_vals
-                    for tv in to_vals
-                    for iv in in_vals]
+        combines = self.get_from_to_in_vals(fun)
 
         d = OrderedDict()
         for (fv, fc), (tv, tc), (iv, ic) in combines:
@@ -182,6 +201,17 @@ class Eval(object):
 
         vals = [(k, s == zsolver.COptD[k]) for k in zsolver.COptD]
         return vals
+
+    def get_from_to_in_vals(self, fun):
+        from_vals = self.do_expansion(fun._arguments[0])
+        to_vals = self.do_expansion(fun._arguments[1])
+        in_vals = self.do_expansion(fun._arguments[2])
+
+        combines = [(fvc, tvc, ivc)
+                    for fvc in from_vals
+                    for tvc in to_vals
+                    for ivc in in_vals]
+        return combines
 
 
 class ParserData(object):

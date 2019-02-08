@@ -128,7 +128,7 @@ if __name__ == '__main__':
         else:
             raise NotImplementedError(case_study)
 
-        case_study = cls(makefile_path)
+        case_study = cls(makefile_path, settings)
         case_study.go()
     else:
         import alg

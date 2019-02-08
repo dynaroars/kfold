@@ -1,0 +1,5 @@
+Hello = test.o
+obj-y := $($(subst h,H,hello))
+
+test:
+	@echo $(obj-y)  # output: test.o

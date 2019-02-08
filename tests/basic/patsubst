@@ -1,0 +1,4 @@
+obj-y := $(patsubst %.c,%.o,test.c)
+
+test:
+	@echo $(obj-y)  #output: test.o
