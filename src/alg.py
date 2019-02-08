@@ -98,6 +98,8 @@ class Eval(object):
                 return self.do_fun_SubstFunction(elem)
             elif isinstance(elem, functions.PatSubstFunction):
                 return self.do_fun_PatSubstFunction(elem)
+            elif isinstance(elem, functions.FilteroutFunction):
+                return self.do_fun_Filterout(elem)
             elif isinstance(elem, functions.AddPrefixFunction):
                 return self.do_fun_AddPrefixFunction(elem)
             else:
@@ -112,17 +114,9 @@ class Eval(object):
         """
         assert isinstance(fun, functions.AddPrefixFunction), fun
 
-        # [('pfx/', True)]
-        prefixes = self.do_expansion(fun._arguments[0])
+        # Note: $(addprefix pfx/  , g) is diff than $(addprefix pfx/,  g)
 
-        # [(' first second y', CONFIG_G == y), (' first second ',
-        # CONFIG_G == undef), (' first second m', CONFIG_G == m)]
-        names = self.do_expansion(fun._arguments[1])
-
-        # important: do not prefix.
-        # e.g., $(addprefix pfx/  , g) is diff than $(addprefix pfx/,  g)
-
-        combines = [(pv, nv) for pv in prefixes for nv in names]
+        combines = self.get_fun_arg_vals(fun, 2)
         d = OrderedDict()
         for (pv, pc), (nv, nc) in combines:
             cond = zsolver.conj(pc, nc)
@@ -133,12 +127,28 @@ class Eval(object):
         rs = d.items()
         return rs
 
+    def do_fun_Filterout(self, fun):
+        assert isinstance(fun, functions.FilteroutFunction), fun
+        combines = self.get_fun_arg_vals(fun, 2)
+
+        d = OrderedDict()
+        for (pv, pc), (tv, tc) in combines:
+            cond = zsolver.mconj([pc, tc])
+            if self.solver.is_sat(cond):
+                v = " ".join(v for v in tv.split() if v not in pv.split())
+                if v not in d:
+                    d[v] = cond
+                else:
+                    d[v] = zsolver.disj(d[v], cond)
+
+        rs = d.items()
+        return rs
+
     def do_fun_PatSubstFunction(self, fun):
         assert isinstance(fun, functions.PatSubstFunction), fun
         import re
 
-        combines = self.get_from_to_in_vals(fun)
-
+        combines = self.get_fun_arg_vals(fun, 3)
         d = OrderedDict()
         for (fv, fc), (tv, tc), (iv, ic) in combines:
             cond = zsolver.mconj([fc, tc, ic])
@@ -158,7 +168,7 @@ class Eval(object):
 
     def do_fun_SubstFunction(self, fun):
         assert isinstance(fun, functions.SubstFunction), fun
-        combines = self.get_from_to_in_vals(fun)
+        combines = self.get_fun_arg_vals(fun, 3)
 
         d = OrderedDict()
         for (fv, fc), (tv, tc), (iv, ic) in combines:
@@ -202,16 +212,11 @@ class Eval(object):
         vals = [(k, s == zsolver.COptD[k]) for k in zsolver.COptD]
         return vals
 
-    def get_from_to_in_vals(self, fun):
-        from_vals = self.do_expansion(fun._arguments[0])
-        to_vals = self.do_expansion(fun._arguments[1])
-        in_vals = self.do_expansion(fun._arguments[2])
-
-        combines = [(fvc, tvc, ivc)
-                    for fvc in from_vals
-                    for tvc in to_vals
-                    for ivc in in_vals]
-        return combines
+    def get_fun_arg_vals(self, fun, nargs):
+        assert nargs >= 1, nargs
+        fargs = [fun._arguments[i] for i in range(nargs)]
+        expansions = [self.do_expansion(farg) for farg in fargs]
+        return itertools.product(*expansions)
 
 
 class ParserData(object):
