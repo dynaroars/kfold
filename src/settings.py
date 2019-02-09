@@ -21,3 +21,5 @@ undef_val = ''
 tristate = (undef_val, "TriState", [y_str, m_str, undef_str], [
             y_str, m_str, undef_val])
 twostate = (undef_val, "TwoState", [y_str, undef_str], [y_str, undef_val])
+
+zstate = twostate  # default

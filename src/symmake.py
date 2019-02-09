@@ -123,8 +123,10 @@ if __name__ == '__main__':
         makefile_path = makefile_paths[0]
         if case_study == "busybox":
             cls = BusyBox
+            settings.zstate = settings.twostate
         elif case_study == "linux":
             cls = Linux
+            settings.zstate = settings.tristate
         else:
             raise NotImplementedError(case_study)
 

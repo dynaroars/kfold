@@ -96,10 +96,9 @@ def mdisj(cs):
 class ZSolver:
     __config_ct__ = 0
 
-    def __init__(self, is_tristate=False):
+    def __init__(self):
         self.solver = z3.Solver()
-        self.undef_val, name, symvals, vals = (
-            settings.tristate if is_tristate else settings.twostate)
+        self.undef_val, name, symvals, vals = settings.zstate
         self.COptTyp, exprs = z3.EnumSort(name, symvals)
         self.COptD = dict(zip(vals, exprs))
 
