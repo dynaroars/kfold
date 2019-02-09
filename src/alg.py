@@ -27,7 +27,6 @@ pause = CM.pause
 
 class Eval(object):
     def __init__(self, path, solver, zvars):
-        # path is None => spy
         assert isinstance(path, Path), path
         self.path = path
         self.solver = solver
@@ -197,7 +196,7 @@ class Eval(object):
                 vals = self.do_config_var(name)
             else:
                 mlog.warn("'{}' undefined in path".format(name))
-                vals = [(zsolver.Undef_Val, zsolver.T)]
+                vals = [(self.solver.undef_val, zsolver.T)]
             rs.extend(vals)
 
         return rs
