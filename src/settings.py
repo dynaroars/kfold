@@ -9,3 +9,15 @@ sym_prefix = "CONFIG_"
 ignore_setvar_startswith = {}
 ignore_setvar_endswith = {}
 detail = False
+
+
+# Solver settings
+
+y_str = "y"
+m_str = "m"
+undef_str = "undef"
+undef_val = ''
+
+tristate = (undef_val, "TriState", [y_str, m_str, undef_str], [
+            y_str, m_str, undef_val])
+twostate = (undef_val, "TwoState", [y_str, undef_str], [y_str, undef_val])

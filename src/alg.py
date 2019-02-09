@@ -206,10 +206,10 @@ class Eval(object):
         assert name.startswith(settings.sym_prefix), name
 
         if name not in self.zvars:
-            self.zvars[name] = ZSolver.get_tristate_sort(name)
+            self.zvars[name] = self.solver.get_tristate_sort(name)
         s = self.zvars[name]
 
-        vals = [(k, s == zsolver.COptD[k]) for k in zsolver.COptD]
+        vals = [(k, s == self.solver.COptD[k]) for k in self.solver.COptD]
         return vals
 
     def get_fun_arg_vals(self, fun, nargs):
@@ -423,7 +423,7 @@ class ConditionBlock(ParserData):
             exp = "$({})".format(cond.exp.s)
             exp = eval.do_fake_expansion(exp)
 
-            exp_undef = [(zsolver.Undef_Val, zsolver.T)]
+            exp_undef = [(self.solver.undef_val, zsolver.T)]
             undef_cond = self.get_eq_cond(exp, exp_undef)
 
             return zsolver.neg(undef_cond) if cond.expected else undef_cond
