@@ -1,17 +1,18 @@
+import pdb
 from time import time
 import z3
+
+import vcommon as CM
+import settings
+mlog = CM.getLogger(__name__, settings.logger_level)
+
+trace = pdb.set_trace
+pause = CM.pause
+
 
 __simplify_cache__ = {}
 T = z3.BoolVal(True)
 F = z3.BoolVal(False)
-Undef_Val = ''
-COptNameSymVals = ["y", "m", "undef"]
-COptVals = ["y", "m", Undef_Val]
-
-#COptNameSymVals = ["y", "m"]
-#COptVals = ["y", "m"]
-COptTyp, COptSymVals = z3.EnumSort("TriState", COptNameSymVals)
-COptD = dict(zip(COptVals, COptSymVals))
 
 
 def get_from_simplify_cache(f):
@@ -92,41 +93,15 @@ def mdisj(cs):
     return f
 
 
-def get_val_expr(name, val):
-    if val not in COptD:
-        raise NotImplementedError(val)
-    return COptD[val]
-
-
-def get_comparison_pair(s1, s2):
-    assert z3.is_expr(s1) or (isinstance(s1, str) and s1), s1
-    assert z3.is_expr(s2) or (isinstance(s2, str) and s2), s2
-
-    if z3.is_expr(s1) and z3.is_expr(s2):
-        return (s1, s2)
-
-    elif not z3.is_expr(s1) and not z3.is_expr(s2):
-        # comparing btw 2 str values (e.g., when variables are fully
-        # evaluated
-        assert isinstance(s1, str) and isinstance(s2, str), (s1, s2)
-        return (s1, s2)
-
-    elif z3.is_expr(s1) and not z3.is_expr(s2):
-        # figure the type of s1
-        val = get_val_expr(s1, s2)
-        return s1, val
-
-    else:
-        assert not z3.is_expr(s1) and z3.is_expr(s2)
-        val = get_val_expr(s2, s1)
-        return s2, val
-
-
 class ZSolver:
     __config_ct__ = 0
 
-    def __init__(self):
+    def __init__(self, is_tristate=False):
         self.solver = z3.Solver()
+        self.undef_val, name, symvals, vals = (
+            settings.tristate if is_tristate else settings.twostate)
+        self.COptTyp, exprs = z3.EnumSort(name, symvals)
+        self.COptD = dict(zip(vals, exprs))
 
     def check(self, f):
         assert z3.is_expr(f), f
@@ -146,7 +121,6 @@ class ZSolver:
             ret = self.check(f)
             return ret == z3.sat
 
-    @staticmethod
-    def get_tristate_sort(name):
+    def get_tristate_sort(self, name):
         ZSolver.__config_ct__ += 1
-        return z3.Const(name, COptTyp)
+        return z3.Const(name, self.COptTyp)
