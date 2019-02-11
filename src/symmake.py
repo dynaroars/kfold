@@ -113,6 +113,10 @@ if __name__ == '__main__':
        type=str,
        help="""avail options: busybox, linux, fromfile""")
 
+    ag("--normtmp", "-normtmp",
+       action="store_true",
+       help="saves computed result to a tmp dir")
+
     args = aparser.parse_args()
 
     import settings
@@ -138,16 +142,25 @@ if __name__ == '__main__':
         else:
             raise NotImplementedError(case_study)
 
-        case_study = cls(makefile_path, settings)
-        case_study.go()
+        cls = cls(makefile_path, settings)
     else:
-        settings.ignore_setvar_startswith = Linux.__ignore_setvar_starswith__
-        settings.ignore_setvar_endswith = Linux.__ignore_setvar_endswith__
+        settings.ignore_setvar_startswith = \
+            Linux.__ignore_setvar_starswith__
+        settings.ignore_setvar_endswith = \
+            Linux.__ignore_setvar_endswith__
+
         import alg
+        cls = alg.Run(makefile_paths)
 
-        myrun = alg.Run(makefile_paths)
+    tmpdir = cls.go()
 
-        myrun.go()
+    if not args.normtmp:
+        import shutil
+        mlog.debug("rm -rf {}".format(tmpdir))
+        shutil.rmtree(tmpdir)
+    else:
+        print("tmpdir: {}".format(tmpdir))
+
 
 # exploit 1
 # paths in makefiles have many same state contents, so can merge .  e.g.,  x$y  = ...  ,  2 diff paths but same state.

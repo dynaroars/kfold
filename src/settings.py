@@ -1,3 +1,4 @@
+tmpdir = "/var/tmp"
 logger_level = 3
 target_vars = frozenset(["obj-", "lib-"])
 ignore_vars = frozenset(["src"])
@@ -22,7 +23,7 @@ tristate = (undef_val, "TriState", [y_str, m_str, undef_str], [
             y_str, m_str, undef_val])
 twostate = (undef_val, "TwoState", [y_str, undef_str], [y_str, undef_val])
 
-zstate = twostate  # default
+zstate = tristate  # default
 
 
 # Linux config var that might not be tristate

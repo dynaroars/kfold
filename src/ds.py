@@ -83,7 +83,9 @@ class Path:
     __ct__ = 0
 
     def __init__(self, cond, states):
-        assert isinstance(states, dict)
+        assert z3.is_expr(cond), cond
+        assert isinstance(states, dict), states
+
         self.cond = cond
         self.states = states
         Path.__ct__ += 1
@@ -275,18 +277,20 @@ class Paths(list):
         merge_paths = Paths(simplified_paths + other_paths)
         return merge_paths
 
+    @staticmethod
+    def save_info(paths):
+        """
+        savable info
+        """
+        assert isinstance(paths, Paths), paths
+        paths_info = [(zsolver.to_smt_str(path.cond), path.states)
+                      for path in paths]
+        return paths_info
 
-# def uniq(val):
-#     cache = set()
-#     vals = []
-#     for v in val.split():
-#         if v not in cache:
-#             cache.add(v)
-#             vals.append(v)
-
-#     val = ' '.join(vals)
-#     return val
-
-
-# exploit 1
-# paths in makefiles have many same state contents, so can merge .  e.g.,  x$y  = ...  ,  2 diff paths but same state.
+    @staticmethod
+    def load_info(f):
+        assert os.path.isfile(f), f
+        paths_info = CM.vload(f)
+        paths = [Path(zsolver.from_smt_str(smt_str), states)
+                 for smt_str, states in paths_info]
+        return Paths(paths)

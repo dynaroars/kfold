@@ -575,10 +575,11 @@ class Kbuild:
         self.zvars = OrderedDict()
         self.solver = ZSolver()
         # store individual states collected at __TRACE__ points
-        self.traces = OrderedDict()
+        #self.traces = OrderedDict()
 
     def symexe(self, cond):
         assert z3.is_expr(cond), cond
+
         st = time()
         mlog.info("{}: symexe '{}'".format(
             datetime.now().strftime("%Y-%m-%d %H:%M"), self.makefile))
@@ -587,9 +588,10 @@ class Kbuild:
         stmts = StatementList(self.stmts, Paths([path]),
                               self.solver, self.zvars)
         self.paths = stmts.parse()
+        self.se_time = time() - st
 
         mlog.info("found {} paths ({}s)".format(
-            len(self.paths), time() - st))
+            len(self.paths), self.se_time))
         mlog.debug(self.paths)
 
 
@@ -614,6 +616,7 @@ class Run:
             kbuild.symexe(cond)
             return kbuild
 
+        st = time()
         kbuilds = []  # results
         makefiles = get_makefiles(self.makefile_paths, cond=zsolver.T)
         while makefiles:
@@ -631,8 +634,13 @@ class Run:
                         path.subdirs(kbuild.topdir), path.cond)
                     makefiles.extend(makefiles_)
 
-        mlog.info("analyzed {} kbuild makefiles".format(len(kbuilds)))
-        return kbuilds
+        mlog.info("analyzed {} kbuild makefiles in {}s".format(
+            len(kbuilds), time() - st))
+
+        import tempfile
+        self.tmpdir = tempfile.mkdtemp(dir=settings.tmpdir, prefix="Symmake_")
+        self.save(os.path.join(self.tmpdir, "results"), kbuilds)
+        return self.tmpdir
 
     @classmethod
     def get_makefile(cls, makefile_path):
@@ -652,3 +660,25 @@ class Run:
             return None
 
         return os.path.abspath(makefile)
+
+    @staticmethod
+    def save(f, kbuilds):
+        assert all(isinstance(kbuild, Kbuild)
+                   for kbuild in kbuilds) and kbuilds, kbuilds
+        sinfo = []
+        for kbuild in kbuilds:
+            kinfo = (
+                kbuild.makefile,
+                kbuild.topdir,
+                kbuild.se_time,
+                [(zsolver.to_smt2_str(path.cond), path.states)
+                 for path in kbuild.paths]
+            )
+            sinfo.append(kinfo)
+
+        CM.vsave(f, sinfo)
+
+    @staticmethod
+    def load(f):
+        assert os.path.isfile(f), f
+        return CM.vload(f)
