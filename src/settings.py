@@ -23,3 +23,7 @@ tristate = (undef_val, "TriState", [y_str, m_str, undef_str], [
 twostate = (undef_val, "TwoState", [y_str, undef_str], [y_str, undef_val])
 
 zstate = twostate  # default
+
+
+# Linux config var that might not be tristate
+# CONFIG_EXTRA_FIRMWARE_DIR in /firmware/Makefile

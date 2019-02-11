@@ -63,9 +63,9 @@ class Linux(CaseStudy):
         # "drivers", seems OK
         # "firmware", problem FilterFunction not implemented
         # "fs", seems ok
-        # "init", problem .s
+        # "init", seems ok
         # "ipc", seems ok
-        # "kernel", problem .s
+        # "kernel", seems ok
         # "lib",   problem CallFunction not implemented
         # "mm",  seems OK
         # "net",  seems ok   warning about temp-y
@@ -80,8 +80,16 @@ class Linux(CaseStudy):
         # "virt"  no make file ?
     ]
 
-    __ignore_setvar_starswith__ = set(["CFLAGS"])
-    __ignore_setvar_endswith__ = set(["extract_certs"])
+    __ignore_setvar_starswith__ = set([
+        "CFLAGS",
+        "CCVERSION",
+        "filechk_ikconfiggz",
+        'ccflags-y'
+    ])
+    __ignore_setvar_endswith__ = set([
+        "extract_certs",
+        "chk_compile.h"
+    ])
 
 
 if __name__ == '__main__':
@@ -133,8 +141,12 @@ if __name__ == '__main__':
         case_study = cls(makefile_path, settings)
         case_study.go()
     else:
+        settings.ignore_setvar_startswith = Linux.__ignore_setvar_starswith__
+        settings.ignore_setvar_endswith = Linux.__ignore_setvar_endswith__
         import alg
+
         myrun = alg.Run(makefile_paths)
+
         myrun.go()
 
 # exploit 1

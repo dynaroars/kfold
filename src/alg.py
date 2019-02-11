@@ -350,9 +350,8 @@ class SetVariable(ParserData):
         names = eval.do_expansion(nameexp)
 
         # [('CFLAGS_wp512.o', True)]
-        if (len(names) == 1 and
-            names[0][0].startswith("CFLAGS") or
-                names[0][0].endswith("extract_certs")):
+        if len(names) == 1 and self.is_ignore(names[0][0]):
+            mlog.warn("ignoring '{}'".format(names[0][0]))
             return Paths([path])
 
         values = eval.do_value(value)
@@ -366,6 +365,13 @@ class SetVariable(ParserData):
                 new_paths.append(new_path)
 
         return new_paths
+
+    @classmethod
+    def is_ignore(cls, name):
+        return (any(name.startswith(x)
+                    for x in settings.ignore_setvar_startswith) or
+                any(name.endswith(x)
+                    for x in settings.ignore_setvar_endswith))
 
 
 class ConditionBlock(ParserData):
