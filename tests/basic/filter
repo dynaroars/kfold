@@ -1,0 +1,8 @@
+sources := foo.c bar.c baz.s ugh.h
+obj-y := $(filter %.c %.s,$(sources))
+        
+
+
+test:
+	@echo $(sources)
+	@echo $(obj-y)
