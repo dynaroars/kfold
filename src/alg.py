@@ -26,11 +26,10 @@ pause = CM.pause
 
 
 class Eval(object):
-    def __init__(self, path, solver, zvars):
+    def __init__(self, path, solver):
         assert isinstance(path, Path), path
         self.path = path
         self.solver = solver
-        self.zvars = zvars
 
     @staticmethod
     def combine(ts, delim=''):
@@ -59,12 +58,10 @@ class Eval(object):
         assert isinstance(value, str), value
 
         value = value.strip()
-        if not value:
-            return [('', zsolver.T)]
+        if value:
+            return self.do_fake_expansion(value)
         else:
-            val = self.do_fake_expansion(value)
-
-            return val
+            return [('', zsolver.T)]
 
     def do_fake_expansion(self, expansion):
         assert isinstance(expansion, str), expansion
@@ -204,9 +201,7 @@ class Eval(object):
     def do_config_var(self, name):
         assert name.startswith(settings.sym_prefix), name
 
-        if name not in self.zvars:
-            self.zvars[name] = self.solver.get_tristate_sort(name)
-        s = self.zvars[name]
+        s = self.solver.get_tristate_sort(name)
 
         vals = [(k, s == self.solver.COptD[k]) for k in self.solver.COptD]
         return vals
@@ -219,12 +214,11 @@ class Eval(object):
 
 
 class ParserData(object):
-    def __init__(self, stmt, paths, solver, zvars):
+    def __init__(self, stmt, paths, solver):
         assert isinstance(paths, Paths), paths
         self.stmt = stmt
         self.paths = paths
         self.solver = solver
-        self.zvars = zvars
 
     def parse(self):
         new_paths = Paths()
@@ -255,9 +249,9 @@ class ParserData(object):
 
 
 class StatementList(ParserData):
-    def __init__(self, stmt, paths, solver, zvars):
+    def __init__(self, stmt, paths, solver):
         assert isinstance(stmt, parserdata.StatementList), stmt
-        super(StatementList, self).__init__(stmt, paths, solver, zvars)
+        super(StatementList, self).__init__(stmt, paths, solver)
 
     def parse_single(self, path):
 
@@ -285,7 +279,7 @@ class StatementList(ParserData):
             else:
                 raise NotImplementedError("cannot parse {}".format(stmt))
 
-            new_paths = cls(stmt, paths, self.solver, self.zvars).parse()
+            new_paths = cls(stmt, paths, self.solver).parse()
             et_mk = time() - st
 
             if settings.detail:
@@ -319,16 +313,16 @@ class StatementList(ParserData):
                            len(paths), len(new_paths), et_mk,
                            len(split_paths), et_split,
                            len(merge_paths), et_merge,
-                           Path.__ct__,  ZSolver.__config_ct__,
+                           Path.__ct__,  len(ZSolver.__config_vars__),
                            time() - st))
 
         return paths
 
 
 class SetVariable(ParserData):
-    def __init__(self, stmt, paths, solver, zvars):
+    def __init__(self, stmt, paths, solver):
         assert isinstance(stmt, parserdata.SetVariable), stmt
-        super(SetVariable, self).__init__(stmt, paths, solver, zvars)
+        super(SetVariable, self).__init__(stmt, paths, solver)
 
     def parse(self):
 
@@ -346,7 +340,7 @@ class SetVariable(ParserData):
         token = self.stmt.token
         value = self.stmt.value
 
-        eval = Eval(path, self.solver, self.zvars)
+        eval = Eval(path, self.solver)
         names = eval.do_expansion(nameexp)
 
         # [('CFLAGS_wp512.o', True)]
@@ -375,9 +369,9 @@ class SetVariable(ParserData):
 
 
 class ConditionBlock(ParserData):
-    def __init__(self, stmt, paths, solver, zvars):
+    def __init__(self, stmt, paths, solver):
         assert isinstance(stmt, parserdata.ConditionBlock), stmt
-        super(ConditionBlock, self).__init__(stmt, paths, solver, zvars)
+        super(ConditionBlock, self).__init__(stmt, paths, solver)
 
     def parse_single(self, path):
         if_cond, then_stmts = self.stmt[0]  # if/then branch
@@ -403,7 +397,7 @@ class ConditionBlock(ParserData):
         new_path = self.get_new_path(path, cond)
         if new_path:
             stmt_list = StatementList(
-                stmts, Paths([new_path]), self.solver, self.zvars)
+                stmts, Paths([new_path]), self.solver)
             paths = stmt_list.parse()
             return paths
         else:
@@ -413,7 +407,7 @@ class ConditionBlock(ParserData):
         """
         evaluation arguments of the condition and return a Z3 condition
         """
-        eval = Eval(path, self.solver, self.zvars)
+        eval = Eval(path, self.solver)
 
         if isinstance(cond, parserdata.EqCondition):
             exps1 = eval.do_expansion(cond.exp1)
@@ -487,33 +481,24 @@ class ConditionBlock(ParserData):
 
 
 class Rule(ParserData):
-    def __init__(self, stmt, paths, solver, zvars):
+    def __init__(self, stmt, paths, solver):
         assert isinstance(
             stmt, (parserdata.Rule, parserdata.StaticPatternRule)), stmt
-        super(Rule, self).__init__(stmt, paths, solver, zvars)
+        super(Rule, self).__init__(stmt, paths, solver)
 
     def parse_single(self, path):
         mlog.warn("Cannot parse Rule: {}".format(self.stmt))
-        # tloc = self.get_trace_loc(self.stmt)
-        # if tloc:
-        #     if tloc not in self.traces:
-        #         self.traces[tloc] = Paths()
-        #     self.traces[tloc].append(path)
-
-        # else:
-        #     mlog.warn("Cannot parse Rule: {}".format(self.stmt))
-
         new_paths = Paths([path])
         return new_paths
 
 
 class Include(ParserData):
-    def __init__(self, stmt, paths, solver, zvars):
+    def __init__(self, stmt, paths, solver):
         assert isinstance(stmt, parserdata.Include), stmt
-        super(Include, self).__init__(stmt, paths, solver, zvars)
+        super(Include, self).__init__(stmt, paths, solver)
 
     def parse_single(self, path):
-        eval = Eval(path, self.solver, self.zvars)
+        eval = Eval(path, self.solver)
         exp = eval.do_expansion(self.stmt.exp)
         paths = []
         for include_file, include_cond in exp:
@@ -534,7 +519,7 @@ class Include(ParserData):
             fh.close()
             stmts = parser.parsestring(stmts, fh.name)
             stmt_list = StatementList(
-                stmts, [new_path], self.solver, self.zvars)
+                stmts, [new_path], self.solver)
             paths_ = stmt_list.parse()
             paths.extend(paths_)
 
@@ -542,9 +527,9 @@ class Include(ParserData):
 
 
 class Command(ParserData):
-    def __init__(self, stmt, paths, solver, zvars):
+    def __init__(self, stmt, paths, solver):
         assert isinstance(stmt, parserdata.Command), stmt
-        super(Command, self).__init__(stmt, paths, solver, zvars)
+        super(Command, self).__init__(stmt, paths, solver)
 
     def parse_single(self, path):
         mlog.warn("Cannot parse Command: {}".format(self.stmt))
@@ -552,9 +537,9 @@ class Command(ParserData):
 
 
 class EmptyDirective(ParserData):
-    def __init__(self, stmt, paths, solver, zvars):
+    def __init__(self, stmt, paths, solver):
         assert isinstance(stmt, parserdata.EmptyDirective), stmt
-        super(EmptyDirective, self).__init__(stmt, paths, solver, zvars)
+        super(EmptyDirective, self).__init__(stmt, paths, solver)
 
     def parse_single(self, path):
         mlog.warn("Cannot parse EmptyDirective: {}".format(self.stmt))
@@ -572,10 +557,7 @@ class Kbuild:
 
         self.topdir = os.path.dirname(makefile)
         self.makefile = makefile
-        self.zvars = OrderedDict()
         self.solver = ZSolver()
-        # store individual states collected at __TRACE__ points
-        #self.traces = OrderedDict()
 
     def symexe(self, cond):
         assert z3.is_expr(cond), cond
@@ -585,8 +567,7 @@ class Kbuild:
             datetime.now().strftime("%Y-%m-%d %H:%M"), self.makefile))
 
         path = Path.get_default(cond, self.topdir)
-        stmts = StatementList(self.stmts, Paths([path]),
-                              self.solver, self.zvars)
+        stmts = StatementList(self.stmts, Paths([path]), self.solver)
         self.paths = stmts.parse()
         self.se_time = time() - st
 

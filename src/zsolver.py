@@ -1,5 +1,6 @@
-import pdb
+from collections import OrderedDict
 from time import time
+import pdb
 import z3
 
 import vcommon as CM
@@ -94,7 +95,7 @@ def mdisj(cs):
 
 
 class ZSolver:
-    __config_ct__ = 0
+    __config_vars__ = OrderedDict()
 
     def __init__(self):
         self.solver = z3.Solver()
@@ -121,5 +122,7 @@ class ZSolver:
             return ret == z3.sat
 
     def get_tristate_sort(self, name):
-        ZSolver.__config_ct__ += 1
-        return z3.Const(name, self.COptTyp)
+        assert isinstance(name, str) and name, name
+        if name not in self.__config_vars__:
+            self.__config_vars__[name] = z3.Const(name, self.COptTyp)
+        return self.__config_vars__[name]
