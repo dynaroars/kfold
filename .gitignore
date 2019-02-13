@@ -1,6 +1,7 @@
 *~
 *.pyc
 .*
+!.editorconfig
 !.gitignore
 
 /README.md
