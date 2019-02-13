@@ -1,9 +1,6 @@
 #! /usr/bin/env python
 
-from collections import OrderedDict
-import itertools
 from time import time
-from datetime import datetime
 import os.path
 import pdb
 
@@ -64,11 +61,8 @@ class Run:
 
         import tempfile
         self.tmpdir = tempfile.mkdtemp(dir=settings.tmpdir, prefix="Symmake_")
-        self.save(os.path.join(self.tmpdir, "results"), kbuilds)
+        self.save(self.tmpdir, kbuilds)
         return self.tmpdir
-
-    def postprocessing(self):
-        pass
 
     @classmethod
     def get_makefile(cls, makefile_path):
@@ -90,23 +84,24 @@ class Run:
         return os.path.abspath(makefile)
 
     @staticmethod
-    def save(f, kbuilds):
+    def save(result_dir, kbuilds):
+        assert os.path.isdir(result_dir), result_dir
         assert all(isinstance(kbuild, Kbuild)
                    for kbuild in kbuilds) and kbuilds, kbuilds
-        sinfo = []
-        for kbuild in kbuilds:
-            kinfo = (
-                kbuild.makefile,
-                kbuild.topdir,
-                kbuild.se_time,
-                [(zsolver.to_smt2_str(path.cond), path.states)
-                 for path in kbuild.paths]
-            )
-            sinfo.append(kinfo)
 
-        CM.vsave(f, sinfo)
+        for kbuild in kbuilds:
+            file = os.path.join(
+                result_dir, os.path.basename(kbuild.makefile) + ".pc")
+            assert not os.path.isfile(file), file
+            kbuild.save(file)
 
     @staticmethod
-    def load(f):
-        assert os.path.isfile(f), f
-        return CM.vload(f)
+    def load(result_dir):
+        assert os.path.isdir(result_dir), result_dir
+
+        kbuilds = []
+        for filename in os.listdir(result_dir):
+            kbuild = Kbuild.load(os.path.join(result_dir, filename))
+            kbuilds.append(kbuild)
+
+        return kbuilds

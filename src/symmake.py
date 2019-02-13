@@ -109,6 +109,10 @@ if __name__ == '__main__':
        choices=range(5),
        default=3)
 
+    ag("--analysis", "-analysis",
+       action="store_true",
+       help="analyze saved results")
+
     ag('--case-study',
        type=str,
        help="""avail options: busybox, linux, fromfile""")
@@ -128,6 +132,9 @@ if __name__ == '__main__':
     if __debug__:
         mlog.info("DEBUG MODE ON. Can be slow! (Use python -O to optimize)")
     makefile_paths = args.paths
+
+    if args.analysis:
+        pass
 
     case_study = args.case_study
     if case_study:

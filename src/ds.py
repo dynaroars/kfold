@@ -165,6 +165,22 @@ class Path:
         assert new_paths
         return new_paths
 
+    def slice(self):
+        [self.states.pop(name)
+         for name in self.states if Path.is_not_target(name)]
+
+    def merge_states(self, other):
+        for name in other.states:
+            other_var = other.states[name]
+            #BaseVar = namedtuple("BaseVar", "name vals flavor")
+            assert isinstance(other_var, Var), other_var
+            if name in self.states:
+                vals = frozenset(
+                    list(self.states[name].vals) + list(other_var.vals))
+                self.states[name] = self.states[name].fork_val(vals)
+            else:
+                self.states[name] = other_var
+
     @property
     def state_hash(self):
         fs = frozenset(sorted(self.states.items()))
@@ -276,6 +292,20 @@ class Paths(list):
 
         merge_paths = Paths(simplified_paths + other_paths)
         return merge_paths
+
+    def postprocess(self):
+
+        # merge those with same conditions
+        conds = {}
+
+        # quick merge
+        for path in self:
+            if path.cond not in conds:
+                conds[path.cond] = path
+            else:
+                conds[path.cond].merge_states(path)
+
+        return Paths(conds.values())
 
     @staticmethod
     def save_info(paths):

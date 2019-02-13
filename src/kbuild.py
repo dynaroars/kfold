@@ -573,5 +573,26 @@ class Kbuild:
             len(self.paths), self.se_time))
         mlog.debug(self.paths)
 
-    def postprocessing(self):
-        pass
+        self.paths = self.paths.postprocess()
+        mlog.info("after merged: {} paths ({}s)".format(
+            len(self.paths), self.se_time))
+        mlog.debug(self.paths)
+
+    def save(self, tofile=None):
+        kinfo = (
+            self.makefile,
+            self.topdir,
+            self.se_time,
+            [(zsolver.to_smt2_str(path.cond), path.states)
+             for path in self.paths]
+        )
+
+        if tofile:
+            CM.vsave(tofile, kinfo)
+        else:
+            return kinfo
+
+    @staticmethod
+    def load(fromfile):
+        assert os.path.isfile(fromfile), fromfile
+        return CM.vload(fromfile)
