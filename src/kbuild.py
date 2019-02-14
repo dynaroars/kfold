@@ -573,26 +573,28 @@ class Kbuild:
             len(self.paths), self.se_time))
         mlog.debug(self.paths)
 
-        self.paths = self.paths.postprocess()
-        mlog.info("after merged: {} paths ({}s)".format(
-            len(self.paths), self.se_time))
-        mlog.debug(self.paths)
+    def save(self, tofile):
+        assert isinstance(tofile, str) and tofile, tofile
 
-    def save(self, tofile=None):
         kinfo = (
             self.makefile,
-            self.topdir,
             self.se_time,
             [(zsolver.to_smt2_str(path.cond), path.states)
              for path in self.paths]
         )
-
-        if tofile:
-            CM.vsave(tofile, kinfo)
-        else:
-            return kinfo
+        CM.vsave(tofile, kinfo)
 
     @staticmethod
     def load(fromfile):
         assert os.path.isfile(fromfile), fromfile
-        return CM.vload(fromfile)
+        kinfo = CM.vload(fromfile)
+        makefile, se_time, path_info = kinfo
+
+        paths = Paths([Path(zsolver.from_smt2_str(cond), states)
+                       for cond, states in path_info])
+
+        kbuild = Kbuild(makefile)
+        kbuild.se_time = se_time
+        kbuild.paths = paths
+
+        return kbuild

@@ -16,7 +16,7 @@ class CaseStudy:
         dirs = self.get_makefile_dirs()
         import alg
         myrun = alg.Run(dirs)
-        myrun.go()
+        return myrun.go()
 
     def get_makefile_dirs(self):
         dirs = [os.path.join(self.topdir, d) for d in self.__topdirs__]
@@ -92,6 +92,11 @@ class Linux(CaseStudy):
     ])
 
 
+def analyze(result_dir):
+    from analysis import Analysis
+    cls = Analysis(result_dir)
+
+
 if __name__ == '__main__':
 
     import argparse
@@ -117,9 +122,9 @@ if __name__ == '__main__':
        type=str,
        help="""avail options: busybox, linux, fromfile""")
 
-    ag("--normtmp", "-normtmp",
+    ag("--rmtmp", "-rmtmp",
        action="store_true",
-       help="saves computed result to a tmp dir")
+       help="remove saveds result")
 
     args = aparser.parse_args()
 
@@ -134,7 +139,8 @@ if __name__ == '__main__':
     makefile_paths = args.paths
 
     if args.analysis:
-        pass
+        analyze(makefile_paths[0])
+        exit(0)
 
     case_study = args.case_study
     if case_study:
@@ -161,7 +167,7 @@ if __name__ == '__main__':
 
     tmpdir = cls.go()
 
-    if not args.normtmp:
+    if args.rmtmp:
         import shutil
         mlog.debug("rm -rf {}".format(tmpdir))
         shutil.rmtree(tmpdir)

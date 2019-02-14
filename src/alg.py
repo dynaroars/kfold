@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-
+import itertools
 from time import time
 import os.path
 import pdb
@@ -31,37 +31,37 @@ class Run:
             makefiles = [self.get_makefile(p) for p in file_paths]
             return [(makefile, cond) for makefile in makefiles if makefile]
 
-        def analyze(makefile, cond):
+        def analyze(makefile, cond, result_dir):
             assert os.path.isfile(makefile), makefile
             assert cond is None or z3.is_expr(cond), cond
             kbuild = Kbuild(makefile)
             kbuild.symexe(cond)
+            tofile = os.path.join(
+                result_dir, kbuild.makefile.replace("/", "_") + ".pc")
+            kbuild.save(tofile)
             return kbuild
 
         st = time()
+        import tempfile
+        self.tmpdir = tempfile.mkdtemp(dir=settings.tmpdir, prefix="symmake_")
+
         kbuilds = []  # results
         makefiles = get_makefiles(self.makefile_paths, cond=zsolver.T)
         while makefiles:
 
             # parallel
-            kbuilds_ = [analyze(makefile, cond)
+            kbuilds_ = [analyze(makefile, cond, self.tmpdir)
                         for makefile, cond in makefiles]
             kbuilds.extend(kbuilds_)
 
             # recurse to subdirs if any
-            makefiles = []
-            for kbuild in kbuilds_:
-                for path in kbuild.paths:
-                    makefiles_ = get_makefiles(
-                        path.subdirs(kbuild.topdir), path.cond)
-                    makefiles.extend(makefiles_)
+            makefiles = [get_makefiles(path.subdirs(kbuild.topdir), path.cond)
+                         for kbuild in kbuilds_ for path in kbuild.paths]
+            makefiles = list(itertools.chain(*makefiles))
 
         mlog.info("analyzed {} kbuild makefiles in {}s".format(
             len(kbuilds), time() - st))
 
-        import tempfile
-        self.tmpdir = tempfile.mkdtemp(dir=settings.tmpdir, prefix="Symmake_")
-        self.save(self.tmpdir, kbuilds)
         return self.tmpdir
 
     @classmethod
@@ -82,26 +82,3 @@ class Run:
             return None
 
         return os.path.abspath(makefile)
-
-    @staticmethod
-    def save(result_dir, kbuilds):
-        assert os.path.isdir(result_dir), result_dir
-        assert all(isinstance(kbuild, Kbuild)
-                   for kbuild in kbuilds) and kbuilds, kbuilds
-
-        for kbuild in kbuilds:
-            file = os.path.join(
-                result_dir, os.path.basename(kbuild.makefile) + ".pc")
-            assert not os.path.isfile(file), file
-            kbuild.save(file)
-
-    @staticmethod
-    def load(result_dir):
-        assert os.path.isdir(result_dir), result_dir
-
-        kbuilds = []
-        for filename in os.listdir(result_dir):
-            kbuild = Kbuild.load(os.path.join(result_dir, filename))
-            kbuilds.append(kbuild)
-
-        return kbuilds
