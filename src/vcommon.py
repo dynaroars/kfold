@@ -11,8 +11,10 @@ import logging
 def pause(s=None):
     try:  # python2
         raw_input("Press any key to continue ..." if s is None else s)
+        input("Press any key to continue ..." if s is None else s)
     except NameError:
         input("Press any key to continue ..." if s is None else s)
+        eval(input("Press any key to continue ..." if s is None else s))
 
 
 def whoami():
@@ -26,11 +28,7 @@ def vcmd(cmd, inp=None, shell=True):
 
 
 def vload(filename, mode='rb'):
-    try:
-        import cPickle as pickle
-    except ImportError:  # Python3
-        import pickle
-
+    import pickle
     with open(filename, mode) as fh:
         pickler = pickle.Unpickler(fh)
         sobj = pickler.load()
@@ -38,11 +36,7 @@ def vload(filename, mode='rb'):
 
 
 def vsave(filename, sobj, mode='wb'):
-    try:
-        import cPickle as pickle
-    except ImportError:  # Python3
-        import pickle
-
+    import pickle
     with open(filename, mode) as fh:
         pickler = pickle.Pickler(fh, -1)
         pickler.dump(sobj)
@@ -73,9 +67,6 @@ def iread_strip(filename, strip_c='#'):
     like iread but also strip out comments and empty line
     """
     return strip_contents(iread(filename), strip_c)
-
-
-def vmul(l): return reduce(operator.mul, l, 1)
 
 
 def getpath(f): return os.path.realpath(os.path.expanduser(f))

@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from time import time
+from functools import reduce
 import pdb
 import z3
 

@@ -30,7 +30,7 @@ class Var(BaseVar):
         assert isinstance(vals, frozenset), vals
         assert flavor in set([Var.RECURSE, Var.SIMPLY]), flavor
 
-        super(Var, self).__init__(name, vals, flavor)
+        super(Var).__init__()
 
     @property
     def vals_str(self):
@@ -95,7 +95,7 @@ class Path:
 
     def __str__(self):
 
-        ss = (v for v in self.states.itervalues() if not v.ignorable)
+        ss = (v for v in self.states.values() if not v.ignorable)
         ss = '; '.join(map(str, ss))
         if ss:
             ss = "{} => {}".format(self.cond, ss)
@@ -112,7 +112,7 @@ class Path:
         assert z3.is_expr(new_cond), new_cond
 
         new_states = OrderedDict()
-        for name, v in self.states.iteritems():
+        for name, v in self.states.items():
             if ignore_targets and Path.is_target(name):
                 continue
             new_states[name] = v.fork()
@@ -248,7 +248,7 @@ class Paths(list):
 
         simplified_paths = []
         other_paths = []
-        for gpaths in groups.itervalues():
+        for gpaths in groups.values():
             path = gpaths[0]
             if len(gpaths) == 1:
                 simplified_paths.append(path)
@@ -278,7 +278,7 @@ class Paths(list):
                 else:
                     Q.put(rs)
 
-            wrs = CM.Miscs.runMP('merge', range(len(other_paths)),
+            wrs = CM.Miscs.runMP('merge', list(range(len(other_paths))),
                                  wprocess, chunksiz=2,
                                  doMP=settings.do_mp and
                                  len(other_paths) >= settings.mp_task_len)

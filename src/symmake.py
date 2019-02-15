@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 from vcommon import getLogLevel, getLogger
 import vcommon as CM
 import os.path
