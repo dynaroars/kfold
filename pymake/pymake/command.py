@@ -9,10 +9,16 @@ structure, environment, and working directory. Typically they will all share a p
 except when a submake specifies -j1 when the parent make is building in parallel.
 """
 
-import os, subprocess, sys, logging, time, traceback, re
+import os
+import subprocess
+import sys
+import logging
+import time
+import traceback
+import re
 from optparse import OptionParser
-from pymake import data, parserdata, process, util
-from pymake import errors
+from pymake3 import data, parserdata, process, util
+from pymake3 import errors
 
 # TODO: If this ever goes from relocatable package to system-installed, this may need to be
 # a configured-in path.
@@ -20,6 +26,8 @@ from pymake import errors
 makepypath = util.normaljoin(os.path.dirname(__file__), '../make.py')
 
 _simpleopts = re.compile(r'^[a-zA-Z]+(\s|$)')
+
+
 def parsemakeflags(env):
     """
     Parse MAKEFLAGS from the environment into a sequence of command-line arguments.
@@ -53,7 +61,7 @@ def parsemakeflags(env):
             if i == len(makeflags):
                 raise errors.DataError("MAKEFLAGS has trailing backslash")
             c = makeflags[i]
-            
+
         curopt += c
         i += 1
 
@@ -61,6 +69,7 @@ def parsemakeflags(env):
         opts.append(curopt)
 
     return opts
+
 
 def _version(*args):
     print("""pymake: GNU-compatible make program
@@ -74,7 +83,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.""")
 
+
 _log = logging.getLogger('pymake.execution')
+
 
 class _MakeContext(object):
     def __init__(self, makeflags, makelevel, workdir, context, env, targets, options, ostmts, overrides, cb):
@@ -102,10 +113,12 @@ class _MakeContext(object):
 
         if remade:
             if self.restarts > 0:
-                _log.info("make.py[%i]: Restarting makefile parsing", self.makelevel)
+                _log.info(
+                    "make.py[%i]: Restarting makefile parsing", self.makelevel)
 
             self.makefile = data.Makefile(restarts=self.restarts,
-                                          make='%s %s' % (sys.executable.replace('\\', '/'), makepypath.replace('\\', '/')),
+                                          make='%s %s' % (sys.executable.replace(
+                                              '\\', '/'), makepypath.replace('\\', '/')),
                                           makeflags=self.makeflags,
                                           makeoverrides=self.overrides,
                                           workdir=self.workdir,
@@ -144,7 +157,8 @@ class _MakeContext(object):
             self.realtargets = self.targets
             self.tstack = ['<command-line>']
 
-        self.makefile.gettarget(self.realtargets.pop(0)).make(self.makefile, self.tstack, cb=self.makecb)
+        self.makefile.gettarget(self.realtargets.pop(0)).make(
+            self.makefile, self.tstack, cb=self.makecb)
 
     def makecb(self, error, didanything):
         assert error in (True, False)
@@ -155,12 +169,15 @@ class _MakeContext(object):
 
         if not len(self.realtargets):
             if self.options.printdir:
-                print("make.py[%i]: Leaving directory '%s'" % (self.makelevel, self.workdir))
+                print("make.py[%i]: Leaving directory '%s'" %
+                      (self.makelevel, self.workdir))
             sys.stdout.flush()
 
             self.context.defer(self.cb, 0)
         else:
-            self.makefile.gettarget(self.realtargets.pop(0)).make(self.makefile, self.tstack, self.makecb)
+            self.makefile.gettarget(self.realtargets.pop(0)).make(
+                self.makefile, self.tstack, self.makecb)
+
 
 def main(args, env, cwd, cb):
     """
@@ -256,7 +273,8 @@ def main(args, env, cwd, cb):
         context = process.getcontext(options.jobcount)
 
         if options.printdir:
-            print("make.py[%i]: Entering directory '%s'" % (makelevel, workdir))
+            print("make.py[%i]: Entering directory '%s'" %
+                  (makelevel, workdir))
             sys.stdout.flush()
 
         if len(options.makefiles) == 0:
@@ -269,7 +287,8 @@ def main(args, env, cwd, cb):
 
         ostmts, targets, overrides = parserdata.parsecommandlineargs(arguments)
 
-        _MakeContext(makeflags, makelevel, workdir, context, env, targets, options, ostmts, overrides, cb)
+        _MakeContext(makeflags, makelevel, workdir, context, env,
+                     targets, options, ostmts, overrides, cb)
     except errors.MakeError as e:
         print(e)
         if options.printdir:

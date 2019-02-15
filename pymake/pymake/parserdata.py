@@ -1,9 +1,11 @@
 from __future__ import print_function
 
-import logging, re, os
-from pymake import data, parser, util
-from pymake.globrelative import hasglob, glob
-from pymake import errors
+import logging
+import re
+import os
+from pymake3 import data, parser, util
+from pymake3.globrelative import hasglob, glob
+from pymake3 import errors
 
 try:
     from cStringIO import StringIO
@@ -13,6 +15,7 @@ except ImportError:
 
 _log = logging.getLogger('pymake.data')
 _tabwidth = 4
+
 
 class Location(object):
     """
@@ -64,6 +67,7 @@ class Location(object):
     def __str__(self):
         return "%s:%s:%s" % (self.path, self.line, self.column)
 
+
 def _expandwildcards(makefile, tlist):
     for t in tlist:
         if not hasglob(t):
@@ -73,7 +77,9 @@ def _expandwildcards(makefile, tlist):
             for r in l:
                 yield r
 
+
 _flagescape = re.compile(r'([\s\\])')
+
 
 def parsecommandlineargs(args):
     """
@@ -94,16 +100,19 @@ def parsecommandlineargs(args):
             overrides.append(_flagescape.sub(r'\\\1', a))
 
             vname = vname.strip()
-            vnameexp = data.Expansion.fromstring(vname, "Command-line argument")
+            vnameexp = data.Expansion.fromstring(
+                vname, "Command-line argument")
 
             stmts.append(ExportDirective(vnameexp, concurrent_set=True))
             stmts.append(SetVariable(vnameexp, token=t,
-                                     value=val, valueloc=Location('<command-line>', i, len(vname) + len(t)),
+                                     value=val, valueloc=Location(
+                                         '<command-line>', i, len(vname) + len(t)),
                                      targetexp=None, source=data.Variables.SOURCE_COMMANDLINE))
         else:
             r.append(data.stripdotslash(a))
 
     return stmts, r, ' '.join(overrides)
+
 
 class Statement(object):
     """
@@ -131,11 +140,13 @@ class Statement(object):
     def __ne__(self, other):
         return self.__eq__(other)
 
+
 class DummyRule(object):
     __slots__ = ()
 
     def addcommand(self, r):
         pass
+
 
 class Rule(Statement):
     """
@@ -179,8 +190,10 @@ class Rule(Statement):
         # Skip targets with no rules and no dependencies
         if not deps:
             return
-        targets = data.stripdotslashes(self.targetexp.resolvesplit(makefile, makefile.variables))
-        rule = data.Rule(list(data.stripdotslashes(deps)), self.doublecolon, loc=self.targetexp.loc, weakdeps=True)
+        targets = data.stripdotslashes(
+            self.targetexp.resolvesplit(makefile, makefile.variables))
+        rule = data.Rule(list(data.stripdotslashes(deps)),
+                         self.doublecolon, loc=self.targetexp.loc, weakdeps=True)
         for target in targets:
             makefile.gettarget(target).addrule(rule)
             makefile.foundtarget(target)
@@ -189,8 +202,10 @@ class Rule(Statement):
     def _execute(self, makefile, context):
         assert not context.weak
 
-        atargets = data.stripdotslashes(self.targetexp.resolvesplit(makefile, makefile.variables))
-        targets = [data.Pattern(p) for p in _expandwildcards(makefile, atargets)]
+        atargets = data.stripdotslashes(
+            self.targetexp.resolvesplit(makefile, makefile.variables))
+        targets = [data.Pattern(p)
+                   for p in _expandwildcards(makefile, atargets)]
 
         if not len(targets):
             context.currule = DummyRule()
@@ -198,16 +213,20 @@ class Rule(Statement):
 
         ispatterns = set((t.ispattern() for t in targets))
         if len(ispatterns) == 2:
-            raise errors.DataError("Mixed implicit and normal rule", self.targetexp.loc)
+            raise errors.DataError(
+                "Mixed implicit and normal rule", self.targetexp.loc)
         ispattern, = ispatterns
 
-        deps = list(_expandwildcards(makefile, data.stripdotslashes(self.depexp.resolvesplit(makefile, makefile.variables))))
+        deps = list(_expandwildcards(makefile, data.stripdotslashes(
+            self.depexp.resolvesplit(makefile, makefile.variables))))
         if ispattern:
             prerequisites = [data.Pattern(d) for d in deps]
-            rule = data.PatternRule(targets, prerequisites, self.doublecolon, loc=self.targetexp.loc)
+            rule = data.PatternRule(
+                targets, prerequisites, self.doublecolon, loc=self.targetexp.loc)
             makefile.appendimplicitrule(rule)
         else:
-            rule = data.Rule(deps, self.doublecolon, loc=self.targetexp.loc, weakdeps=False)
+            rule = data.Rule(deps, self.doublecolon,
+                             loc=self.targetexp.loc, weakdeps=False)
             for t in targets:
                 makefile.gettarget(t.gettarget()).addrule(rule)
 
@@ -238,8 +257,9 @@ class Rule(Statement):
             return False
 
         return self.targetexp == other.targetexp \
-                and self.depexp == other.depexp \
-                and self.doublecolon == other.doublecolon
+            and self.depexp == other.depexp \
+            and self.doublecolon == other.doublecolon
+
 
 class StaticPatternRule(Statement):
     """
@@ -265,30 +285,39 @@ class StaticPatternRule(Statement):
 
     def execute(self, makefile, context):
         if context.weak:
-            raise errors.DataError("Static pattern rules not allowed in includedeps", self.targetexp.loc)
+            raise errors.DataError(
+                "Static pattern rules not allowed in includedeps", self.targetexp.loc)
 
-        targets = list(_expandwildcards(makefile, data.stripdotslashes(self.targetexp.resolvesplit(makefile, makefile.variables))))
+        targets = list(_expandwildcards(makefile, data.stripdotslashes(
+            self.targetexp.resolvesplit(makefile, makefile.variables))))
 
         if not len(targets):
             context.currule = DummyRule()
             return
 
-        patterns = list(data.stripdotslashes(self.patternexp.resolvesplit(makefile, makefile.variables)))
+        patterns = list(data.stripdotslashes(
+            self.patternexp.resolvesplit(makefile, makefile.variables)))
         if len(patterns) != 1:
-            raise errors.DataError("Static pattern rules must have a single pattern", self.patternexp.loc)
+            raise errors.DataError(
+                "Static pattern rules must have a single pattern", self.patternexp.loc)
         pattern = data.Pattern(patterns[0])
 
-        deps = [data.Pattern(p) for p in _expandwildcards(makefile, data.stripdotslashes(self.depexp.resolvesplit(makefile, makefile.variables)))]
+        deps = [data.Pattern(p) for p in _expandwildcards(makefile, data.stripdotslashes(
+            self.depexp.resolvesplit(makefile, makefile.variables)))]
 
-        rule = data.PatternRule([pattern], deps, self.doublecolon, loc=self.targetexp.loc)
+        rule = data.PatternRule(
+            [pattern], deps, self.doublecolon, loc=self.targetexp.loc)
 
         for t in targets:
             if data.Pattern(t).ispattern():
-                raise errors.DataError("Target '%s' of a static pattern rule must not be a pattern" % (t,), self.targetexp.loc)
+                raise errors.DataError(
+                    "Target '%s' of a static pattern rule must not be a pattern" % (t,), self.targetexp.loc)
             stem = pattern.match(t)
             if stem is None:
-                raise errors.DataError("Target '%s' does not match the static pattern '%s'" % (t, pattern), self.targetexp.loc)
-            makefile.gettarget(t).addrule(data.PatternRuleInstance(rule, '', stem, pattern.ismatchany()))
+                raise errors.DataError("Target '%s' does not match the static pattern '%s'" % (
+                    t, pattern), self.targetexp.loc)
+            makefile.gettarget(t).addrule(data.PatternRuleInstance(
+                rule, '', stem, pattern.ismatchany()))
 
         makefile.foundtarget(targets[0])
         context.currule = rule
@@ -319,9 +348,10 @@ class StaticPatternRule(Statement):
             return False
 
         return self.targetexp == other.targetexp \
-                and self.patternexp == other.patternexp \
-                and self.depexp == other.depexp \
-                and self.doublecolon == other.doublecolon
+            and self.patternexp == other.patternexp \
+            and self.depexp == other.depexp \
+            and self.doublecolon == other.doublecolon
+
 
 class Command(Statement):
     """
@@ -343,7 +373,8 @@ class Command(Statement):
     def execute(self, makefile, context):
         assert context.currule is not None
         if context.weak:
-            raise errors.DataError("rules not allowed in includedeps", self.exp.loc)
+            raise errors.DataError(
+                "rules not allowed in includedeps", self.exp.loc)
 
         context.currule.addcommand(self.exp)
 
@@ -367,6 +398,7 @@ class Command(Statement):
 
         return self.exp == other.exp
 
+
 class SetVariable(Statement):
     """
     Represents a variable assignment.
@@ -388,12 +420,14 @@ class SetVariable(Statement):
     assignment except the `targetexp` field is set to an Expansion representing
     the target they apply to.
     """
-    __slots__ = ('vnameexp', 'token', 'value', 'valueloc', 'targetexp', 'source')
+    __slots__ = ('vnameexp', 'token', 'value',
+                 'valueloc', 'targetexp', 'source')
 
     def __init__(self, vnameexp, token, value, valueloc, targetexp, source=None):
         assert isinstance(vnameexp, (data.Expansion, data.StringExpansion))
         assert isinstance(value, str)
-        assert targetexp is None or isinstance(targetexp, (data.Expansion, data.StringExpansion))
+        assert targetexp is None or isinstance(
+            targetexp, (data.Expansion, data.StringExpansion))
 
         if source is None:
             source = data.Variables.SOURCE_MAKEFILE
@@ -415,16 +449,19 @@ class SetVariable(Statement):
         else:
             setvariables = []
 
-            targets = [data.Pattern(t) for t in data.stripdotslashes(self.targetexp.resolvesplit(makefile, makefile.variables))]
+            targets = [data.Pattern(t) for t in data.stripdotslashes(
+                self.targetexp.resolvesplit(makefile, makefile.variables))]
             for t in targets:
                 if t.ispattern():
                     setvariables.append(makefile.getpatternvariables(t))
                 else:
-                    setvariables.append(makefile.gettarget(t.gettarget()).variables)
+                    setvariables.append(
+                        makefile.gettarget(t.gettarget()).variables)
 
         for v in setvariables:
             if self.token == '+=':
-                v.append(vname, self.source, self.value, makefile.variables, makefile)
+                v.append(vname, self.source, self.value,
+                         makefile.variables, makefile)
                 continue
 
             if self.token == '?=':
@@ -454,10 +491,10 @@ class SetVariable(Statement):
             return False
 
         return self.vnameexp == other.vnameexp \
-                and self.token == other.token \
-                and self.value == other.value \
-                and self.targetexp == other.targetexp \
-                and self.source == other.source
+            and self.token == other.token \
+            and self.value == other.value \
+            and self.targetexp == other.targetexp \
+            and self.source == other.source
 
     def to_source(self):
         chars = []
@@ -504,10 +541,11 @@ class SetVariable(Statement):
                 value)
 
         return '%s%s %s %s' % (
-                prefix,
-                self.vnameexp.to_source(),
-                self.token,
-                value)
+            prefix,
+            self.vnameexp.to_source(),
+            self.token,
+            value)
+
 
 class Condition(object):
     """
@@ -525,6 +563,7 @@ class Condition(object):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
 
 class EqCondition(Condition):
     """
@@ -559,8 +598,9 @@ class EqCondition(Condition):
             return False
 
         return self.exp1 == other.exp1 \
-                and self.exp2 == other.exp2 \
-                and self.expected == other.expected
+            and self.exp2 == other.exp2 \
+            and self.expected == other.expected
+
 
 class IfdefCondition(Condition):
     """
@@ -597,6 +637,7 @@ class IfdefCondition(Condition):
 
         return self.exp == other.exp and self.expected == other.expected
 
+
 class ElseCondition(Condition):
     """
     Represents the transition between branches in a ConditionBlock.
@@ -611,6 +652,7 @@ class ElseCondition(Condition):
 
     def __eq__(self, other):
         return isinstance(other, ElseCondition)
+
 
 class ConditionBlock(Statement):
     """
@@ -642,7 +684,8 @@ class ConditionBlock(Statement):
         condition.loc = loc
 
         if len(self._groups) and isinstance(self._groups[-1][0], ElseCondition):
-            raise errors.SyntaxError("Multiple else conditions for block starting at %s" % self.loc, loc)
+            raise errors.SyntaxError(
+                "Multiple else conditions for block starting at %s" % self.loc, loc)
 
         self._groups.append((condition, StatementList()))
 
@@ -742,7 +785,8 @@ class ConditionBlock(Statement):
 
             # Quote everything if needed.
             if single_quote_present and double_quote_present:
-                raise Exception('Cannot format condition with multiple quotes.')
+                raise Exception(
+                    'Cannot format condition with multiple quotes.')
 
             if use_quotes:
                 for i, arg in enumerate(args):
@@ -767,7 +811,7 @@ class ConditionBlock(Statement):
             return 'else'
 
         raise Exception('Unhandled Condition statement: %s' %
-                statement.__class__)
+                        statement.__class__)
 
     def __iter__(self):
         return iter(self._groups)
@@ -777,6 +821,7 @@ class ConditionBlock(Statement):
 
     def __getitem__(self, i):
         return self._groups[i]
+
 
 class Include(Statement):
     """
@@ -799,7 +844,8 @@ class Include(Statement):
     def execute(self, makefile, context):
         files = self.exp.resolvesplit(makefile, makefile.variables)
         for f in files:
-            makefile.include(f, self.required, loc=self.exp.loc, weak=self.weak)
+            makefile.include(f, self.required,
+                             loc=self.exp.loc, weak=self.weak)
 
     def dump(self, fd, indent):
         print("%sInclude %s" % (indent, self.exp), file=fd)
@@ -818,6 +864,7 @@ class Include(Statement):
 
         return self.exp == other.exp and self.required == other.required
 
+
 class VPathDirective(Statement):
     """
     Represents the vpath directive.
@@ -831,7 +878,8 @@ class VPathDirective(Statement):
         self.exp = exp
 
     def execute(self, makefile, context):
-        words = list(data.stripdotslashes(self.exp.resolvesplit(makefile, makefile.variables)))
+        words = list(data.stripdotslashes(
+            self.exp.resolvesplit(makefile, makefile.variables)))
         if len(words) == 0:
             makefile.clearallvpaths()
         else:
@@ -859,6 +907,7 @@ class VPathDirective(Statement):
             return False
 
         return self.exp == other.exp
+
 
 class ExportDirective(Statement):
     """
@@ -888,7 +937,8 @@ class ExportDirective(Statement):
         else:
             vlist = list(self.exp.resolvesplit(makefile, makefile.variables))
             if not len(vlist):
-                raise errors.DataError("Exporting all variables is not supported", self.exp.loc)
+                raise errors.DataError(
+                    "Exporting all variables is not supported", self.exp.loc)
 
         for v in vlist:
             makefile.exportedvars[v] = True
@@ -906,6 +956,7 @@ class ExportDirective(Statement):
         # single is irrelevant because it just says whether the next Statement
         # contains a variable definition.
         return self.exp == other.exp
+
 
 class UnexportDirective(Statement):
     """
@@ -935,6 +986,7 @@ class UnexportDirective(Statement):
 
         return self.exp == other.exp
 
+
 class EmptyDirective(Statement):
     """
     Represents a standalone statement, usually an Expansion.
@@ -953,7 +1005,8 @@ class EmptyDirective(Statement):
     def execute(self, makefile, context):
         v = self.exp.resolvestr(makefile, makefile.variables)
         if v.strip() != '':
-            raise errors.DataError("Line expands to non-empty value", self.exp.loc)
+            raise errors.DataError(
+                "Line expands to non-empty value", self.exp.loc)
 
     def dump(self, fd, indent):
         print("%sEmptyDirective: %s" % (indent, self.exp), file=fd)
@@ -967,11 +1020,13 @@ class EmptyDirective(Statement):
 
         return self.exp == other.exp
 
+
 class _EvalContext(object):
     __slots__ = ('currule', 'weak')
 
     def __init__(self, weak):
         self.weak = weak
+
 
 class StatementList(list):
     """
@@ -1007,9 +1062,11 @@ class StatementList(list):
     def to_source(self):
         return '\n'.join([s.to_source() for s in self])
 
+
 def iterstatements(stmts):
     for s in stmts:
         yield s
         if isinstance(s, ConditionBlock):
             for c, sl in s:
-                for s2 in iterstatments(sl): yield s2
+                for s2 in iterstatments(sl):
+                    yield s2

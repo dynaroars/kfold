@@ -6,7 +6,7 @@ import os.path
 import pdb
 
 import z3
-from pymake import parser, parserdata, data, functions
+from pymake3 import parser, parserdata, data, functions
 
 
 import vcommon as CM

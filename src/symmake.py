@@ -82,13 +82,17 @@ class Linux(CaseStudy):
 
     __ignore_setvar_starswith__ = set([
         "CFLAGS",
+        "AFLAGS",
         "CCVERSION",
         "filechk_ikconfiggz",
-        'ccflags-y'
+        'ccflags-y',
+        'ramfs-input',  # TODO: automatically ignore these
+        'ramfs-args'
     ])
     __ignore_setvar_endswith__ = set([
         "extract_certs",
         "chk_compile.h"
+
     ])
 
 
