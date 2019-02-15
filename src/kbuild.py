@@ -46,7 +46,7 @@ class Eval(object):
 
         comb = []
         for pair in itertools.product(*ts):
-            ss, cs = zip(*pair)
+            ss, cs = list(zip(*pair))
             c = zsolver.mconj(cs)
             comb.append((delim.join(ss), c))
 
@@ -118,7 +118,7 @@ class Eval(object):
                 v = " ".join(pv + n for n in nv.split())
                 d[v] = cond
 
-        rs = d.items()
+        rs = list(d.items())
         return rs
 
     def do_fun_Filterout(self, fun):
@@ -135,7 +135,7 @@ class Eval(object):
                 else:
                     d[v] = zsolver.disj(d[v], cond)
 
-        rs = d.items()
+        rs = list(d.items())
         return rs
 
     def do_fun_PatSubstFunction(self, fun):
@@ -157,7 +157,7 @@ class Eval(object):
                 else:
                     d[v] = zsolver.disj(d[v], cond)
 
-        rs = d.items()
+        rs = list(d.items())
         return rs
 
     def do_fun_SubstFunction(self, fun):
@@ -174,7 +174,7 @@ class Eval(object):
                 else:
                     d[v] = zsolver.disj(d[v], cond)
 
-        rs = d.items()
+        rs = list(d.items())
         return rs
 
     def do_fun_VariableRef(self, fun):
@@ -281,26 +281,26 @@ class StatementList(ParserData):
             et_mk = time() - st
 
             if settings.detail:
-                print '--- ORIG --- ({} paths)'.format(len(paths))
-                print paths
-                print '--- NEW --- ({} paths)'.format(len(new_paths))
-                print new_paths
+                print('--- ORIG --- ({} paths)'.format(len(paths)))
+                print(paths)
+                print('--- NEW --- ({} paths)'.format(len(new_paths)))
+                print(new_paths)
 
             st_split = time()
             split_paths = new_paths.split()
             et_split = time() - st_split
 
             if settings.detail:
-                print '--- SPLIT --- ({} paths)'.format(len(split_paths))
-                print split_paths
+                print('--- SPLIT --- ({} paths)'.format(len(split_paths)))
+                print(split_paths)
 
             st_merge = time()
             merge_paths = split_paths.merge()
             et_merge = time() - st_merge
 
             if settings.detail:
-                print '--- MERGE --- ({} paths)'.format(len(merge_paths))
-                print merge_paths
+                print('--- MERGE --- ({} paths)'.format(len(merge_paths)))
+                print(merge_paths)
 
             paths = merge_paths
 
@@ -468,7 +468,7 @@ class ConditionBlock(ParserData):
 
         assert all(len(merge_d[k]) >= 2 for k in merge_d), merge_d
 
-        disjs = [zsolver.mconj(cs) for cs in merge_d.itervalues()]
+        disjs = [zsolver.mconj(cs) for cs in merge_d.values()]
         if not disjs:
             return zsolver.F
         elif len(disjs) == 1:

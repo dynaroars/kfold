@@ -63,21 +63,21 @@ def runTest(makefile, make, logfile, options):
     (pass, message).
     """
 
-    if os.path.exists(opts.tempdir): shutil.rmtree(opts.tempdir)
+    if os.path.exists(opts.tempdir):
+        shutil.rmtree(opts.tempdir)
     os.mkdir(opts.tempdir, 0o755)
 
-    logfd = open(logfile, 'w')
-    p = Popen(make + options['commandline'], stdout=logfd, stderr=STDOUT, env=options['env'])
-    logfd.close()
-    retcode = p.wait()
+    with open(logfile, 'wb') as logfd:
+        p = Popen(make + options['commandline'], stdout=logfd, stderr=STDOUT, env=options['env'])
+        retcode = p.wait()
+
+    with open(logfile) as h:
+        stdout = h.read()
 
     if retcode != options['returncode']:
+        print(stdout)
         return False, "FAIL (returncode=%i)" % retcode
         
-    logfd = open(logfile)
-    stdout = logfd.read()
-    logfd.close()
-
     if stdout.find('TEST-FAIL') != -1:
         print(stdout)
         return False, "FAIL (TEST-FAIL printed)"
@@ -105,7 +105,11 @@ tre = re.compile('^#T (gmake |pymake )?([a-z-]+)(?:: (.*))?$')
 for makefile in makefiles:
     # For some reason, MAKEFILE_LIST uses native paths in GNU make on Windows
     # (even in MSYS!) so we pass both TESTPATH and NATIVE_TESTPATH
-    cline = ['-C', opts.tempdir, '-f', os.path.abspath(makefile), 'TESTPATH=%s' % thisdir.replace('\\','/'), 'NATIVE_TESTPATH=%s' % thisdir]
+    cline = [
+        '-C', opts.tempdir, '-f', os.path.abspath(makefile),
+        'TESTPATH='.format(thisdir.replace('\\','/')),
+        'NATIVE_TESTPATH='.format(thisdir),
+    ]
     if sys.platform == 'win32':
         #XXX: hack so we can specialize the separator character on windows.
         # we really shouldn't need this, but y'know
@@ -159,21 +163,24 @@ for makefile in makefiles:
 
     mdata.close()
 
-    if gmakeoptions['skip']:
-        gmakepass, gmakemsg = True, ''
-    else:
-        gmakepass, gmakemsg = runTest(makefile, [opts.gmake],
+    if False:
+        if gmakeoptions['skip']:
+            gmakepass, gmakemsg = True, ''
+        else:
+            gmakepass, gmakemsg = runTest(makefile, [opts.gmake],
                                       makefile + '.gmakelog', gmakeoptions)
 
-    if gmakeoptions['pass']:
-        if not gmakepass:
-            gmakefails += 1
-    else:
-        if gmakepass:
-            gmakefails += 1
-            gmakemsg = "UNEXPECTED PASS"
+        if gmakeoptions['pass']:
+            if not gmakepass:
+                gmakefails += 1
         else:
-            gmakemsg = "KNOWN FAIL"
+            if gmakepass:
+                gmakefails += 1
+                gmakemsg = "UNEXPECTED PASS"
+            else:
+                gmakemsg = "KNOWN FAIL"
+    else:
+        gmakemsg = "SKIPPED"
 
     if pymakeoptions['skip']:
         pymakepass, pymakemsg = True, ''

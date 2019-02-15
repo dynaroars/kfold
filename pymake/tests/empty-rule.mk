@@ -4,7 +4,7 @@
 obj: header
 	if [ -e obj ]; then echo TEST-FAIL; fi;
 	touch obj
-
+	if [ -e obj ]; then echo TEST-PASS; fi
 header: cpp
 
 cpp:
