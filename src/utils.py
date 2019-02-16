@@ -65,8 +65,8 @@ def create_makefiles(from_dir, to_dir, fileOK):
             os.makedirs(new_dir)
 
         copyfile(file, new_file)
-    print "copy {} makefiles from '{}' to '{}'".format(
-        len(makefiles), from_dir, to_dir)
+    print("copy {} makefiles from '{}' to '{}'".format(
+        len(makefiles), from_dir, to_dir))
 
 
 def get_makefiles(from_dir):

@@ -11,7 +11,7 @@ import re
 import fnmatch
 from pymake3 import util
 
-_globcheck = re.compile('[[*?]')
+_globcheck = re.compile('[?[*]')
 
 
 def hasglob(p):

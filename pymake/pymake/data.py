@@ -1699,6 +1699,8 @@ class Makefile(object):
     state data.
     """
 
+    _globcheck = re.compile('[?[*]')
+
     def __init__(self, workdir=None, env=None, restarts=0, make=None,
                  makeflags='', makeoverrides='',
                  makelevel=0, context=None, targets=(), keepgoing=False,
@@ -1797,8 +1799,6 @@ class Makefile(object):
 
     def hastarget(self, target):
         return target in self._targets
-
-    _globcheck = re.compile('[[*?]')
 
     def gettarget(self, target):
         assert isinstance(target, str_type)
