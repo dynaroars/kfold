@@ -10,11 +10,8 @@ except when a submake specifies -j1 when the parent make is building in parallel
 """
 
 import os
-import subprocess
 import sys
 import logging
-import time
-import traceback
 import re
 from optparse import OptionParser
 from pymake3 import data, parserdata, process, util

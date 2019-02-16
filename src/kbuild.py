@@ -92,6 +92,8 @@ class Eval(object):
                 return self.do_fun_SubstFunction(elem)
             elif isinstance(elem, functions.PatSubstFunction):
                 return self.do_fun_PatSubstFunction(elem)
+            elif isinstance(elem, functions.WildcardFunction):
+                return self.do_fun_WildcardFunction(elem)
             elif isinstance(elem, functions.FilteroutFunction):
                 return self.do_fun_Filterout(elem)
             elif isinstance(elem, functions.AddPrefixFunction):
@@ -134,6 +136,21 @@ class Eval(object):
                     d[v] = cond
                 else:
                     d[v] = zsolver.disj(d[v], cond)
+
+        rs = list(d.items())
+        return rs
+
+    def do_fun_WildcardFunction(self, fun):
+        assert isinstance(fun, functions.WildcardFunction), fun
+        exps = self.do_expansion(fun._arguments[0])
+        d = OrderedDict()
+        import fnmatch
+        for wc, cond in exps:
+            if self.solver.is_sat(cond):
+                dir = list(self.path.states['src'].vals)[0]
+                v = ' '.join(map(str, fnmatch.filter(os.listdir(dir), wc)))
+                if v not in d:
+                    d[v] = cond
 
         rs = list(d.items())
         return rs
