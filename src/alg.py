@@ -1,4 +1,3 @@
-#! /usr/bin/env python
 import itertools
 from time import time
 import os.path

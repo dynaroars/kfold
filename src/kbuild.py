@@ -26,6 +26,7 @@ pause = CM.pause
 class Eval(object):
     def __init__(self, path, solver):
         assert isinstance(path, Path), path
+
         self.path = path
         self.solver = solver
 
@@ -63,7 +64,6 @@ class Eval(object):
 
     def do_fake_expansion(self, expansion):
         assert isinstance(expansion, str), expansion
-
         stmts = parser.parsestring(expansion, None)
         assert len(stmts) == 1 and isinstance(
             stmts[0], parserdata.EmptyDirective), stmts
@@ -76,7 +76,6 @@ class Eval(object):
             return [(expansion.s, zsolver.T)]
         else:
             assert isinstance(expansion, data.Expansion), expansion
-
             elems = [self.do_elem(elem, isfun)
                      for elem, isfun in expansion]
             comb = self.combine(elems)
@@ -196,21 +195,22 @@ class Eval(object):
 
     def do_fun_VariableRef(self, fun):
         assert isinstance(fun, functions.VariableRef), fun
-
         names = self.do_expansion(fun.vname)
 
         rs = []
         for name, _ in names:
             if name in self.path.states:
-                vals = self.path.states[name].vals_str
-                vals = [(vals, zsolver.T)]
+                v = self.path.states[name]
+                if v.is_recurse:
+                    vals = self.do_fake_expansion(v.vals_str)
+                else:
+                    vals = [(v.vals_str, zsolver.T)]
             elif name.startswith(settings.sym_prefix):
                 vals = self.do_config_var(name)
             else:
                 mlog.warn("'{}' undefined in path".format(name))
                 vals = [(self.solver.undef_val, zsolver.T)]
             rs.extend(vals)
-
         return rs
 
     def do_config_var(self, name):
@@ -266,6 +266,8 @@ class ParserData(object):
 class StatementList(ParserData):
     def __init__(self, stmt, paths, solver):
         assert isinstance(stmt, parserdata.StatementList), stmt
+        assert isinstance(paths, Paths), paths
+
         super(StatementList, self).__init__(stmt, paths, solver)
 
     def parse_single(self, path):
@@ -363,7 +365,12 @@ class SetVariable(ParserData):
             mlog.warn("ignoring '{}'".format(names[0][0]))
             return Paths([path])
 
-        values = eval.do_value(value)
+        unexpanded = token == "="
+        values = [(value, zsolver.T)] if unexpanded else eval.do_value(value)
+        # if not unexpanded:
+        #     print(value)
+        #     print(values)
+        #     trace()
 
         new_paths = Paths()
         for (name, ncond), (val, vcond) in itertools.product(*[names, values]):

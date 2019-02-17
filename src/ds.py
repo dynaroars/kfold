@@ -36,6 +36,10 @@ class Var(BaseVar):
     def vals_str(self):
         return ' '.join(sorted(self.vals))
 
+    @property
+    def is_recurse(self):
+        return self.flavor == self.RECURSE
+
     def issubset(self, name, values):
         assert isinstance(values, frozenset), values
         return self.name == name and values.issubset(self.values)
@@ -120,17 +124,15 @@ class Path:
 
     def set_var(self, name, token, val):
         assert isinstance(name, str), name
-        # and token in {'='}, token
         assert isinstance(token, str) and token, token
         assert isinstance(val, str), val
 
         vals = val.split()
-
         if name not in self.states or token in set(["=", ":="]):
             if name in self.states:
                 mlog.warn('need more precise semantics of {}'.format(token))
-            self.states[name] = Var(
-                name, frozenset(vals), Var.get_flavor(token))
+            v = Var(name, frozenset(vals), Var.get_flavor(token))
+            self.states[name] = v
         else:
             myvar = self.states[name]
             if token == "+=":
@@ -172,7 +174,7 @@ class Path:
     def merge_states(self, other):
         for name in other.states:
             other_var = other.states[name]
-            #BaseVar = namedtuple("BaseVar", "name vals flavor")
+            # BaseVar = namedtuple("BaseVar", "name vals flavor")
             assert isinstance(other_var, Var), other_var
             if name in self.states:
                 vals = frozenset(
