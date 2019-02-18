@@ -24,7 +24,7 @@ pause = CM.pause
 
 
 class Eval(object):
-    def __init__(self, path, solver):
+    def __init__(self, path: int, solver):
         assert isinstance(path, Path), path
 
         self.path = path
