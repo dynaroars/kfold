@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-
 from collections import namedtuple, OrderedDict
 import itertools
 import os.path
@@ -129,16 +127,13 @@ class Path:
 
         vals = val.split()
         if name not in self.states or token in set(["=", ":="]):
-            if name in self.states:
-                mlog.warn('need more precise semantics of {}'.format(token))
             v = Var(name, frozenset(vals), Var.get_flavor(token))
             self.states[name] = v
         else:
             myvar = self.states[name]
             if token == "+=":
                 new_vals = frozenset(list(myvar.vals) + vals)
-                self.states[name] = myvar.fork_val(
-                    new_vals)  # append(val)
+                self.states[name] = myvar.fork_val(new_vals)
             else:
                 raise NotImplementedError
 

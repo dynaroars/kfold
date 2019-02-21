@@ -9,6 +9,7 @@ sym_prefix = "CONFIG_"
 
 ignore_setvar_startswith = {}
 ignore_setvar_endswith = {}
+ignore_setvar_kws = {}
 detail = False
 
 

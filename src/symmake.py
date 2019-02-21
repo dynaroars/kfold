@@ -5,9 +5,6 @@ import os.path
 
 
 class CaseStudy:
-    __ignore_setvar_starswith__ = set()
-    __ignore_setvar_endswith__ = set()
-
     def __init__(self, topdir, settings):
         self.topdir = os.path.abspath(topdir)
         self.settings = settings
@@ -51,7 +48,6 @@ class BusyBox(CaseStudy):
                    "shell/",
                    "sysklogd/",
                    "util-linux/"]
-    __ignores__ = []
 
 
 class Linux(CaseStudy):
@@ -81,7 +77,6 @@ class Linux(CaseStudy):
     ]
 
     __ignore_setvar_starswith__ = set([
-        "CFLAGS",
         "AFLAGS",
         "CCVERSION",
         "filechk_ikconfiggz",
@@ -92,8 +87,11 @@ class Linux(CaseStudy):
     __ignore_setvar_endswith__ = set([
         "extract_certs",
         "chk_compile.h"
-
     ])
+    __ignore_setvar_kws__ = set([
+        "CFLAGS",
+        "_flag"]
+    )
 
 
 def analyze(result_dir):
@@ -165,6 +163,8 @@ if __name__ == '__main__':
             Linux.__ignore_setvar_starswith__
         settings.ignore_setvar_endswith = \
             Linux.__ignore_setvar_endswith__
+        settings.ignore_setvar_kws = \
+            Linux.__ignore_setvar_kws__
 
         import alg
         cls = alg.Run(makefile_paths)

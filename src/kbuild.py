@@ -24,7 +24,7 @@ pause = CM.pause
 
 
 class Eval(object):
-    def __init__(self, path: int, solver):
+    def __init__(self, path, solver):
         assert isinstance(path, Path), path
 
         self.path = path
@@ -387,7 +387,9 @@ class SetVariable(ParserData):
         return (any(name.startswith(x)
                     for x in settings.ignore_setvar_startswith) or
                 any(name.endswith(x)
-                    for x in settings.ignore_setvar_endswith))
+                    for x in settings.ignore_setvar_endswith) or
+                any(kw in name
+                    for kw in settings.ignore_setvar_kws))
 
 
 class ConditionBlock(ParserData):
