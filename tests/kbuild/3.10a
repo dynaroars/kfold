@@ -1,0 +1,4 @@
+# Does not seem to be parsed correctly
+$(obj)/vmImage: $(obj)/vmlinux.gz
+	$(call if_changed,uimage)
+	@$(kecho) 'Kernel: $@ is ready'

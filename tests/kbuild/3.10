@@ -1,0 +1,3 @@
+# Does not seem to be parsed correctly
+$(obj)/53c8xx_d.h: $(src)/53c7,8xx.scr $(src)/script_asm.pl
+        $(CPP) -DCHIP=810 - < $< | ... $(src)/script_asm.pl
