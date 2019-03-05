@@ -179,5 +179,5 @@ if __name__ == '__main__':
         print("tmpdir: {}".format(tmpdir))
 
 
-# exploit 1
+# exploit
 # paths in makefiles have many same state contents, so can merge .  e.g.,  x$y  = ...  ,  2 diff paths but same state.
