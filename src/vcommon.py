@@ -9,12 +9,7 @@ import logging
 
 
 def pause(s=None):
-    try:  # python2
-        raw_input("Press any key to continue ..." if s is None else s)
-        input("Press any key to continue ..." if s is None else s)
-    except NameError:
-        input("Press any key to continue ..." if s is None else s)
-        eval(input("Press any key to continue ..." if s is None else s))
+    input("Press any key to continue ..." if s is None else s)
 
 
 def whoami():

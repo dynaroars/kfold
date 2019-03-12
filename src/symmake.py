@@ -16,7 +16,8 @@ class CaseStudy:
         return myrun.go()
 
     def get_makefile_dirs(self):
-        dirs = [os.path.join(self.topdir, d) for d in self.__topdirs__]
+        dirs = [os.path.join(self.topdir, d) for d in
+                self.__topdirs__]
         dirs = [d for d in dirs if os.path.isdir(d)]
         return dirs
 
@@ -94,11 +95,6 @@ class Linux(CaseStudy):
     )
 
 
-def analyze(result_dir):
-    from analysis import Analysis
-    cls = Analysis(result_dir)
-
-
 if __name__ == '__main__':
 
     import argparse
@@ -116,10 +112,6 @@ if __name__ == '__main__':
        choices=range(5),
        default=3)
 
-    ag("--analysis", "-analysis",
-       action="store_true",
-       help="analyze saved results")
-
     ag('--case-study',
        type=str,
        help="""avail options: busybox, linux, fromfile""")
@@ -127,6 +119,11 @@ if __name__ == '__main__':
     ag("--rmtmp", "-rmtmp",
        action="store_true",
        help="remove saveds result")
+
+    # analysis
+    ag("--config_file", "-config_file",
+       type=str,
+       help="full config file")
 
     args = aparser.parse_args()
 
@@ -139,9 +136,17 @@ if __name__ == '__main__':
     if __debug__:
         mlog.info("DEBUG MODE ON. Can be slow! (Use python -O to optimize)")
     makefile_paths = args.paths
+    assert makefile_paths
 
-    if args.analysis:
-        analyze(makefile_paths[0])
+    if (len(makefile_paths) == 1 and
+        os.path.isdir(makefile_paths[0]) and
+        any(f.endswith(settings.results_ext) for
+            f in os.listdir(makefile_paths[0]))):
+        from analysis import Analysis
+        analysis = Analysis(makefile_paths[0])
+
+        if args.config_file:
+            analysis.get_target_files(args.config_file)
         exit(0)
 
     case_study = args.case_study
@@ -159,12 +164,9 @@ if __name__ == '__main__':
 
         cls = cls(makefile_path, settings)
     else:
-        settings.ignore_setvar_startswith = \
-            Linux.__ignore_setvar_starswith__
-        settings.ignore_setvar_endswith = \
-            Linux.__ignore_setvar_endswith__
-        settings.ignore_setvar_kws = \
-            Linux.__ignore_setvar_kws__
+        settings.ignore_setvar_startswith = Linux.__ignore_setvar_starswith__
+        settings.ignore_setvar_endswith = Linux.__ignore_setvar_endswith__
+        settings.ignore_setvar_kws = Linux.__ignore_setvar_kws__
 
         import alg
         cls = alg.Run(makefile_paths)

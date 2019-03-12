@@ -13,6 +13,8 @@ ignore_setvar_kws = {}
 detail = False
 
 
+results_ext = ".kbuild"  # extension of files containing path condition results
+
 # Solver settings
 
 y_str = "y"

@@ -2,8 +2,10 @@ import os
 
 import vcommon as CM
 import pdb
-
+import z3
+import zsolver
 from kbuild import Kbuild
+from ds import Paths
 
 import settings
 mlog = CM.getLogger(__name__, settings.logger_level)
@@ -17,6 +19,31 @@ class Analysis:
         assert os.path.isdir(result_dir), result_dir
 
         self.kbuilds = self.load(result_dir)
+        self.COptTyp, self.COptD, self.config_vars = self.kbuilds[0].typ_info
+
+    def get_target_files(self, config_file):
+        assert os.path.isfile(config_file), config_file
+
+        myconfig = [l.split("=") for l in
+                    CM.strip_contents(CM.iread(config_file))]
+
+        myconfig = {s: self.COptD[v] for s, v in myconfig}
+        undef = self.COptD[settings.undef_val]
+        for s in self.config_vars:
+            if s not in myconfig:
+                myconfig[s] = undef
+
+        myconfig = [z3.Const(s, self.COptTyp) == v for s, v
+                    in myconfig.items()]
+        myconfig = z3.simplify(z3.And(*myconfig))
+        solver = zsolver.ZSolver()
+
+        paths = [path for kbuild in self.kbuilds
+                 for path in kbuild.paths
+                 if solver.is_valid(z3.Implies(myconfig, path.cond))]
+        files = Paths(paths).get_target_files()
+        mlog.debug("{} files: {}".format(len(files), ', '.join(files)))
+        return files
 
     @staticmethod
     def load(result_dir):

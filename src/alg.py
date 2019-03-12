@@ -36,7 +36,8 @@ class Run:
             kbuild = Kbuild(makefile)
             kbuild.symexe(cond)
             tofile = os.path.join(
-                result_dir, kbuild.makefile.replace("/", "_") + ".pc")
+                result_dir,
+                kbuild.makefile.replace("/", "_") + settings.results_ext)
             kbuild.save(tofile)
             return kbuild
 

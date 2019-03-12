@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from time import time
 from functools import reduce
 import pdb
 import z3
@@ -122,8 +121,44 @@ class ZSolver:
             ret = self.check(f)
             return ret == z3.sat
 
+    def is_valid(self, f):
+        assert z3.is_expr(f), f
+        if f is T:
+            return True
+        elif f is F:
+            return False
+        else:
+            ret = self.check(z3.Not(f))
+            return ret == z3.unsat
+
     def get_tristate_sort(self, name):
         assert isinstance(name, str) and name, name
         if name not in self.__config_vars__:
             self.__config_vars__[name] = z3.Const(name, self.COptTyp)
         return self.__config_vars__[name]
+
+    @property
+    def save_obj(self):
+        """
+        type information that can be saved to file
+        """
+
+        typ_info = (self.COptTyp.name(),
+                    [(v, e.decl().name()) for v, e in
+                     self.COptD.items()],
+                    list(self.__config_vars__))
+        return typ_info
+
+    @staticmethod
+    def load_obj(typ_info):
+        """
+        reconstruct type info from object
+        """
+        name, vals_exprs, config_vars = typ_info
+        vals, exprs = zip(*vals_exprs)
+
+        cOptTyp, exprs = z3.EnumSort(name, exprs)
+        cOptD = dict(zip(vals, exprs))
+        config_vars = OrderedDict((name, cOptTyp) for name in config_vars)
+
+        return cOptTyp, cOptD, config_vars

@@ -81,7 +81,6 @@ class Var(BaseVar):
 
 
 class Path:
-
     __ct__ = 0
 
     def __init__(self, cond, states):
@@ -303,6 +302,13 @@ class Paths(list):
                 conds[path.cond].merge_states(path)
 
         return Paths(conds.values())
+
+    def get_target_files(self):
+        files = [path.states[name].vals
+                 for path in self
+                 for name in path.states
+                 if Path.is_target(name)]
+        return frozenset(itertools.chain(*files))
 
     @staticmethod
     def save_info(paths):

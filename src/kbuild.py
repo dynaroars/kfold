@@ -587,7 +587,7 @@ class Kbuild:
         assert z3.is_expr(cond), cond
 
         st = time()
-        mlog.info("{}: symexe '{}'".format(
+        mlog.info("{}: symbolic execute '{}'".format(
             datetime.now().strftime("%Y-%m-%d %H:%M"), self.makefile))
 
         path = Path.get_default(cond, self.topdir)
@@ -595,10 +595,12 @@ class Kbuild:
         self.paths = stmts.parse()
         self.se_time = time() - st
 
-        mlog.info("found {} paths ({}s)".format(
-            len(self.paths), self.se_time))
-        mlog.debug(self.paths)
+        mlog.debug("found {} paths ({}s)\n{}".format(
+            len(self.paths), self.se_time, self.paths))
 
+    # save info to file / load info from file
+    # note things are a bit complex because
+    # Z3 data structures cannot be saved directly to file
     def save(self, tofile):
         assert isinstance(tofile, str) and tofile, tofile
 
@@ -606,7 +608,8 @@ class Kbuild:
             self.makefile,
             self.se_time,
             [(zsolver.to_smt2_str(path.cond), path.states)
-             for path in self.paths]
+             for path in self.paths],
+            self.solver.save_obj,
         )
         CM.vsave(tofile, kinfo)
 
@@ -614,7 +617,7 @@ class Kbuild:
     def load(fromfile):
         assert os.path.isfile(fromfile), fromfile
         kinfo = CM.vload(fromfile)
-        makefile, se_time, path_info = kinfo
+        makefile, se_time, path_info, typ_info = kinfo
 
         paths = Paths([Path(zsolver.from_smt2_str(cond), states)
                        for cond, states in path_info])
@@ -622,5 +625,6 @@ class Kbuild:
         kbuild = Kbuild(makefile)
         kbuild.se_time = se_time
         kbuild.paths = paths
+        kbuild.typ_info = ZSolver.load_obj(typ_info)
 
         return kbuild
