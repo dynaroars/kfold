@@ -24,10 +24,10 @@ class Analysis:
     def get_target_files(self, config_file):
         assert os.path.isfile(config_file), config_file
 
-        myconfig = [l.split("=") for l in
+        contents = [l.split("=") for l in
                     CM.strip_contents(CM.iread(config_file))]
 
-        myconfig = {s: self.COptD[v] for s, v in myconfig}
+        myconfig = {s: self.COptD[v] for s, v in contents}
         undef = self.COptD[settings.undef_val]
         for s in self.config_vars:
             if s not in myconfig:
@@ -41,9 +41,19 @@ class Analysis:
         paths = [path for kbuild in self.kbuilds
                  for path in kbuild.paths
                  if solver.is_valid(z3.Implies(myconfig, path.cond))]
-        files = Paths(paths).get_target_files()
-        mlog.debug("{} files: {}".format(len(files), ', '.join(files)))
-        return files
+        files = list(Paths(paths).get_target_files())
+        rs = {}
+        for name, vals in files:
+            if name not in rs:
+                rs[name] = []
+            rs[name].extend(list(vals))
+
+        mlog.debug(', '.join("{}={}".format(s, v) for s, v in contents))
+        mlog.debug("{} targets\n{}".format(
+            len(rs), '\n'.join("{} = {}".format(
+                name, ', '.join(rs[name])) for name in rs)))
+
+        return rs
 
     @staticmethod
     def load(result_dir):

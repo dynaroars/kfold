@@ -1,8 +1,6 @@
-import tempfile
 import os.path
 import itertools
 import subprocess as sp
-import operator
 import inspect
 
 import logging

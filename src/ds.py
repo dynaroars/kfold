@@ -104,7 +104,7 @@ class Path:
 
     def subdirs(self, topdir):
         subdirs_ = [self.states[v].subdirs(topdir) for v in self.states]
-        return list(itertools.chain(*subdirs_))
+        return frozenset(itertools.chain(*subdirs_))
 
     def fork(self, new_cond, ignore_targets=False):
         """
@@ -304,11 +304,10 @@ class Paths(list):
         return Paths(conds.values())
 
     def get_target_files(self):
-        files = [path.states[name].vals
-                 for path in self
-                 for name in path.states
-                 if Path.is_target(name)]
-        return frozenset(itertools.chain(*files))
+        for path in self:
+            for name in path.states:
+                if Path.is_target(name):
+                    yield (path.states[name].name, path.states[name].vals)
 
     @staticmethod
     def save_info(paths):
