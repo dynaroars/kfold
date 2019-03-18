@@ -112,6 +112,10 @@ if __name__ == '__main__':
        choices=range(5),
        default=3)
 
+    ag("--tristate", "-tristate",
+       action="store_true",
+       help="use tristate")
+
     ag('--case-study',
        type=str,
        help="""avail options: busybox, linux, fromfile""")
@@ -124,6 +128,10 @@ if __name__ == '__main__':
     ag("--config_file", "-config_file",
        type=str,
        help="full config file")
+
+    ag("--make_log", "-make_log",
+       type=str,
+       help="analyze make log (make -n)")
 
     args = aparser.parse_args()
 
@@ -144,9 +152,7 @@ if __name__ == '__main__':
             f in os.listdir(makefile_paths[0]))):
         from analysis import Analysis
         analysis = Analysis(makefile_paths[0])
-
-        if args.config_file:
-            analysis.get_target_files(args.config_file)
+        analysis.check_target_files(args.config_file, args.make_log)
         exit(0)
 
     case_study = args.case_study
@@ -168,6 +174,9 @@ if __name__ == '__main__':
         settings.ignore_setvar_endswith = Linux.__ignore_setvar_endswith__
         settings.ignore_setvar_kws = Linux.__ignore_setvar_kws__
 
+        if args.tristate:
+            settings.zstate = settings.tristate
+            
         import alg
         cls = alg.Run(makefile_paths)
 

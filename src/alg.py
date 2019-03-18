@@ -2,7 +2,6 @@ import itertools
 from time import time
 import os.path
 import pdb
-
 import z3
 
 import vcommon as CM

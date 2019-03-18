@@ -616,6 +616,7 @@ class Kbuild:
     @staticmethod
     def load(fromfile):
         assert os.path.isfile(fromfile), fromfile
+
         kinfo = CM.vload(fromfile)
         makefile, se_time, path_info, typ_info = kinfo
 

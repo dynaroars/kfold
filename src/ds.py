@@ -56,7 +56,7 @@ class Var(BaseVar):
 
     @property
     def ignorable(self):
-        return self.name in settings.ignore_vars
+        return self.name in list(settings.ignore_vars)
 
     def subdirs(self, topdir):
         sd = [os.path.join(topdir, v)
@@ -183,6 +183,11 @@ class Path:
         ret = hash(fs)
         return ret
 
+    @property
+    def target_files(self):
+        return [self.states[name] for name in self.states
+                if Path.is_target(name)]
+
     @staticmethod
     def is_target(t):
         return any(t.startswith(x) for x in settings.target_vars)
@@ -302,12 +307,6 @@ class Paths(list):
                 conds[path.cond].merge_states(path)
 
         return Paths(conds.values())
-
-    def get_target_files(self):
-        for path in self:
-            for name in path.states:
-                if Path.is_target(name):
-                    yield (path.states[name].name, path.states[name].vals)
 
     @staticmethod
     def save_info(paths):
