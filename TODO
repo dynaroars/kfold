@@ -1,0 +1,33 @@
+3/18
+
+These probably postprocessing, under linux
+- Also look at 4.2/4.3a/4.3b,  need to make  lxdiaglog-objs = lxdialg
+- 3.10 :  I have src, but don't have $(obj)
+- test how results in 3.4 are save/loaded/analyzed
+- do Sect 5:  application:  show what exactly get deleted under specif configuration
+
+See 3.3b: can Kmax do this ?  probably not
+
+writing:  part of the reason that Kmax doesn't do this is because it lacks of any evaluation/emperical experiments, and it is through evaluation and experiments that we find defficiency and improvements to make.
+
+
+Look at 3.3 ,  figure out how to obtain the appropariate buit files  and compare with make-n
+
+built-in.a
+Objects listed with obj-* are used for modules, or
+combined in a built-in.a for that specific directory.
+There is also the possibility to list objects that will
+be included in a library, lib.a.
+All objects listed with lib-y are combined in a single
+library for that directory.
+
+
+older
+
+Get the PC's of the examples from http://www.informatik.uni-leipzig.de/~berger/talks/fosd2011_meeting_KBuildMiner.pdf
+https://github.com/KernelHaven/KbuildMinerExtractor
+https://github.com/KernelHaven/KernelHaven
+
+
+
+
