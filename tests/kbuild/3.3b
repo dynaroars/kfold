@@ -1,0 +1,15 @@
+# If a kernel module is built from several source files, you specify
+# that you want to build a module in the same way as above; however,
+# kbuild needs to know which object files you want to build your
+# module from, so you have to tell it by setting a $(<module_name>-y)
+# variable.
+
+#drivers/isdn/i4l/Makefile
+obj-$(CONFIG_ISDN_I4L) += isdn.o
+isdn-y := isdn_net_lib.o isdn_v110.o isdn_common.o
+
+
+
+# In this example, the module name will be isdn.o. Kbuild will
+# compile the objects listed in $(isdn-y) and then run
+# "$(LD) -r" on the list of these files to generate isdn.o.

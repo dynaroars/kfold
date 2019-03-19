@@ -3,7 +3,6 @@ from vcommon import getLogLevel, getLogger
 import vcommon as CM
 import os.path
 
-
 class CaseStudy:
     def __init__(self, topdir, settings):
         self.topdir = os.path.abspath(topdir)
@@ -176,7 +175,7 @@ if __name__ == '__main__':
 
         if args.tristate:
             settings.zstate = settings.tristate
-            
+
         import alg
         cls = alg.Run(makefile_paths)
 
