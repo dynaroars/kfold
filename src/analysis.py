@@ -19,10 +19,12 @@ class Analysis:
     def __init__(self, result_dir):
         assert os.path.isdir(result_dir), result_dir
 
-        self.kbuilds = self.load(result_dir)
+        self.kbuilds = load(result_dir)
         assert len(self.kbuilds)
 
-        self.COptTyp, self.COptD, self.config_vars = self.kbuilds[0].typ_info
+        self.COptTyp, self.COptD, self.config_vars = \
+            self.kbuilds[0].typ_info
+
         for kbuild in self.kbuilds[1:]:
             t, d, config_vars = kbuild.typ_info
             assert t == self.COptTyp
@@ -33,13 +35,78 @@ class Analysis:
 
         self.commonpath = os.path.commonpath(
             [kbuild.makefile for kbuild in self.kbuilds])
+        self.commonpath_len = len(self.commonpath)
 
-        files_d = self.get_target_files(None)
+        self.files_d = self.get_target_files(None)
+        self.all_files = frozenset(itertools.chain(*self.files_d.values()))
+        tfs = [self.files_d[target] for target in self.files_d
+               if target not in settings.target_vars]
+        self.target_files = frozenset(itertools.chain(*tfs))
+        assert (self.target_files == self.all_files)
 
-        self.file_stats(files_d)
+        mlog.debug("{}: load {} kbuilds, {} config vars, "
+                   "files: {} total, {} target".format(
+            result_dir, len(self.kbuilds), len(self.config_vars),
+            len(self.all_files), len(self.target_files)))
 
-        mlog.debug("{}: load {} kbuilds, {} config vars".format(
-            result_dir, len(self.kbuilds), len(self.config_vars)))
+    def go(self, args):
+        return None
+
+    def check_src_dir(self, src_dir):
+        """
+        Obtain all C programs and check
+        """
+        assert os.path.isdir(src_dir)
+
+        # get all src files from src_dir
+        src_dir_len = len(src_dir)
+        src_files = []
+
+        for root, subdirs, files in os.walk(src_dir):
+            # ignore .hidden dirs
+            subdirs[:] = [d for d in subdirs if not d.startswith('.')]
+            for f in files:
+                if f.startswith('.'):  #ignore hidden
+                    continue
+                f_ = os.path.join(root, f)
+                assert os.path.isfile(f_), "{}: not exist".format(f_)
+                f = f_[src_dir_len:]
+                src_files.append(f)
+
+        assert(len(set(src_files)) == len(src_files))
+
+        #remove files with no ext
+        src_files = [f for f in src_files if os.path.splitext(f)[1]]
+
+        #remove files in specific dirs
+
+        old_len = len(src_files)
+        src_files = frozenset(f for f, _ in src_files)
+        assert old_len == len(src_files)
+
+
+        target_files_noext = frozenset(os.path.splitext(f)[0] 
+                                       for f in self.target_files)
+        assert len(target_files_noext) == len(self.target_files)
+
+
+        #test
+        d = {}
+        for f in src_files:
+            d_ = os.path.splitext(f)[0]
+            if d_ not in d:
+                d[d_] = f
+            else:
+                print("{} , {}".format(f, d[d_]))
+
+        src_files_noext = frozenset(os.path.splitext(f)[0]
+                                        for f in src_files)
+        assert len(src_files_noext) == len(src_files)
+
+
+
+        compare_files(self.target_files, src_files,
+                      "skanner", "src_dir")
 
     def get_target_files(self, constraint):
         assert constraint is None or z3.is_expr(constraint), constraint
@@ -47,9 +114,8 @@ class Analysis:
         solver = zsolver.ZSolver() if z3.is_expr(constraint) else None
 
         files_d = {}
-        commonpath_len = len(self.commonpath)
         for kbuild in self.kbuilds:
-            tdir = os.path.split(kbuild.makefile)[0][commonpath_len:]
+            tdir = os.path.split(kbuild.makefile)[0][self.commonpath_len:]
             if tdir.startswith('/'): tdir = tdir[1:]
             for path in kbuild.paths:
                 if (constraint is None or
@@ -96,23 +162,8 @@ class Analysis:
             make_files = self.get_files_from_make_log(make_log)
             mlog.debug("make files {}".format(len(make_files)))
 
-        #compare
-        if config_files and make_files:
-            def print_diff(msg, diffs):
-                if not diffs:
-                    return
-
-                mlog.debug("{}({}): {}".format(
-                    msg, len(diffs), ', '.join(diffs)))
-
-            mlog.debug("files: config {}, make {}".format(
-                len(config_files), len(make_files)))
-            if config_files != make_files:
-                sdiff_cm  = config_files - make_files
-                print_diff("in config, but not in make", sdiff_cm)
-                sdiff_mc = make_files - config_files
-                print_diff("in make, but not in config", sdiff_mc)
-
+        compare_sets(config_files, make_files,
+                     "config_files", "make_files")
 
     def get_files_from_config(self, config_file):
         contents = [l.split("=") for l in
@@ -204,14 +255,27 @@ class Analysis:
         return frozenset(contents)
 
 
+def load(result_dir):
+    assert os.path.isdir(result_dir), result_dir
+    kbuilds = [os.path.join(result_dir, f) for f in os.listdir(result_dir)]
+    kbuilds = [Kbuild.load(f) for f in kbuilds]
+    return kbuilds
 
-    @staticmethod
-    def load(result_dir):
-        assert os.path.isdir(result_dir), result_dir
+def compare_files(A, B, A_str, B_str):
+    """
+    print diffs between sets A and B
+    """
+    if A and B:
+        def _print_diffs(A, B, A_str, B_str):
+            diffs  = A - B
+            if not diffs:
+                return
+            mlog.info("in {}, but not in {}: {}".format(
+                A_str, B_str, len(diffs)))
 
-        kbuilds = []
-        for filename in os.listdir(result_dir):
-            kbuild = Kbuild.load(os.path.join(result_dir, filename))
-            kbuilds.append(kbuild)
-
-        return kbuilds
+        mlog.debug("files: {} {}, {} {}".format(
+            A_str, len(A), B_str, len(B)))
+        pause()
+        if A != B:
+            _print_diffs(A, B, A_str, B_str)
+            _print_diffs(B, A, B_str, A_str)
