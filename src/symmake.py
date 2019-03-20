@@ -75,7 +75,7 @@ if __name__ == '__main__':
 
         cls = cls(path)
         from alg import Run
-        cls = Run(cls.makefile_paths)
+        cls = Run(cls.makefile_paths, cls)
         tmpdir = cls.go()
 
 

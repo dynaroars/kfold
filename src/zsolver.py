@@ -97,11 +97,12 @@ def mdisj(cs):
 class ZSolver:
     __config_vars__ = OrderedDict()
 
-    def __init__(self):
-        self.solver = z3.Solver()
-        self.undef_val, name, symvals, vals = settings.zstate
+    def __init__(self, zstate):
+        self.undef_val, name, symvals, vals = zstate
         self.COptTyp, exprs = z3.EnumSort(name, symvals)
         self.COptD = dict(zip(vals, exprs))
+        
+        self.solver = z3.Solver()
 
     def check(self, f):
         assert z3.is_expr(f), f
@@ -138,16 +139,16 @@ class ZSolver:
         return self.__config_vars__[name]
 
     @property
-    def save_obj(self):
+    def typ_info(self):
         """
         type information that can be saved to file
         """
 
-        typ_info = (self.COptTyp.name(),
-                    [(v, e.decl().name()) for v, e in
-                     self.COptD.items()],
-                    list(self.__config_vars__))
-        return typ_info
+        typ = (self.COptTyp.name(),
+               [(v, e.decl().name()) for v, e in
+                self.COptD.items()],
+               list(self.__config_vars__))
+        return typ
 
     @staticmethod
     def load_obj(typ_info):

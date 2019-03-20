@@ -3,8 +3,16 @@ import settings
 import vcommon as CM
 mlog = CM.getLogger(__name__, settings.logger_level)
 
+y_str = "y"
+m_str = "m"
+undef_str = "undef"
+undef_val = ''
+tristate = (undef_val, "TriState", [y_str, m_str, undef_str], 
+            [y_str, m_str, undef_val])
+twostate = (undef_val, "TwoState", [y_str, undef_str], [y_str, undef_val])
+
 class CaseStudy:
-    __zstate__ = settings.twostate
+    __zstate__ = twostate
 
     __ignore_setvar_startswith__ = frozenset()
     __ignore_setvar_endswith__ = frozenset()
@@ -16,27 +24,42 @@ class CaseStudy:
     __topdirs__ = []
 
     def __init__(self, path):
-        if os.path.isfile(path): # single makefile
-            self.makefile_paths = [path]
-        else:
-            assert os.path.isdir(path)
-            path = os.path.abspath(path)
-            topdirs = [os.path.join(path, d) for d in
-                       self.__topdirs__]
-            topdirs = [d for d in topdirs if os.path.isdir(d)]
-            self.makefile_paths = topdirs
+        #path is None is for analysis only
+        if path:
+            if os.path.isfile(path): # single makefile
+                self.makefile_paths = [path]
+            else:
+                assert os.path.isdir(path)
+                path = os.path.abspath(path)
+                topdirs = [os.path.join(path, d) for d in
+                           self.__topdirs__]
+                topdirs = [d for d in topdirs if os.path.isdir(d)]
+                self.makefile_paths = topdirs
 
-        mlog.info("using settings of {}".format(self.__class__.__name__))
+        casestudy = self.__class__.__name__
+        mlog.info("using settings of {}".format(casestudy))
 
-        settings.zstate = self.__zstate__
-        settings.ignore_setvar_startswith = self.__ignore_setvar_startswith__
-        settings.ignore_setvar_endswith =  self.__ignore_setvar_endswith__
-        settings.ignore_setvar_kws = self.__ignore_setvar_kws__
-        settings.ignore_dirs = self.__ignore_dirs__
-        settings.ignore_exts = self.__ignore_exts__
+        #settings.casestudy = casestudy
+        #settings.zstate = self.__zstate__
+        # settings.ignore_setvar_startswith = self.__ignore_setvar_startswith__
+        # settings.ignore_setvar_endswith =  self.__ignore_setvar_endswith__
+        # settings.ignore_setvar_kws = self.__ignore_setvar_kws__
+        # settings.ignore_dirs = self.__ignore_dirs__
+        # settings.ignore_exts = self.__ignore_exts__
 
+
+    def ignore_symbol(self, symbol):
+        return (any(symbol.startswith(x)
+                    for x in self.__ignore_setvar_startswith__) or
+                any(symbol.endswith(x)
+                    for x in self.__ignore_setvar_endswith__) or
+                any(kw in symbol
+                    for kw in self.__ignore_setvar_kws__))
+
+
+    
 class Busybox(CaseStudy):
-    __zstate__ = settings.twostate
+    __zstate__ = twostate
     __ignore_dirs__ = frozenset("hush_test".split())
     __ignore_exts__ = frozenset(".src".split())
     __topdirs__ = ["applets/",
@@ -67,7 +90,7 @@ class Busybox(CaseStudy):
                    "util-linux/"]
 
 class Linux(CaseStudy):
-    __zstate__ = settings.tristate
+    __zstate__ = tristate
     __topdirs__ = [
         "arch/i386",
         "block", # seems OK

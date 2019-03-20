@@ -6,6 +6,7 @@ import z3
 
 import vcommon as CM
 import zsolver
+from casestudy import CaseStudy
 from kbuild import Kbuild
 
 import settings
@@ -16,12 +17,14 @@ pause = CM.pause
 
 
 class Run:
-    def __init__(self, makefile_paths):
+    def __init__(self, makefile_paths, casestudy):
         """makefile_paths is a list of makefile path (either a real makefile
         or directory)
-
         """
+        assert isinstance(casestudy, CaseStudy), casestudy
+
         self.makefile_paths = makefile_paths
+        self.casestudy = casestudy
 
     def go(self):
 
@@ -32,7 +35,7 @@ class Run:
         def analyze(makefile, cond, result_dir):
             assert os.path.isfile(makefile), makefile
             assert cond is None or z3.is_expr(cond), cond
-            kbuild = Kbuild(makefile)
+            kbuild = Kbuild(makefile, self.casestudy)
             kbuild.symexe(cond)
             tofile = os.path.join(
                 result_dir,
@@ -42,7 +45,8 @@ class Run:
 
         st = time()
         import tempfile
-        self.tmpdir = tempfile.mkdtemp(dir=settings.tmpdir, prefix="symmake_")
+        prefix = "skanner_{}_".format(self.casestudy.__class__.__name__)
+        self.tmpdir = tempfile.mkdtemp(dir=settings.tmpdir, prefix=prefix)
 
         kbuilds = []  # results
         makefiles = get_makefiles(self.makefile_paths, cond=zsolver.T)
