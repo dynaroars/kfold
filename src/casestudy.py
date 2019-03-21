@@ -1,7 +1,11 @@
 import os.path
 import settings
+import pdb
+
 import vcommon as CM
-mlog = CM.getLogger(__name__, settings.logger_level)
+
+trace = pdb.set_trace
+pause = CM.pause
 
 y_str = "y"
 m_str = "m"
@@ -19,7 +23,7 @@ class CaseStudy:
     __ignore_setvar_kws__ = frozenset()
 
     __ignore_dirs__ = frozenset()
-    __ignore_exts__ = frozenset()
+    __ignore_exts__ = frozenset(".txt .sh .out .vu".split())
 
     __topdirs__ = []
 
@@ -36,18 +40,6 @@ class CaseStudy:
                 topdirs = [d for d in topdirs if os.path.isdir(d)]
                 self.makefile_paths = topdirs
 
-        casestudy = self.__class__.__name__
-        mlog.info("using settings of {}".format(casestudy))
-
-        #settings.casestudy = casestudy
-        #settings.zstate = self.__zstate__
-        # settings.ignore_setvar_startswith = self.__ignore_setvar_startswith__
-        # settings.ignore_setvar_endswith =  self.__ignore_setvar_endswith__
-        # settings.ignore_setvar_kws = self.__ignore_setvar_kws__
-        # settings.ignore_dirs = self.__ignore_dirs__
-        # settings.ignore_exts = self.__ignore_exts__
-
-
     def ignore_symbol(self, symbol):
         return (any(symbol.startswith(x)
                     for x in self.__ignore_setvar_startswith__) or
@@ -56,12 +48,19 @@ class CaseStudy:
                 any(kw in symbol
                     for kw in self.__ignore_setvar_kws__))
 
+    def ignore_ext(self, filename):
 
-    
+        ignore_exts = frozenset.union(
+            CaseStudy.__ignore_exts__, self.__ignore_exts__)
+        return os.path.splitext(filename)[1] in ignore_exts
+        
 class Busybox(CaseStudy):
     __zstate__ = twostate
-    __ignore_dirs__ = frozenset("hush_test".split())
-    __ignore_exts__ = frozenset(".src".split())
+    __ignore_dirs__ = frozenset("hush_test scripts shell".split())
+    __ignore_exts__ = frozenset(".src .tests .right .spec"
+                                ".ash .y .pod .include .method"
+                                ".a .pl .o .awk .in .bz2 .conf"
+                                ".trans .patch .htm .html .h".split())
     __topdirs__ = ["applets/",
                    "arch/",
                    "archival/",

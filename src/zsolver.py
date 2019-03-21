@@ -101,7 +101,7 @@ class ZSolver:
         self.undef_val, name, symvals, vals = zstate
         self.COptTyp, exprs = z3.EnumSort(name, symvals)
         self.COptD = dict(zip(vals, exprs))
-        
+
         self.solver = z3.Solver()
 
     def check(self, f):

@@ -1,7 +1,6 @@
 import os
 import itertools
 import pdb
-
 import vcommon as CM
 import z3
 import zsolver
@@ -15,6 +14,7 @@ mlog = CM.getLogger(__name__, settings.logger_level)
 trace = pdb.set_trace
 pause = CM.pause
 
+
 class Analysis:
     def __init__(self, result_dir):
         assert os.path.isdir(result_dir), result_dir
@@ -22,10 +22,13 @@ class Analysis:
         self.kbuilds = load(result_dir)
         assert len(self.kbuilds)
 
-        self.COptTyp, self.COptD, self.config_vars = \
-            self.kbuilds[0].typ_info
+        self.COptTyp, self.COptD, self.config_vars = self.kbuilds[0].typ_info
+
+        self.casestudy = self.kbuilds[0].casestudy
 
         for kbuild in self.kbuilds[1:]:
+            self.casestudy == kbuild.casestudy
+
             t, d, config_vars = kbuild.typ_info
             assert t == self.COptTyp
             assert d == self.COptD
@@ -39,17 +42,23 @@ class Analysis:
 
         self.files_d = self.get_target_files(None)
         self.all_files = frozenset(itertools.chain(*self.files_d.values()))
-        tfs = [self.files_d[target] for target in self.files_d
-               if target not in settings.target_vars]
+        tfs = [
+            self.files_d[target] for target in self.files_d
+            if target not in settings.target_vars
+        ]
         self.target_files = frozenset(itertools.chain(*tfs))
         assert (self.target_files == self.all_files)
 
-        mlog.debug("{}: load {} kbuilds, {} config vars, "
+        mlog.debug("{}: case study {}, {} kbuilds, {} config vars, "
                    "files: {} total, {} target".format(
-            result_dir, len(self.kbuilds), len(self.config_vars),
-            len(self.all_files), len(self.target_files)))
+                       result_dir, self.casestudy.__class__.__name__,
+                       len(self.kbuilds), len(self.config_vars),
+                       len(self.all_files), len(self.target_files)))
 
     def go(self, args):
+        if args.src_dir and os.path.isdir(args.src_dir):
+            self.check_src_dir(args.src_dir)
+
         return None
 
     def check_src_dir(self, src_dir):
@@ -73,40 +82,47 @@ class Analysis:
                 f = f_[src_dir_len:]
                 src_files.append(f)
 
-        assert(len(set(src_files)) == len(src_files))
+        assert (len(set(src_files)) == len(src_files))
 
-        #remove files with no ext
-        src_files = [f for f in src_files if os.path.splitext(f)[1]]
+        fs = [os.path.splitext(f) for f in src_files]
 
-        #remove files in specific dirs
+        #remove file with no ext
+        fs = frozenset([(f, e) for f, e in fs if e])
+        #only keep those with .c ext
+        fs = frozenset([(f, e) for f, e in fs if e == '.c'])
 
-        old_len = len(src_files)
-        src_files = frozenset(f for f, _ in src_files)
-        assert old_len == len(src_files)
+        exts = frozenset(e for _, e in fs)
+        mlog.debug("{} has {} files, {} exts".format(src_dir, len(fs),
+                                                     len(exts)))
 
+        fs_d = {}
+        for f, e in fs:
+            if f not in fs_d:
+                fs_d[f] = set()
+            fs_d[f].add(e)
 
-        target_files_noext = frozenset(os.path.splitext(f)[0] 
-                                       for f in self.target_files)
+        src_files_noext = frozenset(fs_d.keys())
+
+        target_files_noext = frozenset(
+            os.path.splitext(f)[0] for f in self.target_files)
         assert len(target_files_noext) == len(self.target_files)
 
+        #everything found must be in src dir
+        assert not (target_files_noext - src_files_noext)
+        # for k in target_files_noext:
+        #     print(k, src_files_d[k])
 
-        #test
-        d = {}
-        for f in src_files:
-            d_ = os.path.splitext(f)[0]
-            if d_ not in d:
-                d[d_] = f
-            else:
-                print("{} , {}".format(f, d[d_]))
+        #not everything in src dir are found
+        in_src_only = src_files_noext - target_files_noext
+        in_src_only = [
+            f for f in in_src_only if not any(
+                g in self.casestudy.__ignore_dirs__ for g in f.split('/'))
+        ]
 
-        src_files_noext = frozenset(os.path.splitext(f)[0]
-                                        for f in src_files)
-        assert len(src_files_noext) == len(src_files)
-
-
-
-        compare_files(self.target_files, src_files,
-                      "skanner", "src_dir")
+        if in_src_only:
+            mlog.debug("{} in src only".format(len(in_src_only)))
+            for k in in_src_only:
+                print(k, fs_d[k])
 
     def get_target_files(self, constraint):
         assert constraint is None or z3.is_expr(constraint), constraint
@@ -118,8 +134,8 @@ class Analysis:
             tdir = os.path.split(kbuild.makefile)[0][self.commonpath_len:]
             if tdir.startswith('/'): tdir = tdir[1:]
             for path in kbuild.paths:
-                if (constraint is None or
-                        solver.is_valid(z3.Implies(constraint, path.cond))):
+                if (constraint is None
+                        or solver.is_valid(z3.Implies(constraint, path.cond))):
                     tfiles = path.target_files
                     assert all(isinstance(v, Var) for v in tfiles), tfiles
                     for v in tfiles:
@@ -145,7 +161,7 @@ class Analysis:
             for target, tfiles in config_files_d.items():
                 assert (len(tfiles) == len(set(tfiles)))
 
-                if target in settings.target_vars: # ignore obj- and lib-
+                if target in settings.target_vars:  # ignore obj- and lib-
                     ss_notused.append("{} {}".format(target, len(tfiles)))
                     config_files_notused.extend(tfiles)
                 else:
@@ -153,7 +169,8 @@ class Analysis:
                     config_files.extend(tfiles)
 
             config_files = frozenset(config_files)
-            mlog.debug("config files {} ({})".format(len(config_files), ', '.join(ss)))
+            mlog.debug("config files {} ({})".format(
+                len(config_files), ', '.join(ss)))
             config_files_notused = frozenset(config_files_notused)
             mlog.debug("config files (notused) {} ({})".format(
                 len(config_files_notused), ', '.join(ss_notused)))
@@ -162,12 +179,12 @@ class Analysis:
             make_files = self.get_files_from_make_log(make_log)
             mlog.debug("make files {}".format(len(make_files)))
 
-        compare_sets(config_files, make_files,
-                     "config_files", "make_files")
+        compare_sets(config_files, make_files, "config_files", "make_files")
 
     def get_files_from_config(self, config_file):
-        contents = [l.split("=") for l in
-                    CM.strip_contents(CM.iread(config_file))]
+        contents = [
+            l.split("=") for l in CM.strip_contents(CM.iread(config_file))
+        ]
 
         myconfig = {}
         for s, v in contents:
@@ -183,8 +200,9 @@ class Analysis:
             if s not in myconfig:
                 myconfig[s] = undef
 
-        constraint = [z3.Const(s, self.COptTyp) == v for s, v
-                      in myconfig.items()]
+        constraint = [
+            z3.Const(s, self.COptTyp) == v for s, v in myconfig.items()
+        ]
         constraint = z3.simplify(z3.And(*constraint))
 
         constraint_files = self.get_target_files(constraint)
@@ -215,13 +233,16 @@ class Analysis:
     def get_files_from_make_log(log_file):
         assert os.path.isfile(log_file), log_file
 
-        ignores = frozenset("uidgid_get.o lib.a built-in.o applets.c common_bufsiz.h autoconf.h".split())
+        ignores = frozenset(
+            "uidgid_get.o lib.a built-in.o applets.c common_bufsiz.h autoconf.h"
+            .split())
 
         def _parse(l):
             """
             set -e;  echo '  AR      archival/libarchive/lib.a'; rm -f archival/libarchive/lib.a; ar  rcs archival/libarchive/lib.a archival/libarchive/common.o; echo 'cmd_archival/libarchive/lib.a := rm -f archival/libarchive/lib.a; ar  rcs archival/libarchive/lib.a archival/libarchive/common.o' > archival/libarchive/.lib.a.cmd
             """
-            ll = [p for p in l.split('echo')]  #[sed -d ; '  AR ... '   , ' .... long echo str...']
+            ll = [p for p in l.split('echo')
+                  ]  #[sed -d ; '  AR ... '   , ' .... long echo str...']
             ll = [p for p in ll if "'  " in p]  #'  AR
             ll = [p.split(';') for p in ll]
             ll = list(itertools.chain(*ll))
@@ -230,8 +251,7 @@ class Analysis:
             ll = [p for p in ll.split() if ('.') in p]
             return ll
 
-        contents = [l for l in
-                    CM.strip_contents(CM.iread(log_file))]
+        contents = [l for l in CM.strip_contents(CM.iread(log_file))]
         contents = [l for l in contents if 'echo' and '.o' in l]
         contents = [_parse(l) for l in contents]
         contents = [l for l in contents if l]
@@ -245,11 +265,15 @@ class Analysis:
         # print(len(contents))
         # print(contents)
 
-        contents = [p for p in contents if ',' not in p] # -Wp,-MD,applets/.applets.o.d  
-        contents = [p for p in contents if not('"' in p and '=' in p)] # -D"BB_VER=KBUILD_STR(1.28.1)"
-        contents = [p for p in contents if not os.path.split(p)[-1].startswith('.')]  # '/file/.hidden'
-        contents = [p.replace('"','').replace("'",'') for p in contents]
-        contents = [p for p in contents if os.path.splitext(p)[-1] != '.sh'] #
+        contents = [p for p in contents
+                    if ',' not in p]  # -Wp,-MD,applets/.applets.o.d
+        contents = [p for p in contents if not ('"' in p and '=' in p)
+                    ]  # -D"BB_VER=KBUILD_STR(1.28.1)"
+        contents = [
+            p for p in contents if not os.path.split(p)[-1].startswith('.')
+        ]  # '/file/.hidden'
+        contents = [p.replace('"', '').replace("'", '') for p in contents]
+        contents = [p for p in contents if os.path.splitext(p)[-1] != '.sh']  #
         contents = [p for p in contents if os.path.split(p)[-1] not in ignores]
 
         return frozenset(contents)
@@ -261,20 +285,21 @@ def load(result_dir):
     kbuilds = [Kbuild.load(f) for f in kbuilds]
     return kbuilds
 
+
 def compare_files(A, B, A_str, B_str):
     """
     print diffs between sets A and B
     """
     if A and B:
+
         def _print_diffs(A, B, A_str, B_str):
-            diffs  = A - B
+            diffs = A - B
             if not diffs:
                 return
             mlog.info("in {}, but not in {}: {}".format(
                 A_str, B_str, len(diffs)))
 
-        mlog.debug("files: {} {}, {} {}".format(
-            A_str, len(A), B_str, len(B)))
+        mlog.debug("files: {} {}, {} {}".format(A_str, len(A), B_str, len(B)))
         pause()
         if A != B:
             _print_diffs(A, B, A_str, B_str)
