@@ -8,13 +8,11 @@ import pdb
 import z3
 from pymake3 import parser, parserdata, data, functions
 
-
 import vcommon as CM
 from casestudy import CaseStudy
 from zsolver import ZSolver
 import zsolver
 from ds import Path, Paths
-
 
 import settings
 mlog = CM.getLogger(__name__, settings.logger_level)
@@ -64,8 +62,8 @@ class Eval(object):
     def do_fake_expansion(self, expansion):
         assert isinstance(expansion, str), expansion
         stmts = parser.parsestring(expansion, None)
-        assert len(stmts) == 1 and isinstance(
-            stmts[0], parserdata.EmptyDirective), stmts
+        assert len(stmts) == 1 and isinstance(stmts[0],
+                                              parserdata.EmptyDirective), stmts
         ret = self.do_expansion(stmts[0].exp)
 
         return ret
@@ -75,8 +73,7 @@ class Eval(object):
             return [(expansion.s, zsolver.T)]
         else:
             assert isinstance(expansion, data.Expansion), expansion
-            elems = [self.do_elem(elem, isfun)
-                     for elem, isfun in expansion]
+            elems = [self.do_elem(elem, isfun) for elem, isfun in expansion]
             comb = self.combine(elems)
             return comb
 
@@ -165,8 +162,8 @@ class Eval(object):
                 pattern = "^" + fv.replace(r"%", r"(.*)", 1) + "$"
                 replacement = tv.replace(r"%", r"\1", 1)
 
-                v = " ".join(re.sub(pattern, replacement, v)
-                             for v in iv.split())
+                v = " ".join(
+                    re.sub(pattern, replacement, v) for v in iv.split())
                 if v not in d:
                     d[v] = cond
                 else:
@@ -251,6 +248,7 @@ class ParserData(object):
         else:
             return None
 
+
 class StatementList(ParserData):
     def __init__(self, stmt, paths, solver, casestudy):
         assert isinstance(stmt, parserdata.StatementList), stmt
@@ -315,10 +313,9 @@ class StatementList(ParserData):
                        "split {} ({:02f}), "
                        "merge {} ({:02f}), "
                        "mem {}, config {}, time {:02f}".format(
-                           len(paths), len(new_paths), et_mk,
-                           len(split_paths), et_split,
-                           len(merge_paths), et_merge,
-                           Path.__ct__,  len(ZSolver.__config_vars__),
+                           len(paths), len(new_paths), et_mk, len(split_paths),
+                           et_split, len(merge_paths), et_merge, Path.__ct__,
+                           len(ZSolver.__config_vars__),
                            time() - st))
 
         return paths
@@ -366,6 +363,7 @@ class SetVariable(ParserData):
 
         return new_paths
 
+
 class ConditionBlock(ParserData):
     def __init__(self, stmt, paths, solver, casestudy):
         assert isinstance(stmt, parserdata.ConditionBlock), stmt
@@ -394,8 +392,8 @@ class ConditionBlock(ParserData):
         assert isinstance(stmts, parserdata.StatementList), stmts
         new_path = self.get_new_path(path, cond)
         if new_path:
-            stmt_list = StatementList(
-                stmts, Paths([new_path]), self.solver, self.casestudy)
+            stmt_list = StatementList(stmts, Paths([new_path]), self.solver,
+                                      self.casestudy)
             paths = stmt_list.parse()
             return paths
         else:
@@ -426,8 +424,8 @@ class ConditionBlock(ParserData):
             return zsolver.neg(undef_cond) if cond.expected else undef_cond
 
         else:
-            raise NotImplementedError(
-                "Cannot parse condition: {}".format(repr(cond)))
+            raise NotImplementedError("Cannot parse condition: {}".format(
+                repr(cond)))
 
     @staticmethod
     def get_eq_cond(exps1, exps2):
@@ -516,8 +514,8 @@ class Include(ParserData):
             stmts = fh.read()
             fh.close()
             stmts = parser.parsestring(stmts, fh.name)
-            stmt_list = StatementList(
-                stmts, [new_path], self.solver, self.casestudy)
+            stmt_list = StatementList(stmts, [new_path], self.solver,
+                                      self.casestudy)
             paths_ = stmt_list.parse()
             paths.extend(paths_)
 
@@ -559,6 +557,8 @@ class Kbuild:
         self.casestudy = casestudy
         self.solver = ZSolver(casestudy.__zstate__)
 
+        mlog.info("Kbuild for {}".format(self.makefile))
+
     def symexe(self, cond):
         assert z3.is_expr(cond), cond
 
@@ -567,8 +567,8 @@ class Kbuild:
             datetime.now().strftime("%Y-%m-%d %H:%M"), self.makefile))
 
         path = Path.get_default(cond, self.topdir)
-        stmts = StatementList(self.stmts, Paths([path]),
-                              self.solver, self.casestudy)
+        stmts = StatementList(self.stmts, Paths([path]), self.solver,
+                              self.casestudy)
         self.paths = stmts.parse()
         self.se_time = time() - st
 
@@ -581,13 +581,10 @@ class Kbuild:
     def save(self, tofile):
         assert isinstance(tofile, str) and tofile, tofile
 
-        kinfo = (
-            self.makefile,
-            self.se_time,
-            [(zsolver.to_smt2_str(p.cond), p.states) for p in self.paths],
-            self.solver.typ_info,
-            self.casestudy.__class__.__name__
-        )
+        kinfo = (self.makefile, self.se_time,
+                 [(zsolver.to_smt2_str(p.cond), p.states) for p in self.paths],
+                 self.solver.typ_info, self.casestudy.__class__.__name__)
+
         CM.vsave(tofile, kinfo)
 
     @staticmethod
@@ -597,8 +594,10 @@ class Kbuild:
         kinfo = CM.vload(fromfile)
         makefile, se_time, path_info, typ_info, case_study = kinfo
 
-        paths = Paths([Path(zsolver.from_smt2_str(cond), states)
-                       for cond, states in path_info])
+        paths = Paths([
+            Path(zsolver.from_smt2_str(cond), states)
+            for cond, states in path_info
+        ])
 
         import casestudy
         cls = casestudy.Busybox if case_study.lower() == "busybox" \

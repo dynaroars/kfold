@@ -51,7 +51,6 @@ class Run:
         kbuilds = []  # results
         makefiles = get_makefiles(self.makefile_paths, cond=zsolver.T)
         while makefiles:
-
             # parallel
             kbuilds_ = [analyze(makefile, cond, self.tmpdir)
                         for makefile, cond in makefiles]

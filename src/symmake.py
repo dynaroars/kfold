@@ -3,10 +3,12 @@ from vcommon import getLogLevel, getLogger
 import vcommon as CM
 import os.path
 
+
 def is_analysis_mode(path):
     return (os.path.isdir(path) and
             any(f.endswith(settings.results_ext) for
                 f in os.listdir(path)))
+
 
 if __name__ == '__main__':
 
@@ -49,7 +51,7 @@ if __name__ == '__main__':
 
     import settings
     if (args.log_level != settings.logger_level and
-        0 <= args.log_level <= 4):
+            0 <= args.log_level <= 4):
         settings.logger_level = args.log_level
 
     settings.logger_level = getLogLevel(settings.logger_level)
@@ -66,8 +68,8 @@ if __name__ == '__main__':
         tmpdir = cls.go(args)
 
     else:
-        import casestudy 
-        cls = casestudy.Busybox #default
+        import casestudy
+        cls = casestudy.Busybox  # default
         if args.case_study:
             case_study = args.case_study.lower()
             if case_study == 'linux':
@@ -77,7 +79,6 @@ if __name__ == '__main__':
         from alg import Run
         cls = Run(cls.makefile_paths, cls)
         tmpdir = cls.go()
-
 
     if tmpdir and os.path.isdir(tmpdir):
         if args.rmtmp:
@@ -90,4 +91,3 @@ if __name__ == '__main__':
 
 # exploit
 # paths in makefiles have many same state contents, so can merge .  e.g.,  x$y  = ...  ,  2 diff paths but same state.
-

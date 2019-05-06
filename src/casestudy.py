@@ -11,9 +11,10 @@ y_str = "y"
 m_str = "m"
 undef_str = "undef"
 undef_val = ''
-tristate = (undef_val, "TriState", [y_str, m_str, undef_str], 
+tristate = (undef_val, "TriState", [y_str, m_str, undef_str],
             [y_str, m_str, undef_val])
 twostate = (undef_val, "TwoState", [y_str, undef_str], [y_str, undef_val])
+
 
 class CaseStudy:
     __zstate__ = twostate
@@ -23,76 +24,89 @@ class CaseStudy:
     __ignore_setvar_kws__ = frozenset()
 
     __ignore_dirs__ = frozenset()
-    __ignore_exts__ = frozenset(".txt .sh .out .vu".split())
+    __ignore_exts__ = frozenset()
 
     __topdirs__ = []
 
     def __init__(self, path):
-        #path is None is for analysis only
+        # path is None is for analysis only
         if path:
-            if os.path.isfile(path): # single makefile
+            if os.path.isfile(path):  # single makefile
                 self.makefile_paths = [path]
             else:
                 assert os.path.isdir(path)
                 path = os.path.abspath(path)
-                topdirs = [os.path.join(path, d) for d in
-                           self.__topdirs__]
+                topdirs = [os.path.join(path, d) for d in self.__topdirs__]
                 topdirs = [d for d in topdirs if os.path.isdir(d)]
                 self.makefile_paths = topdirs
 
+    @property
+    def topdirs(self):
+        td = set([d if d.endswith(os.path.sep) else d + os.path.sep
+                  for d in self.__topdirs__])
+        return td
+
     def ignore_symbol(self, symbol):
-        return (any(symbol.startswith(x)
-                    for x in self.__ignore_setvar_startswith__) or
-                any(symbol.endswith(x)
-                    for x in self.__ignore_setvar_endswith__) or
-                any(kw in symbol
-                    for kw in self.__ignore_setvar_kws__))
+        return (any(
+            symbol.startswith(x)
+            for x in self.__ignore_setvar_startswith__) or any(
+                symbol.endswith(x) for x in self.__ignore_setvar_endswith__)
+            or any(kw in symbol for kw in self.__ignore_setvar_kws__))
 
     def ignore_ext(self, filename):
 
-        ignore_exts = frozenset.union(
-            CaseStudy.__ignore_exts__, self.__ignore_exts__)
+        ignore_exts = frozenset.union(CaseStudy.__ignore_exts__,
+                                      self.__ignore_exts__)
         return os.path.splitext(filename)[1] in ignore_exts
-        
+
+    # analysis
+
+    def diff_files(src_files):
+        assert isinstance(src_files, (set, frozenset)), src_files
+
+
 class Busybox(CaseStudy):
     __zstate__ = twostate
-    __ignore_dirs__ = frozenset("hush_test scripts shell".split())
-    __ignore_exts__ = frozenset(".src .tests .right .spec"
-                                ".ash .y .pod .include .method"
-                                ".a .pl .o .awk .in .bz2 .conf"
-                                ".trans .patch .htm .html .h".split())
-    __topdirs__ = ["applets/",
-                   "arch/",
-                   "archival/",
-                   "console-tools/",
-                   "coreutils/",
-                   "debianutils/",
-                   "e2fsprogs/",
-                   "editors/",
-                   "findutils/",
-                   "init/",
-                   "klibc-utils/",
-                   "libbb/",
-                   "libpwdgrp/"
-                   "loginutils/",
-                   "mailutils/",
-                   "miscutils/",
-                   "modutils/",
-                   "networking/",
-                   "printutils/",
-                   "procps/",
-                   "runit/",
-                   "scripts/",
-                   "selinux/",
-                   "shell/",
-                   "sysklogd/",
-                   "util-linux/"]
+    __topdirs__ = set([
+        "applets",
+        "arch/",
+        "archival/",
+        "archival/libarchive/",
+        "console-tools/",
+        "coreutils/",
+        "coreutils/libcoreutils/",
+        "debianutils/",
+        "klibc-utils/",
+        "e2fsprogs/",
+        "editors/",
+        "findutils/",
+        "init/",
+        "klibc-utils/",
+        "libbb/",
+        "libpwdgrp/",
+        "loginutils/",
+        "mailutils/",
+        "miscutils/",
+        "modutils/",
+        "networking/",
+        "networking/libiproute/",
+        "networking/udhcp/",
+        "printutils/",
+        "procps/",
+        "runit/",
+        "selinux/",
+        "shell/",
+        "sysklogd/",
+        "util-linux/",
+        "util-linux/volume_id/"
+    ])
+
 
 class Linux(CaseStudy):
     __zstate__ = tristate
-    __topdirs__ = [
+    __topdirs__ = set([
         "arch/i386",
-        "block", # seems OK
+        "block",  # seems OK
         # "certs",  problem
         # "crypto",   seems ok
         # "drivers", seems OK
@@ -113,7 +127,7 @@ class Linux(CaseStudy):
         # AssertionError: SetVariable<None:1:18> Exp<None:1:0>('-DINITRAMFS_IMAGE') =
         # '"usr/$(datafile_y)"'
         # "virt"  no make file ?
-    ]
+    ])
 
     __ignore_setvar_starswith__ = frozenset([
         "AFLAGS",
@@ -123,13 +137,5 @@ class Linux(CaseStudy):
         'ramfs-input',  # TODO: automatically ignore these
         'ramfs-args'
     ])
-    __ignore_setvar_endswith__ = frozenset([
-        "extract_certs",
-        "chk_compile.h"
-    ])
-    __ignore_setvar_kws__ = frozenset([
-        "CFLAGS",
-        "_flag"]
-    )
-
-
+    __ignore_setvar_endswith__ = frozenset(["extract_certs", "chk_compile.h"])
+    __ignore_setvar_kws__ = frozenset(["CFLAGS", "_flag"])

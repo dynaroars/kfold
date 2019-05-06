@@ -1,4 +1,4 @@
-import os
+import os.path
 import itertools
 import pdb
 import vcommon as CM
@@ -18,7 +18,6 @@ pause = CM.pause
 class Analysis:
     def __init__(self, result_dir):
         assert os.path.isdir(result_dir), result_dir
-
         self.kbuilds = load(result_dir)
         assert len(self.kbuilds)
 
@@ -42,22 +41,23 @@ class Analysis:
 
         self.files_d = self.get_target_files(None)
         self.all_files = frozenset(itertools.chain(*self.files_d.values()))
-        tfs = [
-            self.files_d[target] for target in self.files_d
-            if target not in settings.target_vars
-        ]
+        tfs = [self.files_d[target] for target in self.files_d
+               if target not in settings.target_vars]
+
         self.target_files = frozenset(itertools.chain(*tfs))
         assert (self.target_files == self.all_files)
 
-        mlog.debug("{}: case study {}, {} kbuilds, {} config vars, "
-                   "files: {} total, {} target".format(
+        mlog.debug("{}: casestudy {}, "
+                   "{} kbuilds, {} config vars, {} files".format(
                        result_dir, self.casestudy.__class__.__name__,
                        len(self.kbuilds), len(self.config_vars),
                        len(self.all_files), len(self.target_files)))
 
     def go(self, args):
-        if args.src_dir and os.path.isdir(args.src_dir):
-            self.check_src_dir(args.src_dir)
+        src_dir = args.src_dir
+        if src_dir and os.path.isdir(src_dir):
+            mlog.info("*** Check Coverage over '{}' ***".format(src_dir))
+            self.check_src_dir(src_dir)
 
         return None
 
@@ -65,64 +65,82 @@ class Analysis:
         """
         Obtain all C programs and check
         """
-        assert os.path.isdir(src_dir)
+        assert os.path.isdir(src_dir), src_dir
 
         # get all src files from src_dir
         src_dir_len = len(src_dir)
-        src_files = []
+        sfiles = {}
+
+        def get_includes(f):
+            includes = set()
+            try:
+                ls = list(CM.iread(f))
+            except UnicodeDecodeError as ex:
+                mlog.warn("cannot parse '{}': {}".format(f, ex))
+                return includes
+
+            for l in ls:
+                l = l.strip()
+                if l.startswith("#include") and '<' not in l and '.c' in l:
+                    l = l.replace("#include", '').replace('"', '').strip()
+                    ifile = os.path.join(os.path.split(f)[0], l)
+                    assert os.path.isfile(ifile), ifile
+                    includes.add(ifile[src_dir_len:])
+
+            return includes
 
         for root, subdirs, files in os.walk(src_dir):
-            # ignore .hidden dirs
+            # ignore .hidden dirs and files
             subdirs[:] = [d for d in subdirs if not d.startswith('.')]
+            files[:] = [f for f in files
+                        if os.path.splitext(f)[1] == '.c' and not f.startswith('.')]
             for f in files:
-                if f.startswith('.'):  #ignore hidden
-                    continue
-                f_ = os.path.join(root, f)
-                assert os.path.isfile(f_), "{}: not exist".format(f_)
-                f = f_[src_dir_len:]
-                src_files.append(f)
+                f = os.path.join(root, f)
+                assert os.path.isfile(f), "{}: not exist".format(f)
 
-        assert (len(set(src_files)) == len(src_files))
+                f_ = f[src_dir_len:]
+                assert f_ not in sfiles
+                sfiles[f_] = get_includes(f)
 
-        fs = [os.path.splitext(f) for f in src_files]
+        mlog.debug("{} files".format(len(sfiles)))
 
-        #remove file with no ext
-        fs = frozenset([(f, e) for f, e in fs if e])
-        #only keep those with .c ext
-        fs = frozenset([(f, e) for f, e in fs if e == '.c'])
+        # remove target and include files
+        tfiles = set(f.replace('.o', '.c') for f in self.target_files)
 
-        exts = frozenset(e for _, e in fs)
-        mlog.debug("{} has {} files, {} exts".format(src_dir, len(fs),
-                                                     len(exts)))
+        removes = set()
+        for f in tfiles:
+            assert f in sfiles
+            removes.add(f)
+            for f_ in sfiles[f]:
+                assert f_ in sfiles, f_
+                removes.add(f_)
 
-        fs_d = {}
-        for f, e in fs:
-            if f not in fs_d:
-                fs_d[f] = set()
-            fs_d[f].add(e)
+        for f in removes:
+            sfiles.pop(f)
 
-        src_files_noext = frozenset(fs_d.keys())
+        mlog.debug("{} files (- {} targets)".format(len(sfiles), len(removes)))
 
-        target_files_noext = frozenset(
-            os.path.splitext(f)[0] for f in self.target_files)
-        assert len(target_files_noext) == len(self.target_files)
+        # remove files not in topdirs
+        def in_topdirs(f):
+            s = f.split(os.path.sep)[0] + os.path.sep
+            return s in self.casestudy.topdirs
 
-        #everything found must be in src dir
-        assert not (target_files_noext - src_files_noext)
-        # for k in target_files_noext:
-        #     print(k, src_files_d[k])
+        removes = set(f for f in sfiles if not in_topdirs(f))
+        for f in removes:
+            sfiles.pop(f)
 
-        #not everything in src dir are found
-        in_src_only = src_files_noext - target_files_noext
-        in_src_only = [
-            f for f in in_src_only if not any(
-                g in self.casestudy.__ignore_dirs__ for g in f.split('/'))
-        ]
+        mlog.debug(
+            "{} files (- {} not in topdir)".format(len(sfiles), len(removes)))
 
-        if in_src_only:
-            mlog.debug("{} in src only".format(len(in_src_only)))
-            for k in in_src_only:
-                print(k, fs_d[k])
+        # remove util-linux/volume_id/unused_*.c
+        removes = set(f for f in sfiles if 'used_' in f)
+        for f in removes:
+            sfiles.pop(f)
+
+        mlog.debug(
+            "{} files (- {} unsed)".format(len(sfiles), len(removes)))
+
+        print('\n'.join(sorted(sfiles)))
 
     def get_target_files(self, constraint):
         assert constraint is None or z3.is_expr(constraint), constraint
@@ -132,10 +150,11 @@ class Analysis:
         files_d = {}
         for kbuild in self.kbuilds:
             tdir = os.path.split(kbuild.makefile)[0][self.commonpath_len:]
-            if tdir.startswith('/'): tdir = tdir[1:]
+            if tdir.startswith('/'):
+                tdir = tdir[1:]
             for path in kbuild.paths:
-                if (constraint is None
-                        or solver.is_valid(z3.Implies(constraint, path.cond))):
+                if (constraint is None or
+                        solver.is_valid(z3.Implies(constraint, path.cond))):
                     tfiles = path.target_files
                     assert all(isinstance(v, Var) for v in tfiles), tfiles
                     for v in tfiles:
@@ -155,7 +174,7 @@ class Analysis:
         make_files = []
         if config_file:
             config_files_d = self.get_files_from_config(config_file)
-            #print some stats
+            # print some stats
             ss = []
             ss_notused = []
             for target, tfiles in config_files_d.items():
@@ -182,9 +201,8 @@ class Analysis:
         compare_sets(config_files, make_files, "config_files", "make_files")
 
     def get_files_from_config(self, config_file):
-        contents = [
-            l.split("=") for l in CM.strip_contents(CM.iread(config_file))
-        ]
+        contents = [l.split("=") for l in
+                    CM.strip_contents(CM.iread(config_file))]
 
         myconfig = {}
         for s, v in contents:
@@ -242,8 +260,8 @@ class Analysis:
             set -e;  echo '  AR      archival/libarchive/lib.a'; rm -f archival/libarchive/lib.a; ar  rcs archival/libarchive/lib.a archival/libarchive/common.o; echo 'cmd_archival/libarchive/lib.a := rm -f archival/libarchive/lib.a; ar  rcs archival/libarchive/lib.a archival/libarchive/common.o' > archival/libarchive/.lib.a.cmd
             """
             ll = [p for p in l.split('echo')
-                  ]  #[sed -d ; '  AR ... '   , ' .... long echo str...']
-            ll = [p for p in ll if "'  " in p]  #'  AR
+                  ]  # [sed -d ; '  AR ... '   , ' .... long echo str...']
+            ll = [p for p in ll if "'  " in p]  # '  AR
             ll = [p.split(';') for p in ll]
             ll = list(itertools.chain(*ll))
             ll = [p.strip() for p in ll if '.o' in p]
