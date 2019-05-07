@@ -3,6 +3,7 @@ import itertools
 from time import time
 from datetime import datetime
 import os.path
+import pathlib
 import pdb
 
 import z3
@@ -19,6 +20,7 @@ mlog = CM.getLogger(__name__, settings.logger_level)
 
 trace = pdb.set_trace
 pause = CM.pause
+
 
 class Eval(object):
     def __init__(self, path, solver):
@@ -544,7 +546,7 @@ class EmptyDirective(ParserData):
 
 class Kbuild:
     def __init__(self, makefile, casestudy):
-        assert os.path.isfile(makefile), makefile
+        assert isinstance(makefile, pathlib.Path), makefile
         assert isinstance(casestudy, CaseStudy), casestudy
 
         makefile_ = open(makefile, "rU")
@@ -552,7 +554,7 @@ class Kbuild:
         makefile_.close()
         self.stmts = parser.parsestring(stmts, makefile_.name)
 
-        self.topdir = os.path.dirname(makefile)
+        self.topdir = makefile.parent
         self.makefile = makefile
         self.casestudy = casestudy
         self.solver = ZSolver(casestudy.__zstate__)
@@ -579,7 +581,7 @@ class Kbuild:
     # note things are a bit complex because
     # Z3 data structures cannot be saved directly to file
     def save(self, tofile):
-        assert isinstance(tofile, str) and tofile, tofile
+        assert isinstance(tofile, pathlib.Path) and tofile, tofile
 
         kinfo = (self.makefile, self.se_time,
                  [(zsolver.to_smt2_str(p.cond), p.states) for p in self.paths],
@@ -601,7 +603,7 @@ class Kbuild:
 
         import casestudy
         cls = casestudy.Busybox if case_study.lower() == "busybox" \
-            else casetudy.Busbybox
+            else casestudy.Busbybox
 
         cls = cls(None)
         kbuild = Kbuild(makefile, cls)

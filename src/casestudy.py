@@ -1,5 +1,4 @@
 import os.path
-import settings
 import pdb
 
 import vcommon as CM

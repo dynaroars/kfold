@@ -1,9 +1,8 @@
 import itertools
 from time import time
-import os.path
+import pathlib
 import pdb
 import z3
-
 import vcommon as CM
 import zsolver
 from casestudy import CaseStudy
@@ -17,47 +16,32 @@ pause = CM.pause
 
 
 class Run:
-    def __init__(self, makefile_paths, casestudy):
-        """makefile_paths is a list of makefile path (either a real makefile
-        or directory)
+    def __init__(self, paths, casestudy):
         """
+        paths is a list of paths to either makefiles or directories
+        """
+        assert paths, paths
         assert isinstance(casestudy, CaseStudy), casestudy
 
-        self.makefile_paths = makefile_paths
+        self.paths = [pathlib.Path(p) for p in paths]
         self.casestudy = casestudy
 
     def go(self):
-
-        def get_makefiles(file_paths, cond):
-            makefiles = [self.get_makefile(p) for p in file_paths]
-            return [(makefile, cond) for makefile in makefiles if makefile]
-
-        def analyze(makefile, cond, result_dir):
-            assert os.path.isfile(makefile), makefile
-            assert cond is None or z3.is_expr(cond), cond
-            kbuild = Kbuild(makefile, self.casestudy)
-            kbuild.symexe(cond)
-            tofile = os.path.join(
-                result_dir,
-                kbuild.makefile.replace("/", "_") + settings.results_ext)
-            kbuild.save(tofile)
-            return kbuild
-
         st = time()
         import tempfile
         prefix = "skanner_{}_".format(self.casestudy.__class__.__name__)
-        self.tmpdir = tempfile.mkdtemp(dir=settings.tmpdir, prefix=prefix)
-
+        self.tmpdir = pathlib.Path(tempfile.mkdtemp(
+            dir=settings.tmpdir, prefix=prefix))
         kbuilds = []  # results
-        makefiles = get_makefiles(self.makefile_paths, cond=zsolver.T)
+        makefiles = self.get_makefiles(self.paths, cond=zsolver.T)
         while makefiles:
             # parallel
-            kbuilds_ = [analyze(makefile, cond, self.tmpdir)
+            kbuilds_ = [self.analyze(makefile, cond, self.tmpdir)
                         for makefile, cond in makefiles]
             kbuilds.extend(kbuilds_)
 
             # recurse to subdirs if any
-            makefiles = [get_makefiles(path.subdirs(kbuild.topdir), path.cond)
+            makefiles = [self.get_makefiles(path.subdirs(kbuild.topdir), path.cond)
                          for kbuild in kbuilds_ for path in kbuild.paths]
             makefiles = list(itertools.chain(*makefiles))
 
@@ -66,21 +50,44 @@ class Run:
 
         return self.tmpdir
 
+    def analyze(self, makefile, cond, result_dir):
+        assert makefile.is_file(), makefile
+        assert cond is None or z3.is_expr(cond), cond
+        assert result_dir.exists(), result_dir
+
+        kbuild = Kbuild(makefile, self.casestudy)
+        kbuild.symexe(cond)
+        tofile = str(kbuild.makefile).replace("/", "_") + settings.results_ext
+        kbuild.save(result_dir / tofile)
+        return kbuild
+
     @classmethod
-    def get_makefile(cls, makefile_path):
-        # use Kbuild file if found, otherwise try Makefile
-        if not os.path.exists(makefile_path):
-            mlog.warn("{} does not exist".format(makefile_path))
+    def get_makefiles(cls, paths, cond):
+        assert all(isinstance(p, pathlib.Path) for p in paths), paths
+        assert cond is None or z3.is_expr(cond), cond
+
+        makefiles = [cls.get_makefile(p) for p in paths]
+        return [(makefile, cond) for makefile in makefiles if makefile]
+
+    @classmethod
+    def get_makefile(cls, path):
+        """
+        use Kbuild file if found, otherwise try Makefile
+        """
+        assert isinstance(path, pathlib.Path)
+
+        if not path.exists():
+            mlog.warn("{} does not exist".format(path))
             return None
 
-        makefile = makefile_path
-        if os.path.isdir(makefile_path):
-            makefile = os.path.join(makefile_path, "Kbuild")
-            if not os.path.isfile(makefile):
-                makefile = os.path.join(makefile_path, "Makefile")
+        makefile = path
+        if path.is_dir():
+            makefile = path / "Kbuild"
+            if not makefile.is_file():
+                makefile = path / "Makefile"
 
-        if not os.path.isfile(makefile):
-            mlog.warn("{} has no makefile".format(makefile_path))
+        if not makefile.is_file():
+            mlog.warn("{} has no makefile".format(path))
             return None
 
-        return os.path.abspath(makefile)
+        return makefile.resolve()

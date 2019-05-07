@@ -1,20 +1,15 @@
 from collections import namedtuple, OrderedDict
 import itertools
-import os.path
+import pathlib
 import pdb
-
 import z3
-
 import vcommon as CM
-
 import zsolver
-
 import settings
 mlog = CM.getLogger(__name__, settings.logger_level)
 
 trace = pdb.set_trace
 pause = CM.pause
-
 
 BaseVar = namedtuple("BaseVar", "name vals flavor")
 
@@ -59,9 +54,11 @@ class Var(BaseVar):
         return self.name in list(settings.ignore_vars)
 
     def subdirs(self, topdir):
-        sd = [os.path.join(topdir, v)
-              for v in self.vals if v.endswith("/")]
-        return sd
+        assert topdir.is_dir(), topdir
+
+        return [topdir / v for v in self.vals
+                if not isinstance(v, pathlib.Path) and
+                v.endswith("/")]
 
     @staticmethod
     def get_flavor(token):
@@ -76,7 +73,7 @@ class Var(BaseVar):
 
     @staticmethod
     def src_var(topdir):
-        assert os.path.isdir(topdir), topdir
+        assert topdir.is_dir(), topdir
         return Var("src", frozenset([topdir]), Var.RECURSE)
 
 
@@ -199,7 +196,7 @@ class Path:
     @classmethod
     def get_default(cls, cond, src_dir):
         assert z3.is_expr(cond), cond
-        assert os.path.isdir(src_dir), src_dir
+        assert src_dir.is_dir(), src_dir
 
         states = {'src': Var.src_var(src_dir)}
         return cls(cond, states)
@@ -320,7 +317,8 @@ class Paths(list):
 
     @staticmethod
     def load_info(f):
-        assert os.path.isfile(f), f
+        assert f.is_file(), f
+
         paths_info = CM.vload(f)
         paths = [Path(zsolver.from_smt_str(smt_str), states)
                  for smt_str, states in paths_info]

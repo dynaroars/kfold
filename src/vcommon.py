@@ -1,4 +1,3 @@
-import os.path
 import itertools
 import subprocess as sp
 import inspect
@@ -60,12 +59,6 @@ def iread_strip(filename, strip_c='#'):
     like iread but also strip out comments and empty line
     """
     return strip_contents(iread(filename), strip_c)
-
-
-def getpath(f): return os.path.realpath(os.path.expanduser(f))
-
-
-def file_basename(filename): return os.path.splitext(filename)[0]
 
 
 def iflatten(l): return itertools.chain.from_iterable(l)  # return a generator

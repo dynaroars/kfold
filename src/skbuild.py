@@ -1,13 +1,13 @@
 #! /usr/bin/env python3
 from vcommon import getLogLevel, getLogger
 import vcommon as CM
-import os.path
+import pathlib
 
 
 def is_analysis_mode(path):
-    return (os.path.isdir(path) and
-            any(f.endswith(settings.results_ext) for
-                f in os.listdir(path)))
+    return (path.is_dir() and
+            any(f.is_file() and f.suffix == settings.results_ext
+                for f in path.iterdir()))
 
 
 if __name__ == '__main__':
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     if __debug__:
         mlog.info("DEBUG MODE ON. Use python -O to optimize")
 
-    path = args.path
+    path = pathlib.Path(args.path)
     assert path
 
     if is_analysis_mode(path):
@@ -80,14 +80,10 @@ if __name__ == '__main__':
         cls = Run(cls.makefile_paths, cls)
         tmpdir = cls.go()
 
-    if tmpdir and os.path.isdir(tmpdir):
+    if tmpdir and tmpdir.is_dir():
         if args.rmtmp:
             import shutil
             mlog.debug("rm -rf {}".format(tmpdir))
             shutil.rmtree(tmpdir)
         else:
             print("tmpdir: {}".format(tmpdir))
-
-
-# exploit
-# paths in makefiles have many same state contents, so can merge .  e.g.,  x$y  = ...  ,  2 diff paths but same state.
