@@ -23,7 +23,7 @@ class Var(BaseVar):
         assert isinstance(vals, frozenset), vals
         assert flavor in set([Var.RECURSE, Var.SIMPLY]), flavor
 
-        super(Var).__init__()
+        super().__init__()
 
     @property
     def vals_str(self):
@@ -51,23 +51,21 @@ class Var(BaseVar):
 
     @property
     def ignorable(self):
-        return self.name in list(settings.ignore_vars)
+        return self.name in settings.ignore_vars
 
     def subdirs(self, topdir):
         assert topdir.is_dir(), topdir
-
-        return [topdir / v for v in self.vals
-                if not isinstance(v, pathlib.Path) and
-                v.endswith("/")]
+        assert not self.ignorable
+        subdirs = [topdir / d for d in self.vals if d.endswith("/")]
+        return subdirs
 
     @staticmethod
     def get_flavor(token):
-        if token == "=":
-            flavor = Var.RECURSE
-        elif token in set([":=", "::="]) or token in set(["+="]):
+        if token in set([":=", "::="]) or token in set(["+="]):
             flavor = Var.SIMPLY
         else:
-            raise NotImplementedError("token {}".format(token))
+            assert token == "=", token
+            flavor = Var.RECURSE
 
         return flavor
 
@@ -100,7 +98,9 @@ class Path:
         return ss
 
     def subdirs(self, topdir):
-        subdirs_ = [self.states[v].subdirs(topdir) for v in self.states]
+        subdirs_ = [self.states[v].subdirs(topdir)
+                    for v in self.states
+                    if not self.states[v].ignorable]
         return frozenset(itertools.chain(*subdirs_))
 
     def fork(self, new_cond, ignore_targets=False):
@@ -134,38 +134,32 @@ class Path:
                 raise NotImplementedError
 
     def split(self):
-        new_paths = []
         assert self.states
-        if all(self.is_not_target(name) for name in self.states):
-            new_paths.append(self)  # keep path as is
-        else:
-            for name in self.states:
-                if Path.is_not_target(name):  # don't split value of this var
-                    continue
 
-                myvar = self.states[name]
-                if not myvar.vals:
-                    new_path = self.fork(self.cond, ignore_targets=True)
-                    new_path.states[name] = myvar.fork()
+        new_paths = []
+        for name in self.states:
+            if Path.is_not_target(name):  # don't split
+                continue
+
+            myvar = self.states[name]
+            if not myvar.vals:
+                new_path = self.fork(self.cond, ignore_targets=True)
+                new_path.states[name] = myvar.fork()
+                new_paths.append(new_path)
+            else:
+                for v in myvar.vals:
+                    new_path = self.fork(
+                        self.cond, ignore_targets=True)
+                    new_path.states[name] = myvar.fork_val(frozenset([v]))
                     new_paths.append(new_path)
-                else:
-                    for v in myvar.vals:
-                        new_path = self.fork(
-                            self.cond, ignore_targets=True)
-                        new_path.states[name] = myvar.fork_val(frozenset([v]))
-                        new_paths.append(new_path)
 
-        assert new_paths
+        if not new_paths:
+            new_paths.append(self)  # keep path as is
         return new_paths
-
-    def slice(self):
-        [self.states.pop(name)
-         for name in self.states if Path.is_not_target(name)]
 
     def merge_states(self, other):
         for name in other.states:
             other_var = other.states[name]
-            # BaseVar = namedtuple("BaseVar", "name vals flavor")
             assert isinstance(other_var, Var), other_var
             if name in self.states:
                 vals = frozenset(
@@ -177,8 +171,7 @@ class Path:
     @property
     def state_hash(self):
         fs = frozenset(sorted(self.states.items()))
-        ret = hash(fs)
-        return ret
+        return hash(fs)
 
     @property
     def target_files(self):
@@ -223,6 +216,7 @@ class Paths(list):
 
     def split(self):
         assert self, self
+
         new_paths = Paths()
         for path in self:
             new_paths_ = path.split()
@@ -276,10 +270,11 @@ class Paths(list):
                 else:
                     Q.put(rs)
 
-            wrs = CM.Miscs.runMP('merge', list(range(len(other_paths))),
-                                 wprocess, chunksiz=2,
-                                 doMP=settings.do_mp and
-                                 len(other_paths) >= settings.mp_task_len)
+            wrs = CM.Miscs.runMP(
+                'merge', list(range(len(other_paths))),
+                wprocess, chunksiz=2,
+                doMP=settings.do_mp and
+                len(other_paths) >= settings.mp_task_len)
 
             for i, cond_str in wrs:
                 cond = zsolver.from_smt2_str(cond_str)

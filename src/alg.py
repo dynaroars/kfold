@@ -1,4 +1,5 @@
 import itertools
+import tempfile
 from time import time
 import pathlib
 import pdb
@@ -28,25 +29,25 @@ class Run:
 
     def go(self):
         st = time()
-        import tempfile
-        prefix = "skanner_{}_".format(self.casestudy.__class__.__name__)
+        prefix = "skbuild_{}_".format(self.casestudy.__class__.__name__)
         self.tmpdir = pathlib.Path(tempfile.mkdtemp(
             dir=settings.tmpdir, prefix=prefix))
-        kbuilds = []  # results
-        makefiles = self.get_makefiles(self.paths, cond=zsolver.T)
-        while makefiles:
+
+        results = []
+        files = self.get_makefiles(self.paths, cond=zsolver.T)
+        while files:
             # parallel
-            kbuilds_ = [self.analyze(makefile, cond, self.tmpdir)
-                        for makefile, cond in makefiles]
-            kbuilds.extend(kbuilds_)
+            kbuilds = [self.analyze(makefile, cond, self.tmpdir)
+                       for makefile, cond in files]
+            results.extend(kbuilds)
 
             # recurse to subdirs if any
-            makefiles = [self.get_makefiles(path.subdirs(kbuild.topdir), path.cond)
-                         for kbuild in kbuilds_ for path in kbuild.paths]
-            makefiles = list(itertools.chain(*makefiles))
+            files = [self.get_makefiles(path.subdirs(kbuild.topdir), path.cond)
+                     for kbuild in kbuilds for path in kbuild.paths]
+            files = list(itertools.chain(*files))
 
         mlog.info("analyzed {} kbuild makefiles in {}s".format(
-            len(kbuilds), time() - st))
+            len(results), time() - st))
 
         return self.tmpdir
 

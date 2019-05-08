@@ -22,6 +22,76 @@ trace = pdb.set_trace
 pause = CM.pause
 
 
+class Kbuild:
+    def __init__(self, makefile, casestudy):
+        assert isinstance(makefile, pathlib.Path), makefile
+        assert isinstance(casestudy, CaseStudy), casestudy
+
+        self.stmts = parser.parsestring(
+            makefile.read_text(), makefile)
+        self.topdir = makefile.parent
+        self.makefile = makefile
+        self.casestudy = casestudy
+        self.solver = ZSolver(casestudy.__zstate__)
+
+        mlog.info("Kbuild for '{}'".format(self.makefile))
+
+    def symexe(self, cond):
+        assert z3.is_expr(cond), cond
+
+        st = time()
+        mlog.info("{}: symbolic execute '{}'".format(
+            datetime.now().strftime("%Y-%m-%d %H:%M"), self.makefile))
+
+        path = Path.get_default(cond, self.topdir)
+        stmts = StatementList(
+            self.stmts, Paths([path]), self.solver, self.casestudy)
+        self.paths = stmts.parse()
+        self.se_time = time() - st
+
+        mlog.debug("found {} paths ({}s)\n{}".format(
+            len(self.paths), self.se_time, self.paths))
+
+    def save(self, tofile):
+        """
+        save info to file / load info from file
+        note things are a bit complex because
+        Z3 data structures cannot be saved directly to file
+        """
+        assert isinstance(tofile, pathlib.Path) and tofile, tofile
+
+        kinfo = (self.makefile, self.se_time,
+                 [(zsolver.to_smt2_str(p.cond), p.states) for p in self.paths],
+                 self.solver.typ_info, self.casestudy.__class__.__name__)
+
+        CM.vsave(tofile, kinfo)
+
+    @staticmethod
+    def load(fromfile):
+        assert os.path.isfile(fromfile), fromfile
+
+        kinfo = CM.vload(fromfile)
+        makefile, se_time, path_info, typ_info, case_study = kinfo
+
+        paths = Paths([
+            Path(zsolver.from_smt2_str(cond), states)
+            for cond, states in path_info
+        ])
+
+        import casestudy
+        cls = casestudy.Busybox if case_study.lower() == "busybox" \
+            else casestudy.Busbybox
+
+        cls = cls(None)
+        kbuild = Kbuild(makefile, cls)
+        kbuild.se_time = se_time
+        kbuild.paths = paths
+        kbuild.typ_info = ZSolver.load_obj(typ_info)
+        kbuild.casestudy = cls
+
+        return kbuild
+
+
 class Eval(object):
     def __init__(self, path, solver):
         assert isinstance(path, Path), path
@@ -229,6 +299,8 @@ class Eval(object):
 class ParserData(object):
     def __init__(self, stmt, paths, solver, casestudy):
         assert isinstance(paths, Paths), paths
+        assert isinstance(solver, ZSolver), solver
+
         self.stmt = stmt
         self.paths = paths
         self.solver = solver
@@ -254,9 +326,8 @@ class ParserData(object):
 class StatementList(ParserData):
     def __init__(self, stmt, paths, solver, casestudy):
         assert isinstance(stmt, parserdata.StatementList), stmt
-        assert isinstance(paths, Paths), paths
 
-        super(StatementList, self).__init__(stmt, paths, solver, casestudy)
+        super().__init__(stmt, paths, solver, casestudy)
 
     def parse_single(self, path):
 
@@ -270,17 +341,23 @@ class StatementList(ParserData):
 
             if isinstance(stmt, parserdata.SetVariable):
                 cls = SetVariable
+
             elif isinstance(stmt, parserdata.ConditionBlock):
                 cls = ConditionBlock
-            elif isinstance(stmt,
-                            (parserdata.Rule, parserdata.StaticPatternRule)):
+
+            elif isinstance(
+                    stmt, (parserdata.Rule, parserdata.StaticPatternRule)):
                 cls = Rule
+
             elif isinstance(stmt, parserdata.Include):
                 cls = Include
+
             elif isinstance(stmt, parserdata.Command):
                 cls = Command
+
             elif isinstance(stmt, parserdata.EmptyDirective):
                 cls = EmptyDirective
+
             else:
                 raise NotImplementedError("cannot parse {}".format(stmt))
 
@@ -316,7 +393,8 @@ class StatementList(ParserData):
                        "merge {} ({:02f}), "
                        "mem {}, config {}, time {:02f}".format(
                            len(paths), len(new_paths), et_mk, len(split_paths),
-                           et_split, len(merge_paths), et_merge, Path.__ct__,
+                           et_split, len(merge_paths), et_merge,
+                           Path.__ct__,
                            len(ZSolver.__config_vars__),
                            time() - st))
 
@@ -324,28 +402,25 @@ class StatementList(ParserData):
 
 
 class SetVariable(ParserData):
+    """
+    Examples:
+    - obj-y := fork.o
+    """
+
     def __init__(self, stmt, paths, solver, casestudy):
         assert isinstance(stmt, parserdata.SetVariable), stmt
-        super(SetVariable, self).__init__(stmt, paths, solver, casestudy)
-
-    def parse(self):
-
-        new_paths = Paths()
-        for i, path in enumerate(self.paths):
-            new_paths_ = self.parse_single(path)
-            new_paths.extend(new_paths_)
-
-        return new_paths
+        super().__init__(stmt, paths, solver, casestudy)
 
     def parse_single(self, path):
         assert isinstance(path, Path), path
 
-        nameexp = self.stmt.vnameexp
-        token = self.stmt.token
-        value = self.stmt.value
+        myeval = Eval(path, self.solver)
 
-        eval = Eval(path, self.solver)
-        names = eval.do_expansion(nameexp)
+        nameexp = self.stmt.vnameexp
+        token = self.stmt.token   # :=
+        val = self.stmt.value
+
+        names = myeval.do_expansion(nameexp)
 
         # [('CFLAGS_wp512.o', True)]
         if len(names) == 1 and self.casestudy.ignore_symbol(names[0][0]):
@@ -353,10 +428,10 @@ class SetVariable(ParserData):
             return Paths([path])
 
         unexpanded = token == "="
-        values = [(value, zsolver.T)] if unexpanded else eval.do_value(value)
+        vals = [(val, zsolver.T)] if unexpanded else myeval.do_value(val)
 
         new_paths = Paths()
-        for (name, ncond), (val, vcond) in itertools.product(*[names, values]):
+        for (name, ncond), (val, vcond) in itertools.product(*[names, vals]):
             new_cond = zsolver.conj(path.cond, zsolver.conj(ncond, vcond))
             if self.solver.is_sat(new_cond):
                 new_path = path.fork(new_cond)
@@ -369,7 +444,7 @@ class SetVariable(ParserData):
 class ConditionBlock(ParserData):
     def __init__(self, stmt, paths, solver, casestudy):
         assert isinstance(stmt, parserdata.ConditionBlock), stmt
-        super(ConditionBlock, self).__init__(stmt, paths, solver, casestudy)
+        super().__init__(stmt, paths, solver, casestudy)
 
     def parse_single(self, path):
         if_cond, then_stmts = self.stmt[0]  # if/then branch
@@ -405,11 +480,11 @@ class ConditionBlock(ParserData):
         """
         evaluation arguments of the condition and return a Z3 condition
         """
-        eval = Eval(path, self.solver)
+        myeval = Eval(path, self.solver)
 
         if isinstance(cond, parserdata.EqCondition):
-            exps1 = eval.do_expansion(cond.exp1)
-            exps2 = eval.do_expansion(cond.exp2)
+            exps1 = myeval.do_expansion(cond.exp1)
+            exps2 = myeval.do_expansion(cond.exp2)
 
             eq_cond = self.get_eq_cond(exps1, exps2)
 
@@ -418,7 +493,7 @@ class ConditionBlock(ParserData):
         elif isinstance(cond, parserdata.IfdefCondition):
             assert isinstance(cond.exp, data.StringExpansion), cond.exp
             exp = "$({})".format(cond.exp.s)
-            exp = eval.do_fake_expansion(exp)
+            exp = myeval.do_fake_expansion(exp)
 
             exp_undef = [(self.solver.undef_val, zsolver.T)]
             undef_cond = self.get_eq_cond(exp, exp_undef)
@@ -482,7 +557,7 @@ class Rule(ParserData):
     def __init__(self, stmt, paths, solver, casestudy):
         assert isinstance(
             stmt, (parserdata.Rule, parserdata.StaticPatternRule)), stmt
-        super(Rule, self).__init__(stmt, paths, solver, casestudy)
+        super().__init__(stmt, paths, solver, casestudy)
 
     def parse_single(self, path):
         mlog.warn("Cannot parse Rule: {}".format(self.stmt))
@@ -493,11 +568,11 @@ class Rule(ParserData):
 class Include(ParserData):
     def __init__(self, stmt, paths, solver, casestudy):
         assert isinstance(stmt, parserdata.Include), stmt
-        super(Include, self).__init__(stmt, paths, solver, casestudy)
+        super().__init__(stmt, paths, solver, casestudy)
 
     def parse_single(self, path):
-        eval = Eval(path, self.solver)
-        exp = eval.do_expansion(self.stmt.exp)
+        myeval = Eval(path, self.solver)
+        exp = myeval.do_expansion(self.stmt.exp)
         paths = []
         for include_file, include_cond in exp:
             assert include_file, include_file
@@ -527,7 +602,7 @@ class Include(ParserData):
 class Command(ParserData):
     def __init__(self, stmt, paths, solver, casestudy):
         assert isinstance(stmt, parserdata.Command), stmt
-        super(Command, self).__init__(stmt, paths, solver, casestudy)
+        super().__init__(stmt, paths, solver, casestudy)
 
     def parse_single(self, path):
         mlog.warn("Cannot parse Command: {}".format(self.stmt))
@@ -537,79 +612,8 @@ class Command(ParserData):
 class EmptyDirective(ParserData):
     def __init__(self, stmt, paths, solver, casestudy):
         assert isinstance(stmt, parserdata.EmptyDirective), stmt
-        super(EmptyDirective, self).__init__(stmt, paths, solver, casestudy)
+        super().__init__(stmt, paths, solver, casestudy)
 
     def parse_single(self, path):
         mlog.warn("Cannot parse EmptyDirective: {}".format(self.stmt))
         return Paths([path])
-
-
-class Kbuild:
-    def __init__(self, makefile, casestudy):
-        assert isinstance(makefile, pathlib.Path), makefile
-        assert isinstance(casestudy, CaseStudy), casestudy
-
-        makefile_ = open(makefile, "rU")
-        stmts = makefile_.read()
-        makefile_.close()
-        self.stmts = parser.parsestring(stmts, makefile_.name)
-
-        self.topdir = makefile.parent
-        self.makefile = makefile
-        self.casestudy = casestudy
-        self.solver = ZSolver(casestudy.__zstate__)
-
-        mlog.info("Kbuild for {}".format(self.makefile))
-
-    def symexe(self, cond):
-        assert z3.is_expr(cond), cond
-
-        st = time()
-        mlog.info("{}: symbolic execute '{}'".format(
-            datetime.now().strftime("%Y-%m-%d %H:%M"), self.makefile))
-
-        path = Path.get_default(cond, self.topdir)
-        stmts = StatementList(self.stmts, Paths([path]), self.solver,
-                              self.casestudy)
-        self.paths = stmts.parse()
-        self.se_time = time() - st
-
-        mlog.debug("found {} paths ({}s)\n{}".format(
-            len(self.paths), self.se_time, self.paths))
-
-    # save info to file / load info from file
-    # note things are a bit complex because
-    # Z3 data structures cannot be saved directly to file
-    def save(self, tofile):
-        assert isinstance(tofile, pathlib.Path) and tofile, tofile
-
-        kinfo = (self.makefile, self.se_time,
-                 [(zsolver.to_smt2_str(p.cond), p.states) for p in self.paths],
-                 self.solver.typ_info, self.casestudy.__class__.__name__)
-
-        CM.vsave(tofile, kinfo)
-
-    @staticmethod
-    def load(fromfile):
-        assert os.path.isfile(fromfile), fromfile
-
-        kinfo = CM.vload(fromfile)
-        makefile, se_time, path_info, typ_info, case_study = kinfo
-
-        paths = Paths([
-            Path(zsolver.from_smt2_str(cond), states)
-            for cond, states in path_info
-        ])
-
-        import casestudy
-        cls = casestudy.Busybox if case_study.lower() == "busybox" \
-            else casestudy.Busbybox
-
-        cls = cls(None)
-        kbuild = Kbuild(makefile, cls)
-        kbuild.se_time = se_time
-        kbuild.paths = paths
-        kbuild.typ_info = ZSolver.load_obj(typ_info)
-        kbuild.casestudy = cls
-
-        return kbuild
