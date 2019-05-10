@@ -169,6 +169,13 @@ class Path:
                 self.states[name] = other_var
 
     @property
+    def state_vals(self):
+        vals = []
+        for state in self.states:
+            vals.extend(self.states[state].vals)
+        return frozenset(vals)
+
+    @property
     def state_hash(self):
         fs = frozenset(sorted(self.states.items()))
         return hash(fs)
@@ -189,9 +196,10 @@ class Path:
     @classmethod
     def get_default(cls, cond, src_dir):
         assert z3.is_expr(cond), cond
-        assert src_dir.is_dir(), src_dir
+        assert isinstance(src_dir, Var) or src_dir.is_dir(), src_dir
 
-        states = {'src': Var.src_var(src_dir)}
+        states = {'src': src_dir if isinstance(
+            src_dir, Var) else Var.src_var(src_dir)}
         return cls(cond, states)
 
 

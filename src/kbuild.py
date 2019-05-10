@@ -93,10 +93,9 @@ class Kbuild:
 
 
 class Eval(object):
-    def __init__(self, path, solver):
-        assert isinstance(path, Path), path
-
-        self.path = path
+    def __init__(self, states, solver):
+        assert isinstance(states, dict), states
+        self.states = states
         self.solver = solver
 
     @staticmethod
@@ -122,20 +121,21 @@ class Eval(object):
 
         return comb
 
-    def do_value(self, value):
-        assert isinstance(value, str), value
+    def do_val(self, val):
+        assert isinstance(val, str), val
 
-        value = value.strip()
-        if value:
-            return self.do_fake_expansion(value)
+        val = val.strip()
+        if val:
+            return self.do_fake_expansion(val)
         else:
             return [('', zsolver.T)]
 
     def do_fake_expansion(self, expansion):
         assert isinstance(expansion, str), expansion
         stmts = parser.parsestring(expansion, None)
-        assert len(stmts) == 1 and isinstance(stmts[0],
-                                              parserdata.EmptyDirective), stmts
+        assert (len(stmts) == 1 and
+                isinstance(stmts[0], parserdata.EmptyDirective)), stmts
+
         ret = self.do_expansion(stmts[0].exp)
 
         return ret
@@ -214,7 +214,7 @@ class Eval(object):
         import fnmatch
         for wc, cond in exps:
             if self.solver.is_sat(cond):
-                dir = list(self.path.states['src'].vals)[0]
+                dir = list(self.states['src'].vals)[0]
                 v = ' '.join(map(str, fnmatch.filter(os.listdir(dir), wc)))
                 if v not in d:
                     d[v] = cond
@@ -267,8 +267,8 @@ class Eval(object):
 
         rs = []
         for name, _ in names:
-            if name in self.path.states:
-                v = self.path.states[name]
+            if name in self.states:
+                v = self.states[name]
                 if v.is_recurse:
                     vals = self.do_fake_expansion(v.vals_str)
                 else:
@@ -296,6 +296,26 @@ class Eval(object):
         return itertools.product(*expansions)
 
 
+class NotSimpleException(Exception):
+    pass
+
+
+class EvalSimple(Eval):
+    def do_fun_VariableRef(self, fun):
+        assert isinstance(fun, functions.VariableRef), fun
+        names = self.do_expansion(fun.vname)
+
+        rs = []
+        for name, _ in names:
+            if (name not in self.states and
+                    name.startswith(settings.sym_prefix)):
+                vals = self.do_config_var(name)
+                rs.extend(vals)
+            else:
+                raise NotSimpleException(fun)
+        return rs
+
+
 class ParserData(object):
     def __init__(self, stmt, paths, solver, casestudy):
         assert isinstance(paths, Paths), paths
@@ -307,12 +327,50 @@ class ParserData(object):
         self.casestudy = casestudy
 
     def parse(self):
+        st = time()
         new_paths = Paths()
         for i, path in enumerate(self.paths):
             new_paths_ = self.parse_single(path)
             new_paths.extend(new_paths_)
 
-        return new_paths
+        if isinstance(self, StatementList):
+            return new_paths
+
+        et_mk = time() - st
+
+        if settings.detail:
+            print('--- ORIG --- ({} paths)'.format(len(self.paths)))
+            print(self.paths)
+            print('--- NEW --- ({} paths)'.format(len(new_paths)))
+            print(new_paths)
+
+        st_split = time()
+        split_paths = new_paths.split()
+        et_split = time() - st_split
+
+        if settings.detail:
+            print('--- SPLIT --- ({} paths)'.format(len(split_paths)))
+            print(split_paths)
+
+        st_merge = time()
+        merge_paths = split_paths.merge()
+        et_merge = time() - st_merge
+
+        if settings.detail:
+            print('--- MERGE --- ({} paths)'.format(len(merge_paths)))
+            print(merge_paths)
+
+        mlog.debug("paths: orig {}, new {} ({:2f}), "
+                   "split {} ({:02f}), "
+                   "merge {} ({:02f}), "
+                   "mem {}, config {}, time {:02f}".format(
+                       len(self.paths),
+                       len(new_paths), et_mk,
+                       len(split_paths), et_split,
+                       len(merge_paths), et_merge,
+                       Path.__ct__, len(ZSolver.__config_vars__), time() - st))
+
+        return merge_paths
 
     def get_new_path(self, path, cond):
         newcond = zsolver.conj(path.cond, cond)
@@ -335,7 +393,6 @@ class StatementList(ParserData):
         stmts = self.stmt
 
         for i, stmt in enumerate(stmts):
-            st = time()
             mlog.debug("{}/{}: '{}' with {} paths".format(
                 i + 1, len(stmts), stmt.to_source(), len(paths)))
 
@@ -361,42 +418,8 @@ class StatementList(ParserData):
             else:
                 raise NotImplementedError("cannot parse {}".format(stmt))
 
-            new_paths = cls(stmt, paths, self.solver, self.casestudy).parse()
-            et_mk = time() - st
-
-            if settings.detail:
-                print('--- ORIG --- ({} paths)'.format(len(paths)))
-                print(paths)
-                print('--- NEW --- ({} paths)'.format(len(new_paths)))
-                print(new_paths)
-
-            st_split = time()
-            split_paths = new_paths.split()
-            et_split = time() - st_split
-
-            if settings.detail:
-                print('--- SPLIT --- ({} paths)'.format(len(split_paths)))
-                print(split_paths)
-
-            st_merge = time()
-            merge_paths = split_paths.merge()
-            et_merge = time() - st_merge
-
-            if settings.detail:
-                print('--- MERGE --- ({} paths)'.format(len(merge_paths)))
-                print(merge_paths)
-
-            paths = merge_paths
-
-            mlog.debug("paths: orig {}, new {} ({:2f}), "
-                       "split {} ({:02f}), "
-                       "merge {} ({:02f}), "
-                       "mem {}, config {}, time {:02f}".format(
-                           len(paths), len(new_paths), et_mk, len(split_paths),
-                           et_split, len(merge_paths), et_merge,
-                           Path.__ct__,
-                           len(ZSolver.__config_vars__),
-                           time() - st))
+            paths = cls(
+                stmt, paths, self.solver, self.casestudy).parse()
 
         return paths
 
@@ -411,15 +434,70 @@ class SetVariable(ParserData):
         assert isinstance(stmt, parserdata.SetVariable), stmt
         super().__init__(stmt, paths, solver, casestudy)
 
-    def parse_single(self, path):
-        assert isinstance(path, Path), path
-
-        myeval = Eval(path, self.solver)
+    def parse(self):
 
         nameexp = self.stmt.vnameexp
         token = self.stmt.token   # :=
         val = self.stmt.value
 
+        new_paths = self.get_new_names_vals(nameexp, token, val)
+        if new_paths:
+            return Paths(self.paths + new_paths)
+        else:
+            return super().parse()
+
+    def get_new_names_vals(self, nameexp, token, val):
+        if token != "+=":
+            return
+
+        myeval = EvalSimple(self.solver.__config_vars__, self.solver)
+        try:
+            names = myeval.do_expansion(nameexp)
+        except NotSimpleException as ex:
+            mlog.warn("{}: name exist: '{}'".format(ex.__class__.__name__, ex))
+            return
+
+        try:
+            vals = myeval.do_val(val)
+            state_vals = frozenset(
+                v for path in self.paths for v in path.state_vals)
+
+            for v, _ in vals:
+                for v_ in v.split():
+                    if v_ in state_vals:
+                        raise NotSimpleException(v_)
+
+        except NotSimpleException as ex:
+            mlog.warn("{}: val exist: '{}'".format(ex.__class__.__name__, ex))
+            return
+
+        src_dir = self.paths[0].states['src']
+        new_paths = Paths()
+
+        for (name, ncond), (val, vcond) in itertools.product(*[names, vals]):
+            assert vcond == zsolver.T, vcond
+            pathcond = z3.Or([path.cond for path in self.paths])
+            pathcond = zsolver.simplify(pathcond)
+            if not pathcond == zsolver.T:
+                return
+
+            new_cond = ncond
+            if self.solver.is_sat(new_cond):
+                new_path = Path.get_default(new_cond, src_dir)
+                new_path.set_var(name, token, val)
+                new_paths.append(new_path)
+        return new_paths
+
+        return names, vals
+
+    def parse_single(self, path):
+        assert isinstance(path, Path), path
+
+        nameexp = self.stmt.vnameexp
+        token = self.stmt.token   # :=
+        val = self.stmt.value
+
+        myeval = Eval(path.states, self.solver)
         names = myeval.do_expansion(nameexp)
 
         # [('CFLAGS_wp512.o', True)]
@@ -428,7 +506,7 @@ class SetVariable(ParserData):
             return Paths([path])
 
         unexpanded = token == "="
-        vals = [(val, zsolver.T)] if unexpanded else myeval.do_value(val)
+        vals = [(val, zsolver.T)] if unexpanded else myeval.do_val(val)
 
         new_paths = Paths()
         for (name, ncond), (val, vcond) in itertools.product(*[names, vals]):
@@ -480,7 +558,7 @@ class ConditionBlock(ParserData):
         """
         evaluation arguments of the condition and return a Z3 condition
         """
-        myeval = Eval(path, self.solver)
+        myeval = Eval(path.states, self.solver)
 
         if isinstance(cond, parserdata.EqCondition):
             exps1 = myeval.do_expansion(cond.exp1)
@@ -571,7 +649,7 @@ class Include(ParserData):
         super().__init__(stmt, paths, solver, casestudy)
 
     def parse_single(self, path):
-        myeval = Eval(path, self.solver)
+        myeval = Eval(path.states, self.solver)
         exp = myeval.do_expansion(self.stmt.exp)
         paths = []
         for include_file, include_cond in exp:

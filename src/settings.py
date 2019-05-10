@@ -3,7 +3,7 @@ tmpdir = pathlib.Path("/var/tmp")
 logger_level = 3
 do_mp = True
 mp_task_len = 50  # parallel processing when >= mp_task_len
-detail = False
+detail = True
 
 target_vars = frozenset(["obj-", "lib-"])
 ignore_vars = frozenset(["src"])
