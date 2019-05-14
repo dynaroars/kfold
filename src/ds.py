@@ -205,17 +205,12 @@ class Path:
 
 class Paths(list):
     def __str__(self):
-        n_paths = len(self)
-
-        paths = []
-        for path in self:
-            s = str(path)
-            if s:
-                paths.append(s)
-
+        paths = [str(path) for path in self]
+        paths = [path for path in paths if path]
         ss = ["{}. {}".format(i+1, path)
-              for i, path in enumerate(paths)]
+              for i, path in enumerate(sorted(paths))]
 
+        n_paths = len(self)
         diff = n_paths - len(paths)
         if diff:
             ss.append("Paths: shown {}, hidden {}, total {}".format(

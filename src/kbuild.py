@@ -40,17 +40,15 @@ class Kbuild:
         assert z3.is_expr(cond), cond
 
         st = time()
-        mlog.info("{}: symbolic execute '{}'".format(
-            datetime.now().strftime("%Y-%m-%d %H:%M"), self.makefile))
-
         path = Path.get_default(cond, self.topdir)
         stmts = StatementList(
             self.stmts, Paths([path]), self.solver, self.casestudy)
         self.paths = stmts.parse()
         self.se_time = time() - st
 
-        mlog.debug("found {} paths ({}s)\n{}".format(
-            len(self.paths), self.se_time, self.paths))
+        mlog.debug("found {} paths ({}s)".format(
+            len(self.paths), self.se_time))
+        mlog.debug(self.paths)
 
     def save(self, tofile):
         """
@@ -337,9 +335,8 @@ class ParserData(object):
         merge_paths = split_paths.merge()
         et_merge = time() - st_merge
 
-        if settings.detail:
-            print('--- MERGE --- ({} paths)'.format(len(merge_paths)))
-            print(merge_paths)
+        mlog.debug("--- MERGE --- ({} paths):\n{}".format(
+            len(merge_paths), merge_paths))
 
         mlog.debug("paths: orig {}, new {} ({:2f}), "
                    "split {} ({:02f}), "
@@ -349,7 +346,8 @@ class ParserData(object):
                        len(new_paths), et_mk,
                        len(split_paths), et_split,
                        len(merge_paths), et_merge,
-                       Path.__ct__, len(ZSolver.__config_vars__), time() - st))
+                       Path.__ct__, len(ZSolver.__config_vars__),
+                       time() - st))
 
         return merge_paths
 
@@ -374,8 +372,8 @@ class StatementList(ParserData):
         stmts = self.stmt
 
         for i, stmt in enumerate(stmts):
-            mlog.debug("{}/{}. hit stmt '{}' with {} paths".format(
-                i + 1, len(stmts), stmt.to_source(), len(paths)))
+            mlog.debug("{}/{}. {} paths hit stmt '{}'".format(
+                i + 1, len(stmts),  len(paths), stmt.to_source().strip()))
 
             if isinstance(stmt, parserdata.SetVariable):
                 cls = SetVariable
@@ -563,7 +561,7 @@ class Rule(ParserData):
         super().__init__(stmt, paths, solver, casestudy)
 
     def parse_single(self, path):
-        mlog.warn("Cannot parse Rule: {}".format(self.stmt.to_source()))
+        # mlog.warn("Cannot parse Rule: {}".format(self.stmt.to_source()))
         new_paths = Paths([path])
         return new_paths
 
@@ -608,7 +606,7 @@ class Command(ParserData):
         super().__init__(stmt, paths, solver, casestudy)
 
     def parse_single(self, path):
-        mlog.warn("Cannot parse Command: {}".format(self.stmt.to_source()))
+        # mlog.warn("Cannot parse Command: {}".format(self.stmt.to_source()))
         return Paths([path])
 
 

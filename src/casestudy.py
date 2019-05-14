@@ -36,6 +36,7 @@ class CaseStudy:
             self.makefile_paths = [path]
         else:
             assert path.is_dir(), path
+
             path = path.resolve()
             topdirs = [path / d for d in self.__topdirs__]
 

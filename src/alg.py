@@ -21,10 +21,10 @@ class Run:
         """
         paths is a list of paths to either makefiles or directories
         """
-        assert paths, paths
+        assert all(isinstance(path, pathlib.Path) for path in paths), paths
         assert isinstance(casestudy, CaseStudy), casestudy
 
-        self.paths = [pathlib.Path(p) for p in paths]
+        self.paths = paths
         self.casestudy = casestudy
 
     def go(self):
@@ -34,17 +34,19 @@ class Run:
             dir=settings.tmpdir, prefix=prefix))
 
         results = []
-        files = self.get_makefiles(self.paths, cond=zsolver.T)
-        while files:
+        makefiles = self.get_makefiles(self.paths, cond=zsolver.T)
+        while makefiles:
             # parallel
             kbuilds = [self.analyze(makefile, cond, self.tmpdir)
-                       for makefile, cond in files]
+                       for makefile, cond in makefiles]
             results.extend(kbuilds)
 
             # recurse to subdirs if any
-            files = [self.get_makefiles(path.subdirs(kbuild.topdir), path.cond)
-                     for kbuild in kbuilds for path in kbuild.paths]
-            files = list(itertools.chain(*files))
+            makefiles = [(path.subdirs(kbuild.topdir), path.cond)
+                         for kbuild in kbuilds for path in kbuild.paths]
+            makefiles = [self.get_makefiles(path, cond)
+                         for path, cond in makefiles]
+            makefiles = list(itertools.chain(*makefiles))
 
         mlog.info("analyzed {} kbuild makefiles in {}s".format(
             len(results), time() - st))
@@ -58,6 +60,7 @@ class Run:
 
         kbuild = Kbuild(makefile, self.casestudy)
         kbuild.symexe(cond)
+
         tofile = str(kbuild.makefile).replace("/", "_") + settings.results_ext
         kbuild.save(result_dir / tofile)
         return kbuild
@@ -75,7 +78,7 @@ class Run:
         """
         use Kbuild file if found, otherwise try Makefile
         """
-        assert isinstance(path, pathlib.Path)
+        assert isinstance(path, pathlib.Path), path
 
         if not path.exists():
             mlog.warn("{} does not exist".format(path))

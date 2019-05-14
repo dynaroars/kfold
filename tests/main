@@ -1,7 +1,20 @@
-myhello := 1
+ifeq ($(CONFIG_0), y)
+	myhello := 0
+else
+	myhello := 1
+endif
 lib-$(CONFIG_1) += 1
 lib-$(CONFIG_2) += 2
 lib-$(CONFIG_3) += 3
+
+
+ifeq ($(srctree),$(objtree))
+srctree_slash =
+else
+srctree_slash = $(srctree)/
+endif
+
+
 
 
 
