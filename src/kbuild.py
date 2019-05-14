@@ -95,6 +95,7 @@ class Kbuild:
 class Eval(object):
     def __init__(self, states, solver):
         assert isinstance(states, dict), states
+
         self.states = states
         self.solver = solver
 
@@ -296,26 +297,6 @@ class Eval(object):
         return itertools.product(*expansions)
 
 
-class NotSimpleException(Exception):
-    pass
-
-
-class EvalSimple(Eval):
-    def do_fun_VariableRef(self, fun):
-        assert isinstance(fun, functions.VariableRef), fun
-        names = self.do_expansion(fun.vname)
-
-        rs = []
-        for name, _ in names:
-            if (name not in self.states and
-                    name.startswith(settings.sym_prefix)):
-                vals = self.do_config_var(name)
-                rs.extend(vals)
-            else:
-                raise NotSimpleException(fun)
-        return rs
-
-
 class ParserData(object):
     def __init__(self, stmt, paths, solver, casestudy):
         assert isinstance(paths, Paths), paths
@@ -393,7 +374,7 @@ class StatementList(ParserData):
         stmts = self.stmt
 
         for i, stmt in enumerate(stmts):
-            mlog.debug("{}/{}: '{}' with {} paths".format(
+            mlog.debug("{}/{}. hit stmt '{}' with {} paths".format(
                 i + 1, len(stmts), stmt.to_source(), len(paths)))
 
             if isinstance(stmt, parserdata.SetVariable):
@@ -433,62 +414,6 @@ class SetVariable(ParserData):
     def __init__(self, stmt, paths, solver, casestudy):
         assert isinstance(stmt, parserdata.SetVariable), stmt
         super().__init__(stmt, paths, solver, casestudy)
-
-    def parse(self):
-
-        nameexp = self.stmt.vnameexp
-        token = self.stmt.token   # :=
-        val = self.stmt.value
-
-        new_paths = self.get_new_names_vals(nameexp, token, val)
-        if new_paths:
-            return Paths(self.paths + new_paths)
-        else:
-            return super().parse()
-
-    def get_new_names_vals(self, nameexp, token, val):
-        if token != "+=":
-            return
-
-        myeval = EvalSimple(self.solver.__config_vars__, self.solver)
-        try:
-            names = myeval.do_expansion(nameexp)
-        except NotSimpleException as ex:
-            mlog.warn("{}: name exist: '{}'".format(ex.__class__.__name__, ex))
-            return
-
-        try:
-            vals = myeval.do_val(val)
-            state_vals = frozenset(
-                v for path in self.paths for v in path.state_vals)
-
-            for v, _ in vals:
-                for v_ in v.split():
-                    if v_ in state_vals:
-                        raise NotSimpleException(v_)
-
-        except NotSimpleException as ex:
-            mlog.warn("{}: val exist: '{}'".format(ex.__class__.__name__, ex))
-            return
-
-        src_dir = self.paths[0].states['src']
-        new_paths = Paths()
-
-        for (name, ncond), (val, vcond) in itertools.product(*[names, vals]):
-            assert vcond == zsolver.T, vcond
-            pathcond = z3.Or([path.cond for path in self.paths])
-            pathcond = zsolver.simplify(pathcond)
-            if not pathcond == zsolver.T:
-                return
-
-            new_cond = ncond
-            if self.solver.is_sat(new_cond):
-                new_path = Path.get_default(new_cond, src_dir)
-                new_path.set_var(name, token, val)
-                new_paths.append(new_path)
-        return new_paths
-
-        return names, vals
 
     def parse_single(self, path):
         assert isinstance(path, Path), path
@@ -580,7 +505,7 @@ class ConditionBlock(ParserData):
 
         else:
             raise NotImplementedError("Cannot parse condition: {}".format(
-                repr(cond)))
+                cond.to_source()))
 
     @staticmethod
     def get_eq_cond(exps1, exps2):
@@ -638,7 +563,7 @@ class Rule(ParserData):
         super().__init__(stmt, paths, solver, casestudy)
 
     def parse_single(self, path):
-        mlog.warn("Cannot parse Rule: {}".format(self.stmt))
+        mlog.warn("Cannot parse Rule: {}".format(self.stmt.to_source()))
         new_paths = Paths([path])
         return new_paths
 
@@ -683,7 +608,7 @@ class Command(ParserData):
         super().__init__(stmt, paths, solver, casestudy)
 
     def parse_single(self, path):
-        mlog.warn("Cannot parse Command: {}".format(self.stmt))
+        mlog.warn("Cannot parse Command: {}".format(self.stmt.to_source()))
         return Paths([path])
 
 
@@ -693,5 +618,6 @@ class EmptyDirective(ParserData):
         super().__init__(stmt, paths, solver, casestudy)
 
     def parse_single(self, path):
-        mlog.warn("Cannot parse EmptyDirective: {}".format(self.stmt))
+        mlog.warn("Cannot parse EmptyDirective: {}".format(
+            self.stmt.to_source()))
         return Paths([path])

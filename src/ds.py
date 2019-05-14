@@ -171,8 +171,8 @@ class Path:
     @property
     def state_vals(self):
         vals = []
-        for state in self.states:
-            vals.extend(self.states[state].vals)
+        for symbol in self.states:
+            vals.extend(self.states[symbol].vals)
         return frozenset(vals)
 
     @property
@@ -293,20 +293,6 @@ class Paths(list):
 
         merge_paths = Paths(simplified_paths + other_paths)
         return merge_paths
-
-    def postprocess(self):
-
-        # merge those with same conditions
-        conds = {}
-
-        # quick merge
-        for path in self:
-            if path.cond not in conds:
-                conds[path.cond] = path
-            else:
-                conds[path.cond].merge_states(path)
-
-        return Paths(conds.values())
 
     @staticmethod
     def save_info(paths):

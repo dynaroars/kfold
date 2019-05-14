@@ -1,7 +1,9 @@
 import os.path
 import pdb
-
+import pathlib
 import vcommon as CM
+import settings
+mlog = CM.getLogger(__name__, settings.logger_level)
 
 trace = pdb.set_trace
 pause = CM.pause
@@ -10,13 +12,13 @@ y_str = "y"
 m_str = "m"
 undef_str = "undef"
 undef_val = ''
-tristate = (undef_val, "TriState", [y_str, m_str, undef_str],
+TRISTATE = (undef_val, "TRISTATE", [y_str, m_str, undef_str],
             [y_str, m_str, undef_val])
-twostate = (undef_val, "TwoState", [y_str, undef_str], [y_str, undef_val])
+TWOSTATE = (undef_val, "TWOSTATE", [y_str, undef_str], [y_str, undef_val])
 
 
 class CaseStudy:
-    __zstate__ = twostate
+    __zstate__ = TWOSTATE  # default
 
     __ignore_setvar_startswith__ = frozenset()
     __ignore_setvar_endswith__ = frozenset()
@@ -28,22 +30,23 @@ class CaseStudy:
     __topdirs__ = []
 
     def __init__(self, path):
-        # path is None is for analysis only
-        if path:
-            if os.path.isfile(path):  # single makefile
-                self.makefile_paths = [path]
-            else:
-                assert os.path.isdir(path)
-                path = os.path.abspath(path)
-                topdirs = [os.path.join(path, d) for d in self.__topdirs__]
-                topdirs = [d for d in topdirs if os.path.isdir(d)]
-                self.makefile_paths = topdirs
+        assert isinstance(path, pathlib.Path), path
 
-    @property
-    def topdirs(self):
-        td = set([d if d.endswith(os.path.sep) else d + os.path.sep
-                  for d in self.__topdirs__])
-        return td
+        if path.is_file():  # single makefile
+            self.makefile_paths = [path]
+        else:
+            assert path.is_dir(), path
+            path = path.resolve()
+            topdirs = [path / d for d in self.__topdirs__]
+
+            topdirs_ = []
+            for d in topdirs:
+                if d.is_dir():
+                    topdirs_.append(d)
+                else:
+                    mlog.warn('{} is invalid'.format(d))
+            topdirs = topdirs_
+            self.makefile_paths = topdirs
 
     def ignore_symbol(self, symbol):
         return (any(
@@ -58,14 +61,26 @@ class CaseStudy:
                                       self.__ignore_exts__)
         return os.path.splitext(filename)[1] in ignore_exts
 
-    # analysis
+    @classmethod
+    def get_case_study(cls, case_study):
+        assert case_study is None or (isinstance(
+            case_study, str) and case_study), case_study
 
+        if case_study:
+            case_study = case_study.lower()
+
+        if case_study == 'linux':
+            return Linux
+        else:
+            return Busybox  # default
+
+    # ANALYSIS
     def diff_files(src_files):
         assert isinstance(src_files, (set, frozenset)), src_files
 
 
 class Busybox(CaseStudy):
-    __zstate__ = twostate
+    __zstate__ = TWOSTATE
     __topdirs__ = set([
         "applets",
         "arch/",
@@ -100,9 +115,11 @@ class Busybox(CaseStudy):
         "util-linux/volume_id/"
     ])
 
+    env_vars = set(['srctree', 'objtree'])
+
 
 class Linux(CaseStudy):
-    __zstate__ = tristate
+    __zstate__ = TRISTATE
     __topdirs__ = set([
         "arch/i386",
         "block",  # seems OK

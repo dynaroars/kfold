@@ -47,9 +47,20 @@ if __name__ == '__main__':
        type=str,
        help="full src dir (to check coverage)")
 
+    ag("--detail", "-detail",
+       action="store_true",
+       help="lots of debug detail")
+
+    ag("--nomp", "-nomp",
+       action="store_true",
+       help="don't use multiprocessing")
+
     args = aparser.parse_args()
 
     import settings
+    settings.doMP = not args.nomp
+    settings.detail = args.detail
+
     if (args.log_level != settings.logger_level and
             0 <= args.log_level <= 4):
         settings.logger_level = args.log_level
@@ -68,13 +79,8 @@ if __name__ == '__main__':
         tmpdir = cls.go(args)
 
     else:
-        import casestudy
-        cls = casestudy.Busybox  # default
-        if args.case_study:
-            case_study = args.case_study.lower()
-            if case_study == 'linux':
-                cls = casestudy.Linux
-
+        from casestudy import CaseStudy
+        cls = CaseStudy.get_case_study(args.case_study)
         cls = cls(path)
         from alg import Run
         cls = Run(cls.makefile_paths, cls)
