@@ -233,10 +233,7 @@ class Paths(list):
 
         groups = {}
         for path in self:
-            state_hash = path.state_hash
-            if state_hash not in groups:
-                groups[state_hash] = []
-            groups[state_hash].append(path)
+            groups.setdefault(path.state_hash, []).append(path)
 
         if len(groups) == len(self):
             return self

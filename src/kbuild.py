@@ -1,7 +1,6 @@
 from collections import OrderedDict
 import itertools
 from time import time
-from datetime import datetime
 import os.path
 import pathlib
 import pdb
@@ -46,7 +45,7 @@ class Kbuild:
         self.paths = stmts.parse()
         self.se_time = time() - st
 
-        mlog.debug("found {} paths ({}s)".format(
+        mlog.info("found {} paths ({:.2f}s)".format(
             len(self.paths), self.se_time))
         mlog.debug(self.paths)
 
@@ -66,7 +65,7 @@ class Kbuild:
 
     @staticmethod
     def load(fromfile):
-        assert os.path.isfile(fromfile), fromfile
+        assert fromfile.is_file(), fromfile
 
         kinfo = CM.vload(fromfile)
         makefile, se_time, path_info, typ_info, case_study = kinfo
@@ -76,12 +75,9 @@ class Kbuild:
             for cond, states in path_info
         ])
 
-        import casestudy
-        cls = casestudy.Busybox if case_study.lower() == "busybox" \
-            else casestudy.Busbybox
-
-        cls = cls(None)
-        kbuild = Kbuild(makefile, cls)
+        from casestudy import Busybox, Linux
+        cls = Busybox if case_study.lower() == "busybox" else Linux
+        kbuild = Kbuild(makefile, cls(None))
         kbuild.se_time = se_time
         kbuild.paths = paths
         kbuild.typ_info = ZSolver.load_obj(typ_info)
@@ -537,10 +533,7 @@ class ConditionBlock(ParserData):
         for v, c in exps1 + exps2:
             if v not in keys:
                 continue
-
-            if v not in merge_d:
-                merge_d[v] = []
-            merge_d[v].append(c)
+            merge_d.setdefault(v, []).append(c)
 
         assert all(len(merge_d[k]) >= 2 for k in merge_d), merge_d
 

@@ -41,7 +41,7 @@ def vread(filename):
 
 def iread(filename):
     """ return a generator """
-    with open(filename, 'r') as fh:
+    with filename.open() as fh:
         for line in fh:
             yield line
 

@@ -1,3 +1,4 @@
+from collections import namedtuple, OrderedDict
 import os.path
 import pdb
 import pathlib
@@ -12,13 +13,21 @@ y_str = "y"
 m_str = "m"
 undef_str = "undef"
 undef_val = ''
-TRISTATE = (undef_val, "TRISTATE", [y_str, m_str, undef_str],
-            [y_str, m_str, undef_val])
-TWOSTATE = (undef_val, "TWOSTATE", [y_str, undef_str], [y_str, undef_val])
+
+ZState = namedtuple("ZSTATE", "name states")
+TriState = ZState(name="TRISTATE",
+                  states=OrderedDict([
+                      (y_str, y_str),
+                      (m_str, m_str),
+                      (undef_str, undef_val)]))
+TwoState = ZState(name="TWOSTATE",
+                  states=OrderedDict([
+                      (y_str, y_str),
+                      (undef_str, undef_val)]))
 
 
 class CaseStudy:
-    __zstate__ = TWOSTATE  # default
+    __zstate__ = TriState  # default
 
     __ignore_setvar_startswith__ = frozenset()
     __ignore_setvar_endswith__ = frozenset()
@@ -30,24 +39,36 @@ class CaseStudy:
     __topdirs__ = []
 
     def __init__(self, path):
-        assert isinstance(path, pathlib.Path), path
+        """
+        path is None => Analysis mode
+        """
+        assert path is None or isinstance(path, pathlib.Path), path
+        self.path = path
 
-        if path.is_file():  # single makefile
-            self.makefile_paths = [path]
-        else:
-            assert path.is_dir(), path
+    @property
+    def makefile_paths(self):
+        assert isinstance(self.path, pathlib.Path), pathlib
 
-            path = path.resolve()
-            topdirs = [path / d for d in self.__topdirs__]
+        try:
+            return self._makefile_paths
+        except AttributeError:
+            if self.path.is_file():  # single makefile
+                self._makefile_paths = [self.path]
+            else:
+                assert self.path.is_dir(), self.path
 
-            topdirs_ = []
-            for d in topdirs:
-                if d.is_dir():
-                    topdirs_.append(d)
-                else:
-                    mlog.warn('{} is invalid'.format(d))
-            topdirs = topdirs_
-            self.makefile_paths = topdirs
+                path = self.path.resolve()
+                topdirs = [path / d for d in self.__topdirs__]
+
+                topdirs_ = []
+                for d in topdirs:
+                    if d.is_dir():
+                        topdirs_.append(d)
+                    else:
+                        mlog.warn("ignore invalid dir '{}'".format(d))
+                self._makefile_paths = topdirs_
+
+            return self._makefile_paths
 
     def ignore_symbol(self, symbol):
         return (any(
@@ -72,16 +93,25 @@ class CaseStudy:
 
         if case_study == 'linux':
             return Linux
+        elif case_study == 'busybox':
+            return Busybox
         else:
-            return Busybox  # default
+            return Simple  # default
 
     # ANALYSIS
     def diff_files(src_files):
         assert isinstance(src_files, (set, frozenset)), src_files
 
 
+class Simple(CaseStudy):
+    __zstate__ = TwoState
+    __topdirs__ = set([
+        "main"
+    ])
+
+
 class Busybox(CaseStudy):
-    __zstate__ = TWOSTATE
+    __zstate__ = TwoState
     __topdirs__ = set([
         "applets",
         "arch/",
@@ -120,7 +150,7 @@ class Busybox(CaseStudy):
 
 
 class Linux(CaseStudy):
-    __zstate__ = TRISTATE
+    __zstate__ = TriState
     __topdirs__ = set([
         "arch/i386",
         "block",  # seems OK

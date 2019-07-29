@@ -6,7 +6,7 @@ import pathlib
 
 def is_analysis_mode(path):
     return (path.is_dir() and
-            any(f.is_file() and f.suffix == settings.results_ext
+            any(f.is_file() and f.suffix == settings.RESULT_EXT
                 for f in path.iterdir()))
 
 
@@ -34,6 +34,14 @@ if __name__ == '__main__':
        action="store_true",
        help="remove saveds result")
 
+    ag("--detail", "-detail",
+       action="store_true",
+       help="lots of debug detail")
+
+    ag("--nomp", "-nomp",
+       action="store_true",
+       help="don't use multiprocessing")
+
     # Analysis Option
     ag("--config_file", "-config_file",
        type=str,
@@ -46,14 +54,6 @@ if __name__ == '__main__':
     ag("--src_dir", "-src_dir",
        type=str,
        help="full src dir (to check coverage)")
-
-    ag("--detail", "-detail",
-       action="store_true",
-       help="lots of debug detail")
-
-    ag("--nomp", "-nomp",
-       action="store_true",
-       help="don't use multiprocessing")
 
     args = aparser.parse_args()
 

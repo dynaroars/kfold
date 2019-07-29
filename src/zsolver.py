@@ -98,10 +98,10 @@ class ZSolver:
     __config_vars__ = OrderedDict()
 
     def __init__(self, zstate):
-        self.undef_val, name, symvals, vals = zstate
-        self.COptTyp, exprs = z3.EnumSort(name, symvals)
+        names, vals = zip(*zstate.states.items())
+        self.COptTyp, exprs = z3.EnumSort(zstate.name, names)
         self.COptD = dict(zip(vals, exprs))
-
+        self.undef_val = zstate.states['undef']
         self.solver = z3.Solver()
 
     def check(self, f):

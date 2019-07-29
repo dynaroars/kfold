@@ -48,7 +48,7 @@ class Run:
                          for path, cond in makefiles]
             makefiles = list(itertools.chain(*makefiles))
 
-        mlog.info("analyzed {} kbuild makefiles in {}s".format(
+        mlog.info("analyzed {} kbuild makefiles in {:.2f}s".format(
             len(results), time() - st))
 
         return self.tmpdir
@@ -56,12 +56,12 @@ class Run:
     def analyze(self, makefile, cond, result_dir):
         assert makefile.is_file(), makefile
         assert cond is None or z3.is_expr(cond), cond
-        assert result_dir.exists(), result_dir
+        assert result_dir.is_dir(), result_dir
 
         kbuild = Kbuild(makefile, self.casestudy)
         kbuild.symexe(cond)
 
-        tofile = str(kbuild.makefile).replace("/", "_") + settings.results_ext
+        tofile = str(kbuild.makefile).replace("/", "_") + settings.RESULT_EXT
         kbuild.save(result_dir / tofile)
         return kbuild
 
