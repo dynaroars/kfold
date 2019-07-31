@@ -4,16 +4,16 @@ from time import time
 import pathlib
 import pdb
 import z3
-import vcommon as CM
-import zsolver
+
+import helpers.vcommon as CM
+import helpers.zsolver as zsolver
 from casestudy import CaseStudy
 from kbuild import Kbuild
 
 import settings
 mlog = CM.getLogger(__name__, settings.logger_level)
 
-trace = pdb.set_trace
-pause = CM.pause
+DBG = pdb.set_trace
 
 
 class Run:

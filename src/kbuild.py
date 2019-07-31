@@ -8,17 +8,18 @@ import pdb
 import z3
 from pymake3 import parser, parserdata, data, functions
 
-import vcommon as CM
+
+import helpers.vcommon as CM
+from helpers.zsolver import ZSolver
+import helpers.zsolver as zsolver
+
 from casestudy import CaseStudy
-from zsolver import ZSolver
-import zsolver
 from ds import Path, Paths
 
 import settings
 mlog = CM.getLogger(__name__, settings.logger_level)
 
-trace = pdb.set_trace
-pause = CM.pause
+DBG = pdb.set_trace
 
 
 class Kbuild:

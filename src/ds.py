@@ -1,15 +1,15 @@
 from collections import namedtuple, OrderedDict
 import itertools
-import pathlib
 import pdb
 import z3
-import vcommon as CM
-import zsolver
+
 import settings
+import helpers.vcommon as CM
+import helpers.zsolver as zsolver
+
 mlog = CM.getLogger(__name__, settings.logger_level)
 
-trace = pdb.set_trace
-pause = CM.pause
+DBG = pdb.set_trace
 
 BaseVar = namedtuple("BaseVar", "name vals flavor")
 
@@ -279,7 +279,8 @@ class Paths(list):
             for i, cond_str in wrs:
                 cond = zsolver.from_smt2_str(cond_str)
                 if other_paths[i].cond not in zsolver.__simplify_cache__:
-                    zsolver.__simplify_cache__[other_paths[i].cond] = cond
+                    zsolver.__simplify_cache__[
+                        other_paths[i].cond] = cond
 
                 other_paths[i].cond = cond
 

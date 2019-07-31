@@ -2,12 +2,14 @@ from collections import namedtuple, OrderedDict
 import os.path
 import pdb
 import pathlib
-import vcommon as CM
+
 import settings
+import helpers.vcommon as CM
+
 mlog = CM.getLogger(__name__, settings.logger_level)
 
-trace = pdb.set_trace
-pause = CM.pause
+DBG = pdb.set_trace
+
 
 y_str = "y"
 m_str = "m"
