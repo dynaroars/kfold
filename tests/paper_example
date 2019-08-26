@@ -1,6 +1,6 @@
 obj-y := fork.o
-lib-m := file.o
-lib-m += file.1
+#lib-m := file.o
+#lib-m += file.1
 
 
 ifeq ($(CONFIG_A),y)

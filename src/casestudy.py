@@ -106,7 +106,7 @@ class CaseStudy:
 
 
 class Simple(CaseStudy):
-    __zstate__ = TwoState
+    __zstate__ = TriState
     __topdirs__ = set([
         "main"
     ])

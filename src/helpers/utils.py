@@ -1,5 +1,27 @@
 #! /usr/bin/env python3
 
+import pathlib
+import pdb
+import os
+
+DBG = pdb.set_trace
+
+
+def collect_makefiles(mydir):
+    assert mydir.is_dir() and mydir.is_absolute(), mydir
+
+    kbuild_files = []
+    for dirname, subdirs, files in os.walk(mydir):
+        subdirs[:] = [sdir for sdir in subdirs if not sdir.startswith('.')]
+        kbuild_file = pathlib.Path(dirname) / 'Kbuild'
+        if kbuild_file.is_file():
+            kbuild_files.append(kbuild_file)
+        else:
+            kbuild_file = pathlib.Path(dirname) / 'Makefile'
+            if kbuild_file.is_file():
+                kbuild_files.append(kbuild_file)
+    return kbuild_files
+
 
 if __name__ == '__main__':
     import argparse
@@ -9,8 +31,14 @@ if __name__ == '__main__':
     ag('path',
        type=str,
        help="""path to a directory containing KBuild makefiles""")
+
     args = aparser.parse_args()
 
+    mydir = pathlib.Path(args.path).resolve()
+    assert mydir and mydir.is_dir()
+
+    args = aparser.parse_args()
+    collect_makefiles(mydir)
 
 # import vcommon as CM
 # import z3
@@ -78,24 +106,6 @@ if __name__ == '__main__':
 #         copyfile(file, new_file)
 #     print("copy {} makefiles from '{}' to '{}'".format(
 #         len(makefiles), from_dir, to_dir))
-
-
-# def get_makefiles(from_dir):
-#     assert os.path.isdir(from_dir) and os.path.isabs(from_dir), from_dir
-
-#     kbuild_files = []
-#     for root, subdirs, files in os.walk(from_dir):
-#         subdirs[:] = [sdir for sdir in subdirs if not sdir.startswith('.')]
-
-#         kbuild_file = os.path.join(root, 'Kbuild')
-#         if os.path.isfile(kbuild_file):
-#             kbuild_files.append(kbuild_file)
-#         else:
-#             kbuild_file = os.path.join(root, 'Makefile')
-#             if os.path.isfile(kbuild_file):
-#                 kbuild_files.append(kbuild_file)
-
-#     return kbuild_files
 
 
 # def count_var_CONFIG(makefile):
