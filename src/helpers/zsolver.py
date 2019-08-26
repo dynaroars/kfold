@@ -43,6 +43,7 @@ def simplify(f):
 
     assert z3.is_expr(f), f
     t = z3.Tactic('ctx-solver-simplify')
+    #t = z3.Tactic('ctx-simplify')
     f_ = t(f).as_expr()
 
     __simplify_cache__[f] = f_

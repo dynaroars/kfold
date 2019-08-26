@@ -268,10 +268,8 @@ class Paths(list):
                 rs = [(i, _simplify(i)) for i in tasks]
                 return rs
 
-            do_mp = (settings.do_mp and
-                     len(other_paths) >= settings.mp_task_len)
             wrs = Miscs.run_mp('merge', list(
-                range(len(other_paths))), _f, do_mp)
+                range(len(other_paths))), _f, do_mp=settings.do_mp)
             for i, cond_str in wrs:
                 cond = zsolver.from_smt2_str(cond_str)
                 if other_paths[i].cond not in zsolver.__simplify_cache__:
