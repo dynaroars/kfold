@@ -5,6 +5,7 @@ import z3
 
 import settings
 import helpers.vcommon as CM
+from helpers.miscs import Miscs
 import helpers.zsolver as zsolver
 
 mlog = CM.getLogger(__name__, settings.logger_level)
@@ -263,19 +264,14 @@ class Paths(list):
                 gcond = zsolver.simplify(other_paths[i].cond)
                 return zsolver.to_smt2_str(gcond)
 
-            def wprocess(tasks, Q):
+            def _f(tasks):
                 rs = [(i, _simplify(i)) for i in tasks]
-                if Q is None:
-                    return rs
-                else:
-                    Q.put(rs)
+                return rs
 
-            wrs = CM.Miscs.runMP(
-                'merge', list(range(len(other_paths))),
-                wprocess, chunksiz=2,
-                doMP=settings.do_mp and
-                len(other_paths) >= settings.mp_task_len)
-
+            do_mp = (settings.do_mp and
+                     len(other_paths) >= settings.mp_task_len)
+            wrs = Miscs.run_mp('merge', list(
+                range(len(other_paths))), _f, do_mp)
             for i, cond_str in wrs:
                 cond = zsolver.from_smt2_str(cond_str)
                 if other_paths[i].cond not in zsolver.__simplify_cache__:
