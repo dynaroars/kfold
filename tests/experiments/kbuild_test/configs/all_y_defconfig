@@ -1,0 +1,14 @@
+#
+# Automatically generated file; DO NOT EDIT.
+# multi-build test
+#
+
+#
+# example configs
+#
+CONFIG_A=y
+CONFIG_B=y
+CONFIG_C=y
+CONFIG_D=y
+CONFIG_E=y
+CONFIG_G=y

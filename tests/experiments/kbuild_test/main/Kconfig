@@ -1,0 +1,30 @@
+menu "example configs"
+
+config A
+	bool "A"
+
+config B
+	bool "B"
+  depends on A
+
+config C
+	bool "C"
+  select D
+  default n
+
+config D
+	bool
+
+config E
+	bool "E"
+  depends on B
+  select G
+
+config F
+	bool "F"
+  depends on !E
+
+config G
+	bool "G"
+
+endmenu
