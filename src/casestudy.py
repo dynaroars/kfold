@@ -36,7 +36,7 @@ class CaseStudy:
     __ignore_setvar_kws__ = frozenset()
 
     __ignore_dirs__ = frozenset()
-    __ignore_exts__ = frozenset()
+    # __ignore_exts__ = frozenset()
 
     __topdirs__ = []
 
@@ -61,7 +61,6 @@ class CaseStudy:
 
                 path = self.path.resolve()
                 topdirs = [path / d for d in self.__topdirs__]
-
                 topdirs_ = []
                 for d in topdirs:
                     if d.is_dir():
@@ -70,6 +69,8 @@ class CaseStudy:
                         mlog.warn("ignore invalid dir '{}'".format(d))
                 self._makefile_paths = topdirs_
 
+                mlog.debug("{} has {} Makefile paths".format(
+                    self.path, len(self._makefile_paths)))
             return self._makefile_paths
 
     def ignore_symbol(self, symbol):
@@ -79,11 +80,11 @@ class CaseStudy:
                 symbol.endswith(x) for x in self.__ignore_setvar_endswith__)
             or any(kw in symbol for kw in self.__ignore_setvar_kws__))
 
-    def ignore_ext(self, filename):
+    # def ignore_ext(self, filename):
 
-        ignore_exts = frozenset.union(CaseStudy.__ignore_exts__,
-                                      self.__ignore_exts__)
-        return os.path.splitext(filename)[1] in ignore_exts
+    #     ignore_exts = frozenset.union(CaseStudy.__ignore_exts__,
+    #                                   self.__ignore_exts__)
+    #     return os.path.splitext(filename)[1] in ignore_exts
 
     @classmethod
     def get_case_study(cls, case_study):
@@ -100,7 +101,22 @@ class CaseStudy:
         else:
             return Simple  # default
 
+    @classmethod
+    def get_objs(cls, build_dir):
+        """
+        Obtained built objs
+        """
+
+        assert build_dir.is_dir(), build_dir
+
+        # ignores = {'.cmd', '.a', '.h', '.in', '.c', '.out', '.net', '.log',
+        #            '.html', '.txt', '.map', '.1', '.method', '.pod', '.d'}
+
+        return set(f for f in build_dir.glob('**/*')
+                   if f.suffix and f.suffix == '.o')
+
     # ANALYSIS
+
     def diff_files(src_files):
         assert isinstance(src_files, (set, frozenset)), src_files
 
@@ -115,37 +131,36 @@ class Simple(CaseStudy):
 class Busybox(CaseStudy):
     __zstate__ = TwoState
     __topdirs__ = set([
-        "applets",
-        "arch/",
+        # "applets/",
+        # "arch/",
         "archival/",
-        "archival/libarchive/",
-        "console-tools/",
-        "coreutils/",
-        "coreutils/libcoreutils/",
-        "debianutils/",
-        "klibc-utils/",
-        "e2fsprogs/",
-        "editors/",
-        "findutils/",
-        "init/",
-        "klibc-utils/",
-        "libbb/",
-        "libpwdgrp/",
-        "loginutils/",
-        "mailutils/",
-        "miscutils/",
-        "modutils/",
-        "networking/",
-        "networking/libiproute/",
-        "networking/udhcp/",
-        "printutils/",
-        "procps/",
-        "runit/",
-        "selinux/",
-        "shell/",
-        "sysklogd/",
-        "util-linux/",
-        "util-linux/volume_id/"
+        # "archival/libarchive/",
+        # "console-tools/",
+        # "coreutils/",
+        # # "coreutils/libcoreutils/",
+        # "debianutils/",
+        # "e2fsprogs/",
+        # "editors/",
+        # "findutils/",
+        # "init/",
+        # "klibc-utils/",
+        # "libbb/",
+        # "libpwdgrp/",
+        # "loginutils/",
+        # "mailutils/",
+        # "miscutils/",
+        # "modutils/",
+        # "networking/",
+        # # "networking/libiproute/",
+        # # "networking/udhcp/",
+        # "printutils/",
+        # "procps/",
+        # "runit/",
+        # "selinux/",
+        # "shell/",
+        # "sysklogd/",
+        # "util-linux/",
+        # "util-linux/volume_id/"
     ])
 
     env_vars = set(['srctree', 'objtree'])

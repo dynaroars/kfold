@@ -1,19 +1,14 @@
-import itertools
 import tempfile
 from time import time
 import pathlib
 import pdb
-import z3
 
 import helpers.vcommon as CM
-import helpers.zsolver as zsolver
 from casestudy import CaseStudy
 from kbuild import Kbuild
 
 import settings
 mlog = CM.getLogger(__name__, settings.logger_level)
-
-DBG = pdb.set_trace
 
 
 class Run:
@@ -33,45 +28,58 @@ class Run:
         self.tmpdir = pathlib.Path(tempfile.mkdtemp(
             dir=settings.tmpdir, prefix=prefix))
 
-        results = []
-        makefiles = self.get_makefiles(self.paths, cond=zsolver.T)
+        default_cond = None
+        results = {}  # [makefile][cond]
+        makefiles = [(makefile, default_cond)
+                     for makefile in self.get_makefiles(self.paths)]
         while makefiles:
-            # parallel
-            kbuilds = [self.analyze(makefile, cond, self.tmpdir)
-                       for makefile, cond in makefiles]
-            results.extend(kbuilds)
+            kbuilds = []
+            for makefile, cond in makefiles:
+                if makefile in results:
+                    assert default_cond in results[makefile]
+
+                    if cond not in results[makefile]:
+                        assert cond is not default_cond
+                        kbuild = results[makefile][default_cond]
+                        results[makefile][cond] = kbuild.fork(cond)
+                        kbuilds.append(results[makefile][cond])
+                else:
+                    kbuild = self.analyze(makefile)
+                    results[makefile] = {default_cond: kbuild}
+                    if cond is not default_cond:
+                        results[makefile][cond] = kbuild.fork(cond)
+
+                    kbuilds.append(results[makefile][cond])
 
             # recurse to subdirs if any
             makefiles = [(path.subdirs(kbuild.topdir), path.cond)
                          for kbuild in kbuilds for path in kbuild.paths]
-            makefiles = [self.get_makefiles(path, cond)
-                         for path, cond in makefiles]
-            makefiles = list(itertools.chain(*makefiles))
+            makefiles = [(makefile, cond)
+                         for paths, cond in makefiles
+                         for makefile in self.get_makefiles(paths)]
 
-        mlog.info("analyzed {} kbuild makefiles in {:.2f}s".format(
-            len(results), time() - st))
-
+        mlog.info("done in {:.2f}s".format(time() - st))
         return self.tmpdir
 
-    def analyze(self, makefile, cond, result_dir):
+    def analyze(self, makefile):
         assert makefile.is_file(), makefile
-        assert cond is None or z3.is_expr(cond), cond
-        assert result_dir.is_dir(), result_dir
+
+        result_dir = self.tmpdir
+        assert result_dir.is_dir()
 
         kbuild = Kbuild(makefile, self.casestudy)
-        kbuild.symexe(cond)
+        kbuild.symexe()
 
         tofile = str(kbuild.makefile).replace("/", "_") + settings.RESULT_EXT
         kbuild.save(result_dir / tofile)
         return kbuild
 
     @classmethod
-    def get_makefiles(cls, paths, cond):
+    def get_makefiles(cls, paths):
         assert all(isinstance(p, pathlib.Path) for p in paths), paths
-        assert cond is None or z3.is_expr(cond), cond
 
         makefiles = [cls.get_makefile(p) for p in paths]
-        return [(makefile, cond) for makefile in makefiles if makefile]
+        return [makefile for makefile in makefiles if makefile]
 
     @classmethod
     def get_makefile(cls, path):

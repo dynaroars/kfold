@@ -9,7 +9,7 @@ target_vars = frozenset(["obj-", "lib-"])
 ignore_vars = frozenset(["src"])
 
 sym_prefix = "CONFIG_"
-RESULT_EXT = ".kbuild"  # extensions of result files
+RESULT_EXT = ".kbuild_results"  # extensions of result files
 
 # Linux config var that might not be tristate
 # CONFIG_EXTRA_FIRMWARE_DIR in /firmware/Makefile

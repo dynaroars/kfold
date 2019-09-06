@@ -195,13 +195,12 @@ class Path:
         return not Path.is_target(t)
 
     @classmethod
-    def get_default(cls, cond, src_dir):
-        assert z3.is_expr(cond), cond
+    def get_default(cls, src_dir):
         assert isinstance(src_dir, Var) or src_dir.is_dir(), src_dir
 
         states = {'src': src_dir if isinstance(
             src_dir, Var) else Var.src_var(src_dir)}
-        return cls(cond, states)
+        return cls(zsolver.T, states)
 
 
 class Paths(list):

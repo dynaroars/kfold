@@ -1,6 +1,8 @@
 #! /usr/bin/env python3
+import pdb
 from helpers.vcommon import getLogLevel, getLogger
-import pathlib
+
+DBG = pdb.set_trace
 
 
 def is_analysis_mode(path):
@@ -69,6 +71,7 @@ if __name__ == '__main__':
     if __debug__:
         mlog.info("DEBUG MODE ON. Use python -O to optimize")
 
+    import pathlib
     path = pathlib.Path(args.path)
     assert path
 

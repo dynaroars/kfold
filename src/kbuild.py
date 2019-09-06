@@ -5,9 +5,7 @@ import os.path
 import pathlib
 import pdb
 
-import z3
 from pymake3 import parser, parserdata, data, functions
-
 
 import helpers.vcommon as CM
 from helpers.zsolver import ZSolver
@@ -27,28 +25,35 @@ class Kbuild:
         assert isinstance(makefile, pathlib.Path), makefile
         assert isinstance(casestudy, CaseStudy), casestudy
 
-        self.stmts = parser.parsestring(
-            makefile.read_text(), makefile)
         self.topdir = makefile.parent
         self.makefile = makefile
         self.casestudy = casestudy
-        self.solver = ZSolver(casestudy.__zstate__)
+        self.solver = ZSolver(self.casestudy.__zstate__)
 
         mlog.info("Kbuild for '{}'".format(self.makefile))
 
-    def symexe(self, cond):
-        assert z3.is_expr(cond), cond
-
+    def symexe(self):
         st = time()
-        path = Path.get_default(cond, self.topdir)
+        self.stmts = parser.parsestring(
+            self.makefile.read_text(), self.makefile)
+
+        path = Path.get_default(self.topdir)
         stmts = StatementList(
             self.stmts, Paths([path]), self.solver, self.casestudy)
         self.paths = stmts.parse()
         self.se_time = time() - st
 
-        mlog.info("found {} paths ({:.2f}s)".format(
-            len(self.paths), self.se_time))
+        mlog.info("{}: {} paths ({:.2f}s)".format(
+            self.makefile, len(self.paths), self.se_time))
         mlog.debug(self.paths)
+
+    def fork(self, new_cond):
+        kbuild = self.__class__(self.makefile, self.casestudy)
+        kbuild.paths = [path.fork(new_cond) for path in self.paths
+                        if self.solver.is_sat(zsolver.conj(path.cond, new_cond))]
+        kbuild.se_time = 0.0
+
+        return kbuild
 
     def save(self, tofile):
         """
