@@ -27,7 +27,7 @@ if __name__ == '__main__':
        choices=range(5),
        default=3)
 
-    ag("--case-study", "-case-study",
+    ag("--casestudy", "-casestudy",
        type=str,
        help="avail options: busybox, linux, fromfile")
 
@@ -44,9 +44,9 @@ if __name__ == '__main__':
        help="don't use multiprocessing")
 
     # Analysis Option
-    ag("--config_file", "-config_file",
+    ag("--build_dir", "-build_dir",
        type=str,
-       help="full config file")
+       help="dir consisting files built from a full config file")
 
     ag("--make_log", "-make_log",
        type=str,
@@ -82,7 +82,7 @@ if __name__ == '__main__':
 
     else:
         from casestudy import CaseStudy
-        cls = CaseStudy.get_case_study(args.case_study)
+        cls = CaseStudy.get_casestudy(args.casestudy)
         cls = cls(path)
         from alg import Run
         cls = Run(cls.makefile_paths, cls)

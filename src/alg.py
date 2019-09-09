@@ -11,6 +11,9 @@ import settings
 mlog = CM.getLogger(__name__, settings.logger_level)
 
 
+DBG = pdb.set_trace
+
+
 class Run:
     def __init__(self, paths, casestudy):
         """

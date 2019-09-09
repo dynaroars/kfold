@@ -8,7 +8,6 @@ import pdb
 from pymake3 import parser, parserdata, data, functions
 
 import helpers.vcommon as CM
-from helpers.zsolver import ZSolver
 import helpers.zsolver as zsolver
 
 from casestudy import CaseStudy
@@ -28,7 +27,7 @@ class Kbuild:
         self.topdir = makefile.parent
         self.makefile = makefile
         self.casestudy = casestudy
-        self.solver = ZSolver(self.casestudy.__zstate__)
+        self.solver = zsolver.ZSolver(self.casestudy.__zstate__)
 
         mlog.info("Kbuild for '{}'".format(self.makefile))
 
@@ -74,19 +73,18 @@ class Kbuild:
         assert fromfile.is_file(), fromfile
 
         kinfo = CM.vload(fromfile)
-        makefile, se_time, path_info, typ_info, case_study = kinfo
+        makefile, se_time, path_info, typ_info, casestudy = kinfo
 
         paths = Paths([
             Path(zsolver.from_smt2_str(cond), states)
             for cond, states in path_info
         ])
 
-        from casestudy import Busybox, Linux
-        cls = Busybox if case_study.lower() == "busybox" else Linux
+        cls = CaseStudy.get_casestudy(casestudy)
         kbuild = Kbuild(makefile, cls(None))
         kbuild.se_time = se_time
         kbuild.paths = paths
-        kbuild.typ_info = ZSolver.load_obj(typ_info)
+        kbuild.typ_info = zsolver.ZSolver.load_obj(typ_info)
         kbuild.casestudy = cls
 
         return kbuild
@@ -300,7 +298,7 @@ class Eval(object):
 class ParserData(object):
     def __init__(self, stmt, paths, solver, casestudy):
         assert isinstance(paths, Paths), paths
-        assert isinstance(solver, ZSolver), solver
+        assert isinstance(solver, zsolver.ZSolver), solver
 
         self.stmt = stmt
         self.paths = paths
@@ -348,7 +346,7 @@ class ParserData(object):
                        len(new_paths), et_mk,
                        len(split_paths), et_split,
                        len(merge_paths), et_merge,
-                       Path.__ct__, len(ZSolver.__config_vars__),
+                       Path.__ct__, len(zsolver.ZSolver.__config_vars__),
                        time() - st))
 
         return merge_paths

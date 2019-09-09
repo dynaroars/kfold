@@ -35,7 +35,8 @@ class CaseStudy:
     __ignore_setvar_endswith__ = frozenset()
     __ignore_setvar_kws__ = frozenset()
 
-    __ignore_dirs__ = frozenset()
+    __ignore_build_files = frozenset()
+    __ignore_build_dirs__ = frozenset()
     # __ignore_exts__ = frozenset()
 
     __topdirs__ = []
@@ -87,33 +88,19 @@ class CaseStudy:
     #     return os.path.splitext(filename)[1] in ignore_exts
 
     @classmethod
-    def get_case_study(cls, case_study):
-        assert case_study is None or (isinstance(
-            case_study, str) and case_study), case_study
+    def get_casestudy(cls, casestudy):
+        assert casestudy is None or (isinstance(
+            casestudy, str) and casestudy), casestudy
 
-        if case_study:
-            case_study = case_study.lower()
+        if casestudy:
+            casestudy = casestudy.lower()
 
-        if case_study == 'linux':
+        if casestudy == 'linux':
             return Linux
-        elif case_study == 'busybox':
+        elif casestudy == 'busybox':
             return Busybox
         else:
             return Simple  # default
-
-    @classmethod
-    def get_objs(cls, build_dir):
-        """
-        Obtained built objs
-        """
-
-        assert build_dir.is_dir(), build_dir
-
-        # ignores = {'.cmd', '.a', '.h', '.in', '.c', '.out', '.net', '.log',
-        #            '.html', '.txt', '.map', '.1', '.method', '.pod', '.d'}
-
-        return set(f for f in build_dir.glob('**/*')
-                   if f.suffix and f.suffix == '.o')
 
     # ANALYSIS
 
@@ -123,8 +110,14 @@ class CaseStudy:
 
 class Simple(CaseStudy):
     __zstate__ = TriState
-    __topdirs__ = set([
+    __topdirs__ = frozenset([
         "main"
+    ])
+    __ignore_build_files__ = frozenset([
+        'built-in.o'
+    ])
+    __ignore_build_dirs__ = frozenset([
+        pathlib.Path('scripts')
     ])
 
 
