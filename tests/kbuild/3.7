@@ -1,7 +1,0 @@
-ccflags-y			:= -Os -D_LINUX -DBUILDING_ACPICA
-ccflags-$(CONFIG_ACPI_DEBUG)	+= -DACPI_DEBUG_OUTPUT
-
-asflags-y := -ansi
-
-# Produces some WARNINGs about variables being undefined in path
-ldflags-y += -T $(srctree)/$(src)/decompress_$(arch-y).lds

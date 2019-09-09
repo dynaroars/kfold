@@ -1,7 +1,0 @@
-
-mysubdir := subdir
-obj-m := $(wildcard $(mysubdir))
-obj-y := $(wildcard *.c)
-test:
-	@echo $(obj-y)  # output: a.c b.c c.c
-	@echo $(obj-m)  # output: a.c b.c

@@ -1,6 +1,0 @@
-A y,n
-B y,n
-C y,n
-E y,n
-F y,n
-G y,n

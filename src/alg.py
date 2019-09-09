@@ -1,11 +1,12 @@
 import tempfile
+from collections import namedtuple, OrderedDict
 from time import time
 import pathlib
 import pdb
 
 import helpers.vcommon as CM
-from casestudy import CaseStudy
 from kbuild import Kbuild
+from config import Config
 
 import settings
 mlog = CM.getLogger(__name__, settings.logger_level)
@@ -15,26 +16,25 @@ DBG = pdb.set_trace
 
 
 class Run:
-    def __init__(self, paths, casestudy):
+    def __init__(self, makefile_dir):
         """
         paths is a list of paths to either makefiles or directories
         """
-        assert all(isinstance(path, pathlib.Path) for path in paths), paths
-        assert isinstance(casestudy, CaseStudy), casestudy
 
-        self.paths = paths
-        self.casestudy = casestudy
+        config = Config(makefile_dir)
+        self.makefile_dirs = config.makefile_dirs
+        self.config = config
 
     def go(self):
         st = time()
-        prefix = "skbuild_{}_".format(self.casestudy.__class__.__name__)
+        prefix = "skbuild"
         self.tmpdir = pathlib.Path(tempfile.mkdtemp(
             dir=settings.tmpdir, prefix=prefix))
 
         default_cond = None
         results = {}  # [makefile][cond]
         makefiles = [(makefile, default_cond)
-                     for makefile in self.get_makefiles(self.paths)]
+                     for makefile in self.get_makefiles(self.makefile_dirs)]
         while makefiles:
             kbuilds = []
             for makefile, cond in makefiles:
@@ -70,7 +70,7 @@ class Run:
         result_dir = self.tmpdir
         assert result_dir.is_dir()
 
-        kbuild = Kbuild(makefile, self.casestudy)
+        kbuild = Kbuild(makefile, self.config)
         kbuild.symexe()
 
         tofile = str(kbuild.makefile).replace("/", "_") + settings.RESULT_EXT

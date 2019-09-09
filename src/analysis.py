@@ -22,7 +22,7 @@ class Analysis:
         self.kbuilds = self.load(result_dir)
         assert len(self.kbuilds)
 
-        self.casestudy = self.kbuilds[0].casestudy
+        self.config = self.kbuilds[0].config
         self.COptTyp, self.COptD, config_vars = self.kbuilds[0].typ_info
         self.config_vars = {c: config_vars[c] for c in config_vars}
 
@@ -30,7 +30,7 @@ class Analysis:
             t, d, config_vars = kbuild.typ_info
             assert t == self.COptTyp
             assert d == self.COptD
-            assert self.casestudy == kbuild.casestudy
+            assert self.config == kbuild.config
             for c in config_vars:
                 if c not in self.config_vars:
                     self.config_vars[c] = config_vars[c]
@@ -42,9 +42,9 @@ class Analysis:
         self.target_files = self.remove_files(self.files_d)
         assert (self.target_files == self.all_files)
 
-        mlog.debug("{}: casestudy {}, "
+        mlog.debug("{}: config {}, "
                    "{} kbuilds, {} config vars, {} files".format(
-                       result_dir, self.casestudy.__qualname__,
+                       result_dir, self.config.__class__.__name__,
                        len(self.kbuilds), len(self.config_vars),
                        len(self.all_files), len(self.target_files)))
 
@@ -65,8 +65,8 @@ class Analysis:
             c_files = self.remove_files(c_files)
 
             # get groundtruth results
-            ignore_dirs = self.casestudy.__ignore_build_dirs__
-            ignore_files = self.casestudy.__ignore_build_files__
+            ignore_dirs = self.config.ignore_build_dirs
+            ignore_files = self.config.ignore_build_files
             g_files = self.get_files_from_dir(
                 build_dir, ignore_dirs, ignore_files)
             DBG()
@@ -82,7 +82,7 @@ class Analysis:
     def get_target_files(self, constraint):
         assert constraint is None or z3.is_expr(constraint), constraint
 
-        solver = zsolver.ZSolver(self.casestudy.__zstate__) \
+        solver = zsolver.ZSolver(self.config.__zstate__) \
             if z3.is_expr(constraint) else None
 
         files_d = {}
@@ -143,8 +143,8 @@ class Analysis:
                 assert s not in self.config_vars
                 mlog.warn("ignore {} = {}".format(s, v))
 
-        import casestudy
-        undef = self.COptD[casestudy.undef_val]
+        DBG()
+        undef = self.COptD[config.undef_val]
         for s in self.config_vars:
             if s not in myconfig:
                 myconfig[s] = undef

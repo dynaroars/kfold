@@ -98,7 +98,7 @@ class ZSolver:
 
     def __init__(self, zstate):
         names, vals = zip(*zstate.states.items())
-        self.COptTyp, exprs = z3.EnumSort(zstate.name, names)
+        self.COptTyp, exprs = z3.EnumSort(zstate.__class__.__name__, names)
         self.COptD = dict(zip(vals, exprs))
         self.undef_val = zstate.states['undef']
         self.solver = z3.Solver()

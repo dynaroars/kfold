@@ -1,6 +1,0 @@
-lib-$(CONFIG_A) += a
-lib-$(CONFIG_B) += a
-lib-$(CONFIG_C) += c
-
-
-

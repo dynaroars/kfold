@@ -6,8 +6,7 @@ DBG = pdb.set_trace
 
 
 def is_analysis_mode(path):
-    return (path.is_dir() and
-            any(f.is_file() and f.suffix == settings.RESULT_EXT
+    return (any(f.is_file() and f.suffix == settings.RESULT_EXT
                 for f in path.iterdir()))
 
 
@@ -29,7 +28,7 @@ if __name__ == '__main__':
 
     ag("--casestudy", "-casestudy",
        type=str,
-       help="avail options: busybox, linux, fromfile")
+       help="avail options: busybox, linux")
 
     ag("--rmtmp", "-rmtmp",
        action="store_true",
@@ -72,20 +71,17 @@ if __name__ == '__main__':
         mlog.info("DEBUG MODE ON. Use python -O to optimize")
 
     import pathlib
-    path = pathlib.Path(args.path)
-    assert path
+    makefile_dir = pathlib.Path(args.path)
+    assert makefile_dir.is_dir(), makefile_dir
 
-    if is_analysis_mode(path):
+    if is_analysis_mode(makefile_dir):
         from analysis import Analysis
-        cls = Analysis(path)
+        cls = Analysis(makefile_dir)
         tmpdir = cls.go(args)
 
     else:
-        from casestudy import CaseStudy
-        cls = CaseStudy.get_casestudy(args.casestudy)
-        cls = cls(path)
         from alg import Run
-        cls = Run(cls.makefile_paths, cls)
+        cls = Run(makefile_dir)
         tmpdir = cls.go()
 
     if tmpdir and tmpdir.is_dir():

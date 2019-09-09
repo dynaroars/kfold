@@ -1,7 +1,0 @@
-# Test the more efficient append behavior which appends the value to
-# all existing definitions
-
-# Testing exponential explosion of appending.
-
-bob-$(CONFIG_A)		+= a
-obj-y		+= $(bob-y)
