@@ -1,0 +1,14 @@
+c 1 CONFIG_F bool
+c 2 CONFIG_E bool
+c 3 CONFIG_B bool
+c 4 CONFIG_A bool
+c 5 CONFIG_D hidden_bool
+c 6 CONFIG_G bool
+c 7 CONFIG_C bool
+p cnf 7 6
+-2 3 0
+5 -7 0
+-5 7 0
+-2 6 0
+-3 4 0
+-1 -2 0

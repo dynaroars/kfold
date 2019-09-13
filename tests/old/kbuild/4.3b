@@ -1,0 +1,7 @@
+# If qconf is composed of a mixture of .c and .cc files, then an
+# additional line can be used to identify this.
+# Example:
+        #scripts/kconfig/Makefile
+        hostprogs-y   := qconf
+        qconf-cxxobjs := qconf.o
+        qconf-objs    := check.o

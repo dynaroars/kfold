@@ -1,0 +1,16 @@
+# fs/ext2/Makefile
+obj-$(CONFIG_EXT2_FS) += ext2.o
+ext2-y := balloc.o dir.o file.o ialloc.o inode.o ioctl.o \
+          namei.o super.o symlink.o
+ext2-$(CONFIG_EXT2_FS_XATTR) += xattr.o xattr_user.o \
+                                xattr_trusted.o
+
+
+
+# In this example, xattr.o, xattr_user.o and xattr_trusted.o are only
+# part of the composite object ext2.o if $(CONFIG_EXT2_FS_XATTR)
+# evaluates to 'y'.
+# Note: Of course, when you are building objects into the kernel,
+# the syntax above will also work. So, if you have CONFIG_EXT2_FS=y,
+# kbuild will build an ext2.o file for you out of the individual
+# parts and then link this into built-in.a, as you would expect.

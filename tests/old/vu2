@@ -1,0 +1,12 @@
+a = A
+obj-y := fork.o
+ifeq ($(CONFIG_$a), y)
+  BITS := 32
+else
+  BITS := 64
+endif
+obj-$(CONFIG_B) += probe_$(BITS).o
+
+# clean:
+# 	@echo $(myfiles)
+# 	@echo $(CONFIG_A)

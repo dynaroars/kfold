@@ -1,0 +1,5 @@
+lib-y:=
+
+lib-y += bootchartd.o
+# lib-$(CONFIG_HALT) += halt.o
+

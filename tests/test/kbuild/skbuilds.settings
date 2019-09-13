@@ -1,0 +1,5 @@
+[DEFAULT]
+zstate = TriState
+topdirs = main
+ignore_build_files = build-in.o
+ignore_build_dirs = scripts

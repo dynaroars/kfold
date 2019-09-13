@@ -1,0 +1,15 @@
+obj-y := fork.o
+#lib-m := file.o
+#lib-m += file.1
+
+
+ifeq ($(CONFIG_A),y)
+  BITS := 32
+else
+  BITS := 64
+endif
+obj-$(CONFIG_B) += probe_$(BITS).o
+
+
+# obj-*   (e.g., obj-y,  obj-m)
+# lib-*   (e.g., lib-y, lib-m)

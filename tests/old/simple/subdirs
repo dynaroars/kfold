@@ -1,0 +1,5 @@
+# subdirs
+
+obj-y += foo/
+obj-$(CONFIG_1) += bar/
+obj-$(CONFIG_2) += notexist/

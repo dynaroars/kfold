@@ -1,0 +1,4 @@
+obj-$(CONFIG_A) := file1.o
+obj-$(CONFIG_B) := file1.o
+obj-$(CONFIG_C) := file1.o
+obj-$(CONFIG_D) := file1.o

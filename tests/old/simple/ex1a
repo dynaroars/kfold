@@ -1,0 +1,5 @@
+obj-y := fork1.o
+obj-y := fork2.o
+obj-y := fork3.o
+obj-y := fork4.o
+obj-y := fork5.o

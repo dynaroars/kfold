@@ -1,0 +1,14 @@
+# 4.5 When host programs are actually built
+# Kbuild will only build host-programs when they are referenced
+# as a prerequisite.
+
+# (2) Use $(always)
+# When there is no suitable special rule, and the host program
+# shall be built when a makefile is entered, the $(always)
+# variable shall be used.
+# Example:
+        #scripts/lxdialog/Makefile
+        hostprogs-y   := lxdialog
+        always        := $(hostprogs-y)
+# This will tell kbuild to build lxdialog even if not referenced in any rule.
+

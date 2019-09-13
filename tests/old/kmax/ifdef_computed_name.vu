@@ -1,0 +1,14 @@
+MYVAR := undefined
+ifdef CONFIG_NO_BOOTMEM
+	MYVAR := defined
+endif
+
+ifdef MYVAR
+	obj-y += notempty.o
+else
+	obj-y += empty.o
+endif
+
+# all:
+# 	@echo $(VAR)
+# 	@echo $(obj-y)

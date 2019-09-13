@@ -6,7 +6,6 @@ import pdb
 
 import helpers.vcommon as CM
 from kbuild import Kbuild
-from config import Config
 
 import settings
 mlog = CM.getLogger(__name__, settings.logger_level)
@@ -21,9 +20,9 @@ class Run:
         paths is a list of paths to either makefiles or directories
         """
 
-        config = Config(makefile_dir)
-        self.makefile_dirs = config.makefile_dirs
-        self.config = config
+        mysettings = settings.Settings(makefile_dir)
+        self.makefile_dirs = mysettings.makefile_dirs
+        self.mysettings = mysettings
 
     def go(self):
         st = time()
@@ -70,7 +69,7 @@ class Run:
         result_dir = self.tmpdir
         assert result_dir.is_dir()
 
-        kbuild = Kbuild(makefile, self.config)
+        kbuild = Kbuild(makefile, self.mysettings)
         kbuild.symexe()
 
         tofile = str(kbuild.makefile).replace("/", "_") + settings.RESULT_EXT

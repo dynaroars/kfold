@@ -12,17 +12,18 @@ mlog = CM.getLogger(__name__, settings.logger_level)
 
 DBG = pdb.set_trace
 
-BaseVar = namedtuple("BaseVar", "name vals flavor")
+BaseVar = namedtuple("BaseVar", "name vals flavor mysettings")
 
 
 class Var(BaseVar):
     RECURSE = "RECURSE"   # =, define
     SIMPLY = "SIMPLY"  # := , ::=
 
-    def __init__(self, name, vals, flavor):
+    def __init__(self, name, vals, flavor, mysettings):
         assert isinstance(name, str) and name, name
         assert isinstance(vals, frozenset), vals
         assert flavor in set([Var.RECURSE, Var.SIMPLY]), flavor
+        assert isinstance(mysettings, settings.Settings), mysettings
 
         super().__init__()
 
@@ -39,11 +40,11 @@ class Var(BaseVar):
         return self.name == name and values.issubset(self.values)
 
     def fork(self):
-        return Var(self.name, self.vals, self.flavor)
+        return Var(self.name, self.vals, self.flavor, self.mysettings)
 
     def fork_val(self, vals):
         assert isinstance(vals, frozenset) and vals, vals
-        return Var(self.name, vals, self.flavor)
+        return Var(self.name, vals, self.flavor, self.mysettings)
 
     def __str__(self):
         token = "=" if self.flavor == Var.RECURSE else ":="
@@ -52,7 +53,7 @@ class Var(BaseVar):
 
     @property
     def ignorable(self):
-        return self.name in settings.ignore_vars
+        return self.name in self.mysettings.ignore_vars
 
     def subdirs(self, topdir):
         assert topdir.is_dir(), topdir
@@ -71,20 +72,24 @@ class Var(BaseVar):
         return flavor
 
     @staticmethod
-    def src_var(topdir):
+    def src_var(topdir, mysettings):
         assert topdir.is_dir(), topdir
-        return Var("src", frozenset([topdir]), Var.RECURSE)
+        assert isinstance(mysettings, settings.Settings), mysettings
+
+        return Var("src", frozenset([topdir]), Var.RECURSE, mysettings)
 
 
 class Path:
     __ct__ = 0
 
-    def __init__(self, cond, states):
+    def __init__(self, cond, states, mysettings):
         assert z3.is_expr(cond), cond
         assert isinstance(states, dict), states
+        assert isinstance(mysettings, settings.Settings), mysettings
 
         self.cond = cond
         self.states = states
+        self.mysettings = mysettings
         Path.__ct__ += 1
 
     def __del__(self):
@@ -112,10 +117,10 @@ class Path:
 
         new_states = OrderedDict()
         for name, v in self.states.items():
-            if ignore_targets and Path.is_target(name):
+            if ignore_targets and self.is_target(name):
                 continue
             new_states[name] = v.fork()
-        return Path(new_cond, new_states)
+        return Path(new_cond, new_states, self.mysettings)
 
     def set_var(self, name, token, val):
         assert isinstance(name, str), name
@@ -124,7 +129,8 @@ class Path:
 
         vals = val.split()
         if name not in self.states or token in set(["=", ":="]):
-            v = Var(name, frozenset(vals), Var.get_flavor(token))
+            v = Var(name, frozenset(vals),
+                    Var.get_flavor(token), self.mysettings)
             self.states[name] = v
         else:
             myvar = self.states[name]
@@ -139,7 +145,7 @@ class Path:
 
         new_paths = []
         for name in self.states:
-            if Path.is_not_target(name):  # don't split
+            if self.is_not_target(name):  # don't split
                 continue
 
             myvar = self.states[name]
@@ -184,23 +190,22 @@ class Path:
     @property
     def target_files(self):
         return [self.states[name] for name in self.states
-                if Path.is_target(name)]
+                if self.is_target(name)]
 
-    @staticmethod
-    def is_target(t):
-        return any(t.startswith(x) for x in settings.target_vars)
+    def is_target(self, t):
+        return any(t.startswith(x) for x in self.mysettings.target_vars)
 
-    @staticmethod
-    def is_not_target(t):
-        return not Path.is_target(t)
+    def is_not_target(self, t):
+        return not self.is_target(t)
 
     @classmethod
-    def get_default(cls, src_dir):
+    def get_default(cls, src_dir, mysettings):
         assert isinstance(src_dir, Var) or src_dir.is_dir(), src_dir
+        assert isinstance(mysettings, settings.Settings), mysettings
 
         states = {'src': src_dir if isinstance(
-            src_dir, Var) else Var.src_var(src_dir)}
-        return cls(zsolver.T, states)
+            src_dir, Var) else Var.src_var(src_dir, mysettings)}
+        return cls(zsolver.T, states, mysettings)
 
 
 class Paths(list):

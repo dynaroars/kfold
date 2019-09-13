@@ -1,0 +1,6 @@
+obj-y := $(patsubst %.c,%.o,test.c)
+obj-m := $(patsubst %.c,%.o,x.c.c bar.c)
+
+test:
+	@echo $(obj-y)  # output: test.o
+	@echo $(obj-m)  # output: x.c.o bar.o
