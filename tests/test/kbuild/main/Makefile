@@ -11,5 +11,5 @@ obj-y += 5.o
 endif
 obj-$(CONFIG_F) += 6.o
 obj-$(CONFIG_G) += 6.o 7.o subdir1/8.o
-obj-$(CONFIG_H) += subdir1/
-obj-$(WRONG_H) += subdir2/
+obj-$(CONFIG_H) += subdir2/
+

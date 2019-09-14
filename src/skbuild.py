@@ -6,7 +6,7 @@ DBG = pdb.set_trace
 
 
 def is_analysis_mode(path):
-    return (any(f.is_file() and f.suffix == settings.RESULT_EXT
+    return (any(f.is_file() and f.name == settings.RESULT_SINFO
                 for f in path.iterdir()))
 
 

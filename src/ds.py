@@ -58,6 +58,7 @@ class Var(BaseVar):
     def subdirs(self, topdir):
         assert topdir.is_dir(), topdir
         assert not self.ignorable
+
         subdirs = [topdir / d for d in self.vals if d.endswith("/")]
         return subdirs
 

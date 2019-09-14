@@ -20,7 +20,7 @@ DBG = pdb.set_trace
 
 class Kbuild:
     def __init__(self, makefile, mysettings):
-        assert makefile.is_file, makefile
+        assert makefile.is_file(), makefile
         assert isinstance(mysettings, settings.Settings), mysettings
 
         self.topdir = makefile.parent
@@ -48,9 +48,9 @@ class Kbuild:
     def fork(self, new_cond):
         kbuild = self.__class__(self.makefile, self.mysettings)
         kbuild.paths = [path.fork(new_cond) for path in self.paths
-                        if self.solver.is_sat(zsolver.conj(path.cond, new_cond))]
+                        if self.solver.is_sat(
+            zsolver.conj(path.cond, new_cond))]
         kbuild.se_time = 0.0
-
         return kbuild
 
     def save(self, tofile):
@@ -60,31 +60,27 @@ class Kbuild:
         Z3 data structures cannot be saved directly to file
         """
         assert isinstance(tofile, pathlib.Path) and tofile, tofile
-
-        kinfo = (self.makefile, self.se_time,
-                 [(zsolver.to_smt2_str(p.cond), p.states) for p in self.paths],
-                 self.solver.typ_info, self.mysettings)
+        kinfo = (self.makefile, self.se_time, self.solver.typ_info,
+                 [(zsolver.to_smt2_str(p.cond), p.states) for p in self.paths])
 
         CM.vsave(tofile, kinfo)
 
     @staticmethod
-    def load(fromfile):
+    def load(fromfile, mysettings):
         assert fromfile.is_file(), fromfile
+        assert isinstance(mysettings, settings.Settings), mysettings
 
         kinfo = CM.vload(fromfile)
-        makefile, se_time, path_info, typ_info, mysettings = kinfo
+        makefile, se_time, typ_info, path_info = kinfo
 
         paths = Paths([
             Path(zsolver.from_smt2_str(cond), states, mysettings)
             for cond, states in path_info
         ])
-
         kbuild = Kbuild(makefile, mysettings)
         kbuild.se_time = se_time
         kbuild.paths = paths
         kbuild.typ_info = zsolver.ZSolver.load_obj(typ_info)
-        kbuild.mysettings = mysettings
-
         return kbuild
 
 

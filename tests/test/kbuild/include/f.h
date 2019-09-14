@@ -12,5 +12,5 @@ extern int f5(void);
 extern int f6(void);
 extern int f7(void);
 extern int f8(void);
-
+extern int f9(void);
 #endif

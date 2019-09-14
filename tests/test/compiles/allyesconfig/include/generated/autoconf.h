@@ -4,9 +4,11 @@
  * multi-build test
  *
  */
+#define CONFIG_H 1
 #define CONFIG_E 1
 #define CONFIG_B 1
 #define CONFIG_A 1
 #define CONFIG_D 1
 #define CONFIG_G 1
+#define CONFIG_I 1
 #define CONFIG_C 1

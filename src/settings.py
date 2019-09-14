@@ -15,7 +15,7 @@ detail = False
 
 
 sym_prefix = "CONFIG_"
-RESULT_EXT = ".kbuild_results"  # extensions of result files
+RESULT_SINFO = 'sinfo'
 
 settings_file = 'skbuild.ini'
 
@@ -54,10 +54,8 @@ mlog = CM.getLogger(__name__, logger_level)
 
 class Settings:
 
-    def __init__(self, makefile_dir):
-        assert makefile_dir.is_dir(), makefile_dir
-        self.makefile_dir = makefile_dir
-
+    def __init__(self, settings_file):
+        # default values
         self.zstate = TwoState()
         self.top_dirs = []
         self.ignore_dirs = frozenset()
@@ -68,14 +66,13 @@ class Settings:
         self.target_vars = frozenset(["obj-", "lib-"])
         self.ignore_vars = frozenset(["src"])
 
-        config_file = (self.makefile_dir / settings_file).resolve()
-        if not config_file.is_file():
+        if not settings_file.is_file():
             return
 
-        self.config_file = config_file
+        # read from config file
         import configparser
         config = configparser.ConfigParser()
-        config.read(config_file)
+        config.read(settings_file)
         myconfig = config['DEFAULT']
 
         try:
@@ -124,33 +121,6 @@ class Settings:
                 'ignore_setvar_kws').split())
         except AttributeError:
             pass
-
-    @property
-    def makefile_dirs(self):
-        assert self.makefile_dir.is_dir(), self.makefile_dir
-
-        try:
-            return self._makefile_dirs
-        except AttributeError:
-
-            makefile_dir = self.makefile_dir.resolve()
-            if self.top_dirs:
-                top_dirs = [makefile_dir / d for d in self.top_dirs]
-                top_dirs_ = []
-                for d in top_dirs:
-                    if d.is_dir():
-                        top_dirs_.append(d)
-                    else:
-                        mlog.warn("invalid dir '{}'".format(d))
-                self._makefile_dirs = top_dirs_
-            else:
-                self._makefile_dirs = [makefile_dir]
-
-            mlog.debug("'{}' has {} Makefile dirs".format(
-                self.makefile_dir, len(self._makefile_dirs)))
-
-            assert all(d.is_dir() for d in self._makefile_dirs)
-            return self._makefile_dirs
 
     def ignore_symbol(self, symbol):
         return (any(

@@ -19,7 +19,8 @@ class Analysis:
     def __init__(self, result_dir):
         assert result_dir.is_dir(), result_dir
 
-        self.kbuilds = self.load(result_dir)
+        from alg import Run
+        self.main_dir, self.mysettings, self.kbuilds = Run.load(result_dir)
         assert len(self.kbuilds)
 
         self.mysettings = self.kbuilds[0].mysettings
@@ -30,7 +31,8 @@ class Analysis:
             t, d, config_vars = kbuild.typ_info
             assert t == self.COptTyp
             assert d == self.COptD
-            assert self.mysettings == kbuild.mysettings
+            assert self.mysettings == kbuild.mysettings, \
+                (self.mysettings, kbuild.mysettings)
             for c in config_vars:
                 if c not in self.config_vars:
                     self.config_vars[c] = config_vars[c]
@@ -39,24 +41,18 @@ class Analysis:
             result_dir, self.mysettings.zstate.__class__.__name__,
             len(self.kbuilds), len(self.config_vars)))
 
-        self.files_d = self.get_target_files(None)
+        self.files_d = self.get_target_files(None, self.main_dir)
         self.all_files = frozenset(itertools.chain(*self.files_d.values()))
-
         # remove files in lib- or obj-
-        self.target_files = self.remove_files(self.files_d)
-        assert (self.target_files == self.all_files)
+        mlog.info("{} Kbuilds, {} files".format(
+            len(self.kbuilds), len(self.all_files)))
 
     def go(self, args):
         if args.src_dir:
-            src_dir = pathlib.Path(args.src_dir).resolve()
-            assert src_dir.is_dir()
-
-            mlog.info("*** Check Coverage over '{}' ***".format(src_dir))
-            self.check_src_dir(src_dir)
+            self.check_src_dir(pathlib.Path(args.src_dir).resolve())
 
         if args.build_dir:
-            build_dir = pathlib.Path(args.build_dir).resolve()
-            self.check_build_dir(build_dir)
+            self.check_build_dir(pathlib.Path(args.build_dir).resolve())
 
     def check_src_dir(self, src_dir):
         """
@@ -149,33 +145,27 @@ class Analysis:
         g_files = self.get_files_from_dir(
             build_dir, self.mysettings.ignore_dirs,
             self.mysettings.ignore_files)
-        g_files = self.remove_common_prefix(g_files)
 
         # get results from kbuild constraints
         c_files = self.get_files_from_config(
             build_dir / '.config', self.mysettings.zstate.undef_val)
-        c_files = self.remove_files(c_files)
-        c_files = self.remove_common_prefix(c_files)
+        c_files = frozenset(f for target in c_files for f in c_files[target])
 
-        if c_files != g_files:
-            only_in_c = c_files - g_files
-            if only_in_c:
-                mlog.warn("only in c_files: ", ','.join(sorted(only_in_c)))
-
+        if g_files != c_files:
             only_in_g = g_files - c_files
             if only_in_g:
-                mlog.warn("only in g_files: ", ','.join(sorted(only_in_g)))
+                mlog.warn("only in g_files: {}".format(','.join(
+                    sorted(map(str, only_in_g)))))
+
+            only_in_c = c_files - g_files
+            if only_in_c:
+                mlog.warn("only in c_files: {}".format(','.join(
+                    sorted(map(str, only_in_c)))))
 
         else:
             mlog.info("all {} files matched".format(len(c_files)))
 
-    def remove_files(self, files_d):
-        # remove files in lib- or obj-
-        target_files = [files_d[target] for target in files_d
-                        if target not in self.mysettings.target_vars]
-        return frozenset(itertools.chain(*target_files))
-
-    def get_target_files(self, constraint):
+    def get_target_files(self, constraint, main_dir):
         assert constraint is None or z3.is_expr(constraint), constraint
 
         solver = zsolver.ZSolver(
@@ -183,23 +173,20 @@ class Analysis:
 
         files_d = {}
         for kbuild in self.kbuilds:
-            paths = [path for path in kbuild.paths if constraint is None or
-                     solver.is_valid(z3.Implies(constraint, path.cond))]
-            for path in paths:
-                tfiles = path.target_files
-                assert all(isinstance(v, Var) for v in tfiles), tfiles
-                for v in tfiles:
-                    tfiles_ = [kbuild.makefile.parent / f for f in v.vals]
-                    files_d.setdefault(v.name, []).extend(tfiles_)
+            for path in kbuild.paths:
+                if constraint is None or \
+                   solver.is_valid(z3.Implies(constraint, path.cond)):
+                    for v in path.target_files:
+                        assert isinstance(v, Var), v
 
+                        if v.name in self.mysettings.target_vars:
+                            continue
+
+                        tfiles_ = [kbuild.makefile.parent / f
+                                   for f in v.vals if f.endswith('.o')]
+                        tfiles_ = [f.relative_to(main_dir) for f in tfiles_]
+                        files_d.setdefault(v.name, []).extend(tfiles_)
         return files_d
-
-    @classmethod
-    def load(cls, result_dir):
-        assert result_dir.is_dir(), result_dir
-        assert all(f.is_file() for f in result_dir.iterdir())
-
-        return [Kbuild.load(result_dir / f) for f in result_dir.iterdir()]
 
     @classmethod
     def get_files_from_dir(cls, build_dir, ignore_dirs, ignore_files):
@@ -212,13 +199,11 @@ class Analysis:
         # ignores = {'.cmd', '.a', '.h', '.in', '.c', '.out', '.net', '.log',
         #            '.html', '.txt', '.map', '.1', '.method', '.pod', '.d'}
 
-        fs = [f for f in build_dir.rglob('*.*')
-              if f.suffix == '.o']
-        fs = [f.relative_to(build_dir) for f in fs]
+        fs = [f for f in build_dir.rglob('*.*') if f.suffix == '.o']
         fs = [f for f in fs
               if all(p.name not in ignore_dirs for p in f.parents)]
-        fs = [f for f in fs
-              if f.name not in ignore_files]
+        fs = [f for f in fs if f.name not in ignore_files]
+        fs = [f.relative_to(build_dir) for f in fs]
         return frozenset(fs)
 
     def get_files_from_config(self, config_file, undef_val):
@@ -247,7 +232,7 @@ class Analysis:
             z3.Const(s, self.COptTyp) == v for s, v in myconfig.items()
         ]
         constraint = z3.simplify(z3.And(*constraint))
-        files_d = self.get_target_files(constraint)
+        files_d = self.get_target_files(constraint, self.main_dir)
 
         # mlog.debug(', '.join("{}={}".format(s, v) for s, v in contents))
         # mlog.debug("{} targets\n{}".format(
@@ -255,8 +240,3 @@ class Analysis:
         #         name, len(constraint_files[name]),
         #         ', '.join(constraint_files[name])) for name in constraint_files)))
         return files_d
-
-    @classmethod
-    def remove_common_prefix(self, files):
-        commonprefix = pathlib.Path(os.path.commonprefix(list(files)))
-        return frozenset(f.relative_to(commonprefix) for f in files)
