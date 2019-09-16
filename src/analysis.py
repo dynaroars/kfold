@@ -1,13 +1,11 @@
 import itertools
 import pdb
-import os.path
 import pathlib
 import z3
 from ds import Var
 
 import helpers.vcommon as CM
 import helpers.zsolver as zsolver
-from kbuild import Kbuild
 
 import settings
 mlog = CM.getLogger(__name__, settings.logger_level)
@@ -58,7 +56,7 @@ class Analysis:
         """
         Obtain all C programs and check
         """
-        assert os.path.isdir(src_dir), src_dir
+        assert src_dir.is_dir(), src_dir
 
         # all c files in dir
         g_files = [f for f in src_dir.rglob('*.*')
@@ -66,11 +64,13 @@ class Analysis:
 
         def get_includes(f):
             includes = set()
-            for l in f.read_text().splitlines():
-                l = l.strip()
-                if l.startswith("#include") and '<' not in l and '.c' in l:
-                    l = l.replace("#include", '').replace('"', '').strip()
-                    include_f = f.parent / l
+            for line in f.read_text().splitlines():
+                line = line.strip()
+                if line.startswith("#include") and \
+                   '<' not in line and '.c' in line:
+                    include_f = line.replace(
+                        "#include", '').replace('"', '').strip()
+                    include_f = f.parent / include_f
                     assert include_f.is_file(), include_f
                     includes.add(include_f)
             return includes
