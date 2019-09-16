@@ -47,9 +47,9 @@ class Kbuild:
 
     def fork(self, new_cond):
         kbuild = self.__class__(self.makefile, self.mysettings)
-        kbuild.paths = [path.fork(new_cond) for path in self.paths
-                        if self.solver.is_sat(
-            zsolver.conj(path.cond, new_cond))]
+        paths = Paths(path.fork(new_cond) for path in self.paths
+                      if self.solver.is_sat(zsolver.conj(path.cond, new_cond)))
+        kbuild.paths = paths
         kbuild.se_time = 0.0
         return kbuild
 

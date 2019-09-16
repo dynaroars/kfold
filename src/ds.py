@@ -55,11 +55,16 @@ class Var(BaseVar):
     def ignorable(self):
         return self.name in self.mysettings.ignore_vars
 
+    @property
+    def is_undef_target(self):  # obj-, lib-
+        return self.name in self.mysettings.target_vars
+
     def subdirs(self, topdir):
         assert topdir.is_dir(), topdir
         assert not self.ignorable
 
         subdirs = [topdir / d for d in self.vals if d.endswith("/")]
+
         return subdirs
 
     @staticmethod
@@ -107,7 +112,8 @@ class Path:
     def subdirs(self, topdir):
         subdirs_ = [self.states[v].subdirs(topdir)
                     for v in self.states
-                    if not self.states[v].ignorable]
+                    if not (self.states[v].ignorable
+                            or self.states[v].is_undef_target)]
         return frozenset(itertools.chain(*subdirs_))
 
     def fork(self, new_cond, ignore_targets=False):

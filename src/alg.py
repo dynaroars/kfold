@@ -28,7 +28,8 @@ class Run:
         self.tmpdir = pathlib.Path(tempfile.mkdtemp(
             dir=settings.tmpdir, prefix="skbuild"))
 
-        results = {}  # [makefile][cond]
+        cache = {}  # [makefile][cond] -> kbuild
+        results = set()  # (makefile, cond)
         default_cond = None
 
         if self.mysettings.top_dirs:
@@ -43,30 +44,40 @@ class Run:
         while makefiles:
             kbuilds = []
             for makefile, cond in makefiles:
-                if makefile in results:
-                    assert default_cond in results[makefile]
+                if makefile in cache:
+                    assert default_cond in cache[makefile]
 
-                    if cond not in results[makefile]:
+                    if cond not in cache[makefile]:
                         assert cond is not default_cond
-                        kbuild = results[makefile][default_cond]
-                        results[makefile][cond] = kbuild.fork(cond)
-                        kbuilds.append(results[makefile][cond])
+                        kbuild = cache[makefile][default_cond]
+                        cache[makefile][cond] = kbuild.fork(cond)
+                        kbuilds.append(cache[makefile][cond])
                 else:
                     kbuild = self.analyze(makefile)
-                    results[makefile] = {default_cond: kbuild}
+                    cache[makefile] = {default_cond: kbuild}
                     if cond is not default_cond:
-                        results[makefile][cond] = kbuild.fork(cond)
-                    kbuilds.append(results[makefile][cond])
+                        cache[makefile][cond] = kbuild.fork(cond)
+                    kbuilds.append(cache[makefile][cond])
+
+                if (makefile, cond) in results:
+                    mlog.warn("{} already in results".format((makefile, cond)))
+                results.add((makefile, cond))
 
             # recurse to subdirs if any
             makefiles = [(path.subdirs(kb.topdir), path.cond)
-                         for kb in kbuilds for path in kbuild.paths]
+                         for kb in kbuilds for path in kb.paths]
+            makefiles = [(subdirs, cond)
+                         for subdirs, cond in makefiles if subdirs]
             makefiles = [(makefile, cond)
-                         for paths, cond in makefiles
-                         for makefile in self.get_makefiles(paths)]
+                         for subdirs, cond in makefiles
+                         for makefile in self.get_makefiles(subdirs)]
 
         mlog.info("done in {:.2f}s".format(time() - st))
-        self.save(results)
+        kbuilds = set(cache[makefile][cond]
+                      for makefile, cond in results)
+        for kbuild in kbuilds:
+            mlog.debug("{}\n{}".format(kbuild.makefile, kbuild.paths))
+        self.save(kbuilds)
         return self.tmpdir
 
     def analyze(self, makefile):
@@ -75,16 +86,14 @@ class Run:
         kbuild.symexe()
         return kbuild
 
-    def save(self, results):
+    def save(self, kbuilds):
+        assert isinstance(kbuilds, set) and kbuilds, kbuilds
+
         result_dir = self.tmpdir
         assert result_dir.is_dir()
 
         sinfo = (self.main_dir, self.mysettings)
         CM.vsave(result_dir / settings.RESULT_SINFO, sinfo)
-        kbuilds = [results[makefile][cond]
-                   for makefile in results
-                   for cond in results[makefile]]
-
         for i, kbuild in enumerate(kbuilds):
             kbuild.save(result_dir / "kbuild_{}".format(i))
 
