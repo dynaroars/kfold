@@ -60,96 +60,86 @@ class Analysis:
         """
         assert os.path.isdir(src_dir), src_dir
 
-        # get all src files from src_dir
-        src_dir_len = len(str(src_dir))
-        sfiles = {}
+        # all c files in dir
+        g_files = [f for f in src_dir.rglob('*.*')
+                   if f.suffix == '.c' and not f.name.startswith('.')]
 
         def get_includes(f):
             includes = set()
-            try:
-                ls = list(CM.iread(f))
-            except UnicodeDecodeError as ex:
-                mlog.warn("cannot parse '{}': {}".format(f, ex))
-                return includes
-
-            for l in ls:
+            for l in f.read_text().splitlines():
                 l = l.strip()
                 if l.startswith("#include") and '<' not in l and '.c' in l:
                     l = l.replace("#include", '').replace('"', '').strip()
-                    ifile = os.path.join(os.path.split(f)[0], l)
-                    assert os.path.isfile(ifile), ifile
-                    includes.add(ifile[src_dir_len:])
-
+                    include_f = f.parent / l
+                    assert include_f.is_file(), include_f
+                    includes.add(include_f)
             return includes
 
-        for root, subdirs, files in os.walk(src_dir):
-            # ignore .hidden dirs and files
-            subdirs[:] = [d for d in subdirs if not d.startswith('.')]
-            files[:] = [f for f in files
-                        if os.path.splitext(f)[1] == '.c' and not f.startswith('.')]
-            for f in files:
-                f = os.path.join(root, f)
-                assert os.path.isfile(f), "{}: not exist".format(f)
+        g_files = {f.relative_to(src_dir):
+                   set(f_.relative_to(src_dir) for f_ in get_includes(f))
+                   for f in g_files}
 
-                f_ = f[src_dir_len:]
-                assert f_ not in sfiles
+        mlog.debug("{} has {} C files".format(src_dir, len(g_files)))
 
-                sfiles[f_] = get_includes(pathlib.Path(f))
-
-        mlog.debug("{} files".format(len(sfiles)))
-
-        # remove target and include files
-        tfiles = set(str(f).replace('.o', '.c')
-                     for f in self.target_files)
+        # remove c files found from constraints and included files
+        c_files = set(f.with_suffix('.c')
+                      for f in self.all_files if f.suffix == '.o')
 
         removes = set()
-        for f in tfiles:
-            DBG()
-            assert f in sfiles
+        for f in c_files:
+            assert f in g_files, f
             removes.add(f)
-            for f_ in sfiles[f]:
-                assert f_ in sfiles, f_
-                removes.add(f_)
+            for include_f in g_files[f]:
+                assert include_f in g_files, include_f
+                removes.add(include_f)
 
         for f in removes:
-            sfiles.pop(f)
-
-        mlog.debug("{} files (- {} targets)".format(len(sfiles), len(removes)))
-
-        # remove files not in topdirs
-        def in_topdirs(f):
-            s = f.split(os.path.sep)[0] + os.path.sep
-            return s in self.casestudy.topdirs
-
-        removes = set(f for f in sfiles if not in_topdirs(f))
-        for f in removes:
-            sfiles.pop(f)
+            g_files.pop(f)
 
         mlog.debug(
-            "{} files (- {} not in topdir)".format(len(sfiles), len(removes)))
+            "Excluding {} targets and includes, {} remains"
+            .format(len(removes), len(g_files)))
 
-        # remove util-linux/volume_id/unused_*.c
-        removes = set(f for f in sfiles if 'used_' in f)
+        # remove files not in topdir
+        removes = set(f for f in g_files
+                      if f.parent not in self.mysettings.top_dirs)
+
         for f in removes:
-            sfiles.pop(f)
+            g_files.pop(f)
 
         mlog.debug(
-            "{} files (- {} unsed)".format(len(sfiles), len(removes)))
+            "Excluding {} files not in top_dir, {} remains"
+            .format(len(removes), len(g_files)))
 
-        print('\n'.join(sorted(sfiles)))
+        # print(g_files)
+
+        # # remove util-linux/volume_id/unused_*.c
+        # removes = set(f for f in sfiles if 'used_' in f)
+        # for f in removes:
+        #     sfiles.pop(f)
+
+        # mlog.debug(
+        #     "{} files (- {} unsed)".format(len(sfiles), len(removes)))
+
+        if g_files:
+            mlog.debug("W: {} files unaccounted for\n{}"
+                       .format(len(g_files), '\n'.join(map(str, g_files))))
+
+        return g_files
 
     def check_build_dir(self, build_dir):
         assert build_dir.is_dir(), build_dir
+
+        # get results from kbuild constraints
+        config_constraint = self.config2constraint(
+            build_dir / '.config', self.mysettings.zstate.undef_val)
+        c_files = self.get_target_files(config_constraint, self.main_dir)
+        c_files = frozenset(f for target in c_files for f in c_files[target])
 
         # get groundtruth results
         g_files = self.get_files_from_dir(
             build_dir, self.mysettings.ignore_dirs,
             self.mysettings.ignore_files)
-
-        # get results from kbuild constraints
-        c_files = self.get_files_from_config(
-            build_dir / '.config', self.mysettings.zstate.undef_val)
-        c_files = frozenset(f for target in c_files for f in c_files[target])
 
         if g_files != c_files:
             only_in_g = g_files - c_files
@@ -167,6 +157,7 @@ class Analysis:
 
     def get_target_files(self, constraint, main_dir):
         assert constraint is None or z3.is_expr(constraint), constraint
+        assert isinstance(main_dir, pathlib.Path), main_dir
 
         solver = zsolver.ZSolver(
             self.mysettings.zstate) if z3.is_expr(constraint) else None
@@ -180,7 +171,7 @@ class Analysis:
                         assert isinstance(v, Var), v
 
                         if v.name in self.mysettings.target_vars:
-                            continue
+                            continue  # ignore obj-, lib-
 
                         tfiles_ = [kbuild.makefile.parent / f
                                    for f in v.vals if f.endswith('.o')]
@@ -206,11 +197,7 @@ class Analysis:
         fs = [f.relative_to(build_dir) for f in fs]
         return frozenset(fs)
 
-    def get_files_from_config(self, config_file, undef_val):
-        """
-        return files that will be built from config_file
-        """
-
+    def config2constraint(self, config_file, undef_val):
         assert config_file.is_file(), config_file
         contents = [l.split("=") for l in CM.iread_strip(config_file)]
 
@@ -228,15 +215,7 @@ class Analysis:
             if s not in myconfig:
                 myconfig[s] = undef
 
-        constraint = [
-            z3.Const(s, self.COptTyp) == v for s, v in myconfig.items()
-        ]
+        constraint = [z3.Const(s, self.COptTyp) == myconfig[s]
+                      for s in myconfig]
         constraint = z3.simplify(z3.And(*constraint))
-        files_d = self.get_target_files(constraint, self.main_dir)
-
-        # mlog.debug(', '.join("{}={}".format(s, v) for s, v in contents))
-        # mlog.debug("{} targets\n{}".format(
-        #     len(constraint_files), '\n'.join("{} ({}) = {}".format(
-        #         name, len(constraint_files[name]),
-        #         ', '.join(constraint_files[name])) for name in constraint_files)))
-        return files_d
+        return constraint

@@ -75,8 +75,6 @@ class Run:
         mlog.info("done in {:.2f}s".format(time() - st))
         kbuilds = set(cache[makefile][cond]
                       for makefile, cond in results)
-        for kbuild in kbuilds:
-            mlog.debug("{}\n{}".format(kbuild.makefile, kbuild.paths))
         self.save(kbuilds)
         return self.tmpdir
 
