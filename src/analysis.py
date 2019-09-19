@@ -63,11 +63,14 @@ class Analysis:
                    if f.suffix == '.c' and not f.name.startswith('.')]
 
         def get_includes(f):
+            """
+            get include files, e.g., #include "file.c"
+            """
             includes = set()
             for line in f.read_text().splitlines():
                 line = line.strip()
-                if line.startswith("#include") and \
-                   '<' not in line and '.c' in line:
+                if (line.startswith("#include") and
+                        '<' not in line and '.c' in line):
                     include_f = line.replace(
                         "#include", '').replace('"', '').strip()
                     include_f = f.parent / include_f
@@ -108,7 +111,7 @@ class Analysis:
             g_files.pop(f)
 
         mlog.debug(
-            "Excluding {} files not in top_dir, {} remains"
+            "Excluding {} files not in top_dirs, {} remains"
             .format(len(removes), len(g_files)))
 
         # print(g_files)

@@ -1,13 +1,15 @@
 import tempfile
-from collections import namedtuple, OrderedDict
 from time import time
 import pathlib
 import pdb
 
-import helpers.vcommon as CM
-from kbuild import Kbuild
+import z3
 
 import settings
+import helpers.vcommon as CM
+import helpers.zsolver as zsolver
+from kbuild import Kbuild
+
 mlog = CM.getLogger(__name__, settings.logger_level)
 
 
@@ -28,8 +30,6 @@ class Run:
         self.tmpdir = pathlib.Path(tempfile.mkdtemp(
             dir=settings.tmpdir, prefix="skbuild"))
 
-        cache = {}  # [makefile][cond] -> kbuild
-        results = set()  # (makefile, cond)
         default_cond = None
 
         if self.mysettings.top_dirs:
@@ -41,41 +41,25 @@ class Run:
         makefiles = [(makefile, default_cond) for makefile in
                      self.get_makefiles(top_dirs)]
 
+        results = set()  # (makefile, cond)
+        mycache = {}  # makefile -> kbuild
         while makefiles:
             kbuilds = []
             for makefile, cond in makefiles:
-                if makefile in cache:
-                    assert default_cond in cache[makefile]
+                kbuild = mycache.setdefault(
+                    makefile, self.analyze(makefile))
 
-                    if cond not in cache[makefile]:
-                        assert cond is not default_cond
-                        kbuild = cache[makefile][default_cond]
-                        cache[makefile][cond] = kbuild.fork(cond)
-                        kbuilds.append(cache[makefile][cond])
-                else:
-                    kbuild = self.analyze(makefile)
-                    cache[makefile] = {default_cond: kbuild}
-                    if cond is not default_cond:
-                        cache[makefile][cond] = kbuild.fork(cond)
-                    kbuilds.append(cache[makefile][cond])
+                if cond is not default_cond:
+                    kbuild = kbuild.fork(cond)
 
-                if (makefile, cond) in results:
-                    mlog.warn("{} already in results".format((makefile, cond)))
-                results.add((makefile, cond))
+                kbuilds.append(kbuild)
+                results.add(kbuild)
 
-            # recurse to subdirs if any
-            makefiles = [(path.subdirs(kb.topdir), path.cond)
-                         for kb in kbuilds for path in kb.paths]
-            makefiles = [(subdirs, cond)
-                         for subdirs, cond in makefiles if subdirs]
-            makefiles = [(makefile, cond)
-                         for subdirs, cond in makefiles
-                         for makefile in self.get_makefiles(subdirs)]
+            makefiles = self.get_makefiles_from_kbuilds(kbuilds)
 
-        mlog.info("done in {:.2f}s".format(time() - st))
-        kbuilds = set(cache[makefile][cond]
-                      for makefile, cond in results)
-        self.save(kbuilds)
+        mlog.info("obtain {} kbuilds in {:.2f}s".format(
+            len(results), time() - st))
+        self.save(results)
         return self.tmpdir
 
     def analyze(self, makefile):
@@ -112,6 +96,23 @@ class Run:
 
         makefiles = [cls.get_makefile(p) for p in paths]
         return [makefile for makefile in makefiles if makefile]
+
+    @classmethod
+    def get_makefiles_from_kbuilds(cls, kbuilds):
+        makefiles = [(path.subdirs(kb.topdir), path.cond)
+                     for kb in kbuilds for path in kb.paths]
+        makefiles = [(subdirs, cond)
+                     for subdirs, cond in makefiles if subdirs]
+        makefiles = [(makefile, cond)
+                     for subdirs, cond in makefiles
+                     for makefile in cls.get_makefiles(subdirs)]
+
+        cache = {}
+        for makefile, cond in makefiles:
+            cache.setdefault(makefile, []).append(cond)
+        makefiles = [(makefile, zsolver.simplify(z3.Or(cache[makefile])))
+                     for makefile in cache]
+        return makefiles
 
     @classmethod
     def get_makefile(cls, path):

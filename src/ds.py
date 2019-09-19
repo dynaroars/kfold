@@ -1,6 +1,7 @@
 from collections import namedtuple, OrderedDict
 import itertools
 import pdb
+
 import z3
 
 import settings

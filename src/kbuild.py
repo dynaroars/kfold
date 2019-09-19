@@ -4,6 +4,7 @@ from time import time
 import os.path
 import pathlib
 import pdb
+import z3
 
 from pymake3 import parser, parserdata, data, functions
 
@@ -46,10 +47,12 @@ class Kbuild:
         mlog.debug(self.paths)
 
     def fork(self, new_cond):
+        assert z3.is_expr(new_cond), new_cond
+
         kbuild = self.__class__(self.makefile, self.mysettings)
-        paths = Paths(path.fork(new_cond) for path in self.paths
-                      if self.solver.is_sat(zsolver.conj(path.cond, new_cond)))
-        kbuild.paths = paths
+        kbuild.paths = Paths(path.fork(new_cond) for path in self.paths
+                             if self.solver.is_sat(
+            zsolver.conj(path.cond, new_cond)))
         kbuild.se_time = 0.0
         return kbuild
 
