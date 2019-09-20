@@ -39,11 +39,11 @@ class Analysis:
             result_dir, self.mysettings.zstate.__class__.__name__,
             len(self.kbuilds), len(self.config_vars)))
 
-        self.files_d = self.get_target_files(None, self.main_dir)
-        self.all_files = frozenset(itertools.chain(*self.files_d.values()))
+        kfiles_d = self.get_target_files(None, self.main_dir)
+        self.kfiles = frozenset(itertools.chain(*kfiles_d.values()))
         # remove files in lib- or obj-
-        mlog.info("{} Kbuilds, {} files".format(
-            len(self.kbuilds), len(self.all_files)))
+        mlog.info("kfiles: load {} Kbuilds, {} files".format(
+            len(self.kbuilds), len(self.kfiles)))
 
     def go(self, args):
         if args.src_dir:
@@ -54,67 +54,79 @@ class Analysis:
 
     def check_src_dir(self, src_dir):
         """
-        Obtain all C programs and check
+        Obtain all C programs in src dir and check against Kbuild files
         """
         assert src_dir.is_dir(), src_dir
 
         # all c files in dir
-        g_files = [f for f in src_dir.rglob('*.*')
-                   if f.suffix == '.c' and not f.name.startswith('.')]
+        gfiles = [f for f in src_dir.rglob('*.*')
+                  if f.suffix == '.c' and not f.name.startswith('.')]
 
         def get_includes(f):
             """
             get include files, e.g., #include "file.c"
             """
             includes = set()
-            for line in f.read_text().splitlines():
+            try:
+                lines = f.read_text()
+            except UnicodeDecodeError:
+                lines = f.read_text(encoding="ISO-8859-1")
+
+            for line in lines.splitlines():
                 line = line.strip()
                 if (line.startswith("#include") and
                         '<' not in line and '.c' in line):
                     include_f = line.replace(
                         "#include", '').replace('"', '').strip()
                     include_f = f.parent / include_f
-                    assert include_f.is_file(), include_f
+                    assert include_f.is_file(), (f, include_f)
                     includes.add(include_f)
             return includes
 
-        g_files = {f.relative_to(src_dir):
-                   set(f_.relative_to(src_dir) for f_ in get_includes(f))
-                   for f in g_files}
+        gfiles = {f.relative_to(src_dir):
+                  set(f_.relative_to(src_dir) for f_ in get_includes(f))
+                  for f in gfiles}
 
-        mlog.debug("{} has {} C files".format(src_dir, len(g_files)))
+        mlog.debug("{} has {} C files".format(src_dir, len(gfiles)))
 
         # remove c files found from constraints and included files
-        c_files = set(f.with_suffix('.c')
-                      for f in self.all_files if f.suffix == '.o')
+        kfiles = set(f.with_suffix('.c')
+                     for f in self.kfiles if f.suffix == '.o')
 
         removes = set()
-        for f in c_files:
-            assert f in g_files, f
+        for f in kfiles:
+            assert f in gfiles, f
             removes.add(f)
-            for include_f in g_files[f]:
-                assert include_f in g_files, include_f
+            for include_f in gfiles[f]:
+                assert include_f in gfiles, include_f
                 removes.add(include_f)
 
         for f in removes:
-            g_files.pop(f)
+            gfiles.pop(f)
 
         mlog.debug(
-            "Excluding {} targets and includes, {} remains"
-            .format(len(removes), len(g_files)))
+            "gfiles: excluding {} targets and includes, {} remains"
+            .format(len(removes), len(gfiles)))
 
-        # remove files not in topdir
-        removes = set(f for f in g_files
-                      if f.parent not in self.mysettings.top_dirs)
+        # remove files not in kbuild dirs
+        # kbuild dirs also include subdirs that might not be mentioned
+        # in setting topdirs
+        # kbuild dirs also do not include dirs in setting topdirs that do
+        # not have a Kbuild makefile
+        kbuild_dirs = set(kb.topdir.relative_to(self.main_dir)
+                          for kb in self.kbuilds)
+
+        removes = set(f for f in gfiles
+                      if f.parent not in kbuild_dirs)
 
         for f in removes:
-            g_files.pop(f)
+            gfiles.pop(f)
 
         mlog.debug(
-            "Excluding {} files not in top_dirs, {} remains"
-            .format(len(removes), len(g_files)))
+            "gfiles: excluding {} files not in top_dirs, {} remains"
+            .format(len(removes), len(gfiles)))
 
-        # print(g_files)
+        # print(gfiles)
 
         # # remove util-linux/volume_id/unused_*.c
         # removes = set(f for f in sfiles if 'used_' in f)
@@ -124,11 +136,11 @@ class Analysis:
         # mlog.debug(
         #     "{} files (- {} unsed)".format(len(sfiles), len(removes)))
 
-        if g_files:
+        if gfiles:
             mlog.debug("W: {} files unaccounted for\n{}"
-                       .format(len(g_files), '\n'.join(map(str, g_files))))
+                       .format(len(gfiles), '\n'.join(map(str, gfiles))))
 
-        return g_files
+        return gfiles
 
     def check_build_dir(self, build_dir):
         assert build_dir.is_dir(), build_dir
@@ -136,27 +148,27 @@ class Analysis:
         # get results from kbuild constraints
         config_constraint = self.config2constraint(
             build_dir / '.config', self.mysettings.zstate.undef_val)
-        c_files = self.get_target_files(config_constraint, self.main_dir)
-        c_files = frozenset(f for target in c_files for f in c_files[target])
+        kfiles = self.get_target_files(config_constraint, self.main_dir)
+        kfiles = frozenset(f for target in kfiles for f in kfiles[target])
 
         # get groundtruth results
-        g_files = self.get_files_from_dir(
+        gfiles = self.get_files_from_dir(
             build_dir, self.mysettings.ignore_dirs,
             self.mysettings.ignore_files)
 
-        if g_files != c_files:
-            only_in_g = g_files - c_files
+        if gfiles != kfiles:
+            only_in_g = gfiles - kfiles
             if only_in_g:
-                mlog.warn("only in g_files: {}".format(','.join(
-                    sorted(map(str, only_in_g)))))
+                mlog.warn("{} only in gfiles: {}".format(
+                    len(only_in_g), ', '.join(sorted(map(str, only_in_g)))))
 
-            only_in_c = c_files - g_files
-            if only_in_c:
-                mlog.warn("only in c_files: {}".format(','.join(
-                    sorted(map(str, only_in_c)))))
+            only_in_k = kfiles - gfiles
+            if only_in_k:
+                mlog.warn("{} only in kfiles: {}".format(
+                    len(only_in_k), ', '.join(sorted(map(str, only_in_k)))))
 
         else:
-            mlog.info("all {} files matched".format(len(c_files)))
+            mlog.info("all {} files matched".format(len(kfiles)))
 
     def get_target_files(self, constraint, main_dir):
         assert constraint is None or z3.is_expr(constraint), constraint
@@ -193,6 +205,8 @@ class Analysis:
         # ignores = {'.cmd', '.a', '.h', '.in', '.c', '.out', '.net', '.log',
         #            '.html', '.txt', '.map', '.1', '.method', '.pod', '.d'}
 
+        ignore_files = {"built-in.o"}
+        ignore_dirs = {"scripts"}
         fs = [f for f in build_dir.rglob('*.*') if f.suffix == '.o']
         fs = [f for f in fs
               if all(p.name not in ignore_dirs for p in f.parents)]
