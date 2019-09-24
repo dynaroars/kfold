@@ -26,10 +26,6 @@ if __name__ == '__main__':
        choices=range(5),
        default=3)
 
-    ag("--casestudy", "-casestudy",
-       type=str,
-       help="avail options: busybox, linux")
-
     ag("--rmtmp", "-rmtmp",
        action="store_true",
        help="remove saveds result")

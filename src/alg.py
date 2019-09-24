@@ -50,7 +50,7 @@ class Run:
                     makefile, self.analyze(makefile))
 
                 if cond is not default_cond:
-                    kbuild = kbuild.fork(cond)
+                    kbuild = kbuild.myfork(cond)
 
                 kbuilds.append(kbuild)
                 results.add(kbuild)

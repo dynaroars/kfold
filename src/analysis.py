@@ -39,7 +39,7 @@ class Analysis:
             result_dir, self.mysettings.zstate.__class__.__name__,
             len(self.kbuilds), len(self.config_vars)))
 
-        kfiles_d = self.get_target_files(None, self.main_dir)
+        kfiles_d = self.get_kfiles(None, self.main_dir)
         self.kfiles = frozenset(itertools.chain(*kfiles_d.values()))
         # remove files in lib- or obj-
         mlog.info("kfiles: load {} Kbuilds, {} files".format(
@@ -148,13 +148,15 @@ class Analysis:
         # get results from kbuild constraints
         config_constraint = self.config2constraint(
             build_dir / '.config', self.mysettings.zstate.undef_val)
-        kfiles = self.get_target_files(config_constraint, self.main_dir)
+        kfiles = self.get_kfiles(config_constraint, self.main_dir)
         kfiles = frozenset(f for target in kfiles for f in kfiles[target])
 
         # get groundtruth results
         gfiles = self.get_files_from_dir(
             build_dir, self.mysettings.ignore_dirs,
             self.mysettings.ignore_files)
+
+        mlog.debug("{} kfiles, {} gfiles".format(len(kfiles), len(gfiles)))
 
         if gfiles != kfiles:
             only_in_g = gfiles - kfiles
@@ -170,12 +172,12 @@ class Analysis:
         else:
             mlog.info("all {} files matched".format(len(kfiles)))
 
-    def get_target_files(self, constraint, main_dir):
+    def get_kfiles(self, constraint, main_dir):
         assert constraint is None or z3.is_expr(constraint), constraint
         assert isinstance(main_dir, pathlib.Path), main_dir
 
-        solver = zsolver.ZSolver(
-            self.mysettings.zstate) if z3.is_expr(constraint) else None
+        solver = zsolver.ZSolver(self.mysettings.zstate) \
+            if z3.is_expr(constraint) else None
 
         files_d = {}
         for kbuild in self.kbuilds:
@@ -202,11 +204,6 @@ class Analysis:
 
         assert build_dir.is_dir(), build_dir
 
-        # ignores = {'.cmd', '.a', '.h', '.in', '.c', '.out', '.net', '.log',
-        #            '.html', '.txt', '.map', '.1', '.method', '.pod', '.d'}
-
-        ignore_files = {"built-in.o"}
-        ignore_dirs = {"scripts"}
         fs = [f for f in build_dir.rglob('*.*') if f.suffix == '.o']
         fs = [f for f in fs
               if all(p.name not in ignore_dirs for p in f.parents)]
@@ -216,6 +213,7 @@ class Analysis:
 
     def config2constraint(self, config_file, undef_val):
         assert config_file.is_file(), config_file
+
         contents = [l.split("=") for l in CM.iread_strip(config_file)]
 
         myconfig = {}
@@ -228,11 +226,15 @@ class Analysis:
                 mlog.warn("ignore {} = {}".format(s, v))
 
         undef = self.COptD[undef_val]
+        nundefs = 0
         for s in self.config_vars:
             if s not in myconfig:
                 myconfig[s] = undef
+                nundefs += 1
 
         constraint = [z3.Const(s, self.COptTyp) == myconfig[s]
                       for s in myconfig]
         constraint = z3.simplify(z3.And(*constraint))
+
+        mlog.debug("{} config vars, {} undefs".format(len(myconfig), nundefs))
         return constraint

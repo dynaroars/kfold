@@ -46,13 +46,24 @@ class Kbuild:
             self.makefile, len(self.paths), self.se_time))
         mlog.debug(self.paths)
 
-    def fork(self, new_cond):
+    def myfork(self, new_cond):
         assert z3.is_expr(new_cond), new_cond
 
         kbuild = self.__class__(self.makefile, self.mysettings)
-        kbuild.paths = Paths(path.fork(new_cond) for path in self.paths
-                             if self.solver.is_sat(
-            zsolver.conj(path.cond, new_cond)))
+
+        paths = []
+        for path in self.paths:
+            cond = zsolver.conj(path.cond, new_cond)
+            if self.solver.is_sat(cond):
+                cond = zsolver.simplify(cond)
+                new_path = path.fork(cond)
+                paths.append(new_path)
+        kbuild.paths = Paths(paths)
+
+        # kbuild.paths = Paths(p.fork(new_cond, do_conj_old_cond)
+        #                      for p in self.paths
+        #                      if self.solver.is_sat(zsolver.conj(p.cond, new_cond)))
+
         kbuild.se_time = 0.0
         return kbuild
 
