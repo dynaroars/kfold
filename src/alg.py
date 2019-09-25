@@ -40,13 +40,16 @@ class Run:
 
         makefiles = [(makefile, default_cond) for makefile in
                      self.get_makefiles(top_dirs)]
+        assert makefiles
 
         results = set()  # (makefile, cond)
-        mycache = {}  # makefile -> kbuild
+        cache = {}  # makefile -> kbuild
+
         while makefiles:
+            print(makefiles)
             kbuilds = []
             for makefile, cond in makefiles:
-                kbuild = mycache.setdefault(
+                kbuild = cache.setdefault(
                     makefile, self.analyze(makefile))
 
                 if cond is not default_cond:
@@ -110,8 +113,9 @@ class Run:
         cache = {}
         for makefile, cond in makefiles:
             cache.setdefault(makefile, []).append(cond)
+
         makefiles = [(makefile, zsolver.simplify(z3.Or(cache[makefile])))
-                     for makefile in cache]
+                     for makefile in sorted(cache)]
         return makefiles
 
     @classmethod

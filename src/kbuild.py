@@ -60,10 +60,6 @@ class Kbuild:
                 paths.append(new_path)
         kbuild.paths = Paths(paths)
 
-        # kbuild.paths = Paths(p.fork(new_cond, do_conj_old_cond)
-        #                      for p in self.paths
-        #                      if self.solver.is_sat(zsolver.conj(p.cond, new_cond)))
-
         kbuild.se_time = 0.0
         return kbuild
 
@@ -172,10 +168,30 @@ class Eval(object):
                 return self.do_fun_Filterout(elem)
             elif isinstance(elem, functions.AddPrefixFunction):
                 return self.do_fun_AddPrefixFunction(elem)
+            elif isinstance(elem, functions.CallFunction):
+                return self.do_CallFunction(elem)
             else:
-                raise NotImplementedError(type(elem))
+                raise NotImplementedError(
+                    "{}: {}".format(elem.__class__.__name__, elem))
         else:
             return self.do_expansion(elem)
+
+    def do_CallFunction(self, fun):
+        assert isinstance(fun, functions.CallFunction), fun
+
+        # In /arch/x86/crypto
+        # sha256_ni_supported :=$(call as-instr,sha256msg1 %xmm0$(comma)%xmm1,yes,no)
+        if (len(fun._arguments) == 4 and
+            isinstance(fun._arguments[0], data.StringExpansion) and
+            'as-instr' == fun._arguments[0].s and
+            isinstance(fun._arguments[2], data.StringExpansion) and
+            'yes' == fun._arguments[2].s and
+            isinstance(fun._arguments[3], data.StringExpansion) and
+                'no' in fun._arguments[3].s):
+            return [('yes', zsolver.T), ('no', zsolver.T)]
+
+        raise NotImplementedError(
+            "{}: {}".format(fun.__class__.__name__, fun))
 
     def do_fun_AddPrefixFunction(self, fun):
         """
