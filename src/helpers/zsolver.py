@@ -96,11 +96,28 @@ def mdisj(cs):
 class ZSolver:
     __config_vars__ = OrderedDict()
 
-    def __init__(self, zstate):
+    def __init__(self, mysettings):
+        assert isinstance(mysettings, settings.Settings), mysettings
+
+        self.typs = {}
+        zstate = mysettings.zstate  # tristate or twostate config options
+
         names, vals = zip(*zstate.states.items())
-        self.COptTyp, exprs = z3.EnumSort(zstate.__class__.__name__, names)
-        self.COptD = dict(zip(vals, exprs))
-        self.undef_val = zstate.states['undef']
+        cOptTyp, exprs = z3.EnumSort(zstate.__class__.__name__, names)
+        cOptD = dict(zip(vals, exprs))
+        self.typs[None] = (cOptTyp, cOptD)
+
+        for name in mysettings.xopts:
+            vals = mysettings.xopts[name]
+            assert isinstance(vals, list) and vals, vals
+
+            xOptTyp, exprs = z3.EnumSort(name, vals)
+            xOptD = dict(zip(vals, exprs))
+            self.typs[name] = (xOptTyp, xOptD)
+
+        self.undef_str = zstate.states[zstate.undef_str]  # 'undef'
+        self.undef_val = cOptD[zstate.undef_val]       # z3 var
+
         self.solver = z3.Solver()
 
     def check(self, f):
@@ -131,34 +148,55 @@ class ZSolver:
             ret = self.check(z3.Not(f))
             return ret == z3.unsat
 
-    def get_tristate_sort(self, name):
+    def get_typ_info(self, name):
+        k = name if name in self.typs else None
+        return self.typs[k]
+
+    def get_sort(self, name):
+        """
+        Turn name, e.g., cONFIG_A,  into a Tri or TwoState variable
+        If name is an extra pre-defined opt O, then turn it
+        into the appropriate O variable.
+        """
         assert isinstance(name, str) and name, name
+
         if name not in self.__config_vars__:
-            self.__config_vars__[name] = z3.Const(name, self.COptTyp)
+            optTyp, optD = self.get_typ_info(name)
+            symbol = z3.Const(name, optTyp)
+            self.__config_vars__[name] = symbol, optD
+
         return self.__config_vars__[name]
 
-    @property
-    def typ_info(self):
-        """
-        type information that can be saved to file
-        """
+    # @property
+    # def typ_info(self):
+    #     """
+    #     type information that can be saved to file
+    #     """
 
-        typ = (self.COptTyp.name(),
-               [(v, e.decl().name()) for v, e in
-                self.COptD.items()],
-               list(self.__config_vars__))
-        return typ
+    #     return list(self.__config_vars__.keys())
 
-    @staticmethod
-    def load_obj(typ_info):
-        """
-        reconstruct type info from object
-        """
-        name, vals_exprs, config_vars = typ_info
-        vals, exprs = zip(*vals_exprs)
+        # (self.cOptTyp.name(),
+        #        [(v, e.decl().name()) for v, e in
+        #         self.cOptD.items()],
+        #        list(self.__config_vars__))
 
-        cOptTyp, exprs = z3.EnumSort(name, exprs)
-        cOptD = dict(zip(vals, exprs))
-        config_vars = OrderedDict((name, cOptTyp) for name in config_vars)
+    # @staticmethod
+    # def load_obj(typ_info):
+    #     """
+    #     reconstruct type info from object
+    #     """
+    #     name, vals_exprs, config_vars = typ_info
+    #     vals, exprs = zip(*vals_exprs)
 
-        return cOptTyp, cOptD, config_vars
+    #     cOptTyp, exprs = z3.EnumSort(name, exprs)
+    #     cOptD = dict(zip(vals, exprs))
+    #     config_vars = OrderedDict((name, cOptTyp) for name in config_vars)
+
+    #     return cOptTyp, cOptD, config_vars
+
+    def reconstruct(self, config_names):
+        assert all(isinstance(name, str)
+                   for name in config_names), config_names
+
+        for name in config_names:
+            _ = self.get_sort(name)

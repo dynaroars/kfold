@@ -46,7 +46,6 @@ class Run:
         cache = {}  # makefile -> kbuild
 
         while makefiles:
-            print(makefiles)
             kbuilds = []
             for makefile, cond in makefiles:
                 kbuild = cache.setdefault(
@@ -87,6 +86,7 @@ class Run:
         assert result_dir.is_dir(), result_dir
 
         main_dir, mysettings = CM.vload(result_dir / settings.RESULT_SINFO)
+
         kbuilds = [Kbuild.load(result_dir/f, mysettings)
                    for f in result_dir.iterdir()
                    if f.name != settings.RESULT_SINFO]

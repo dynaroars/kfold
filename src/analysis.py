@@ -21,19 +21,14 @@ class Analysis:
         self.main_dir, self.mysettings, self.kbuilds = Run.load(result_dir)
         assert len(self.kbuilds)
 
-        self.mysettings = self.kbuilds[0].mysettings
-        self.COptTyp, self.COptD, config_vars = self.kbuilds[0].typ_info
-        self.config_vars = {c: config_vars[c] for c in config_vars}
+        self.config_vars = {}
 
-        for kbuild in self.kbuilds[1:]:
-            t, d, config_vars = kbuild.typ_info
-            assert t == self.COptTyp
-            assert d == self.COptD
+        for kbuild in self.kbuilds:
             assert self.mysettings == kbuild.mysettings, \
                 (self.mysettings, kbuild.mysettings)
-            for c in config_vars:
+            for c in kbuild.solver.__config_vars__:
                 if c not in self.config_vars:
-                    self.config_vars[c] = config_vars[c]
+                    self.config_vars[c] = kbuild.solver.__config_vars__[c]
 
         mlog.debug("{}: {}, {} kbuilds, {} config vars".format(
             result_dir, self.mysettings.zstate.__class__.__name__,
@@ -41,9 +36,10 @@ class Analysis:
 
         kfiles_d = self.get_kfiles(None, self.main_dir)
         self.kfiles = frozenset(itertools.chain(*kfiles_d.values()))
+
         # remove files in lib- or obj-
-        mlog.info("kfiles: load {} Kbuilds, {} files".format(
-            len(self.kbuilds), len(self.kfiles)))
+        mlog.info("{} kfiles: {} files, {} config vars".format(
+            len(self.kbuilds), len(self.kfiles), len(self.config_vars)))
 
     def go(self, args):
         if args.src_dir:
@@ -147,7 +143,7 @@ class Analysis:
 
         # get results from kbuild constraints
         config_constraint = self.config2constraint(
-            build_dir / '.config', self.mysettings.zstate.undef_val)
+            build_dir / '.config')
         kfiles = self.get_kfiles(config_constraint, self.main_dir)
         kfiles = frozenset(f for target in kfiles for f in kfiles[target])
 
@@ -176,7 +172,7 @@ class Analysis:
         assert constraint is None or z3.is_expr(constraint), constraint
         assert isinstance(main_dir, pathlib.Path), main_dir
 
-        solver = zsolver.ZSolver(self.mysettings.zstate) \
+        solver = zsolver.ZSolver(self.mysettings) \
             if z3.is_expr(constraint) else None
 
         files_d = {}
@@ -211,30 +207,35 @@ class Analysis:
         fs = [f.relative_to(build_dir) for f in fs]
         return frozenset(fs)
 
-    def config2constraint(self, config_file, undef_val):
+    def config2constraint(self, config_file):
         assert config_file.is_file(), config_file
 
-        contents = [l.split("=") for l in CM.iread_strip(config_file)]
+        solver = zsolver.ZSolver(self.mysettings)
+        cOptTyp, cOptD = solver.get_typ_info(None)
 
-        myconfig = {}
-        for s, v in contents:
-            assert s not in myconfig
+        configs = [l.split("=") for l in CM.iread_strip(config_file)]
+
+        myconfigs = {}
+        for name, val in configs:
+            assert name not in myconfigs, name
+            assert self.mysettings.is_copt(name), name
+
             try:
-                myconfig[s] = self.COptD[v]
+                myconfigs[name] = cOptD[val]
             except KeyError:
-                assert s not in self.config_vars
-                mlog.warn("ignore {} = {}".format(s, v))
+                assert name not in self.config_vars
+                mlog.warn("ignore {} = {}".format(name, val))
 
-        undef = self.COptD[undef_val]
+        undef_val = solver.undef_val
         nundefs = 0
-        for s in self.config_vars:
-            if s not in myconfig:
-                myconfig[s] = undef
+        for name in self.config_vars:
+            if name not in myconfigs and self.mysettings.is_copt(name):
+                myconfigs[name] = undef_val
                 nundefs += 1
 
-        constraint = [z3.Const(s, self.COptTyp) == myconfig[s]
-                      for s in myconfig]
+        constraint = [z3.Const(name, cOptTyp) == myconfigs[name]
+                      for name in myconfigs]
         constraint = z3.simplify(z3.And(*constraint))
 
-        mlog.debug("{} config vars, {} undefs".format(len(myconfig), nundefs))
+        mlog.debug("{} config vars, {} undefs".format(len(myconfigs), nundefs))
         return constraint

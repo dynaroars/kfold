@@ -14,16 +14,18 @@ mp_task_len = 50  # parallel processing when >= mp_task_len
 detail = False
 
 
-sym_prefix = "CONFIG_"
 RESULT_SINFO = 'sinfo'
 
 settings_file = 'skbuild.ini'
+
 
 # Linux config var that might not be tristate
 # CONFIG_EXTRA_FIRMWARE_DIR in /firmware/Makefile
 
 
 class ZState:
+    COPT_PREFIX = "CONFIG_"
+
     y_str = "y"
     m_str = "m"
     undef_str = "undef"
@@ -72,8 +74,9 @@ class Settings:
         # read from config file
         import configparser
         config = configparser.ConfigParser()
+        config.optionxform = str  # preserve case sensitvity
         config.read(settings_file)
-        myconfig = config['DEFAULT']
+        myconfig = config['COMMON']
 
         try:
             self.zstate = TriState() if myconfig.getboolean(
@@ -122,9 +125,26 @@ class Settings:
         except AttributeError:
             pass
 
+        self.xopts = {}
+        try:
+            myconfig = config['COPTIONS']  # BITS = 32 64
+            for k in myconfig:
+                vals = ['' if v ==
+                        'None' else v for v in myconfig.get(k).split()]
+
+                self.xopts[k] = vals
+        except KeyError:
+            pass
+
+    def is_copt(self, name):
+        return name.startswith(self.zstate.COPT_PREFIX)
+
+    def is_xopt(self, name):
+        return name in self.xopts
+
     def ignore_symbol(self, symbol):
-        return (any(
-            symbol.startswith(x)
-            for x in self.ignore_setvar_startswith) or any(
-                symbol.endswith(x) for x in self.ignore_setvar_endswith)
-            or any(kw in symbol for kw in self.ignore_setvar_kws))
+        return (any(symbol.startswith(x)
+                    for x in self.ignore_setvar_startswith) or
+                any(symbol.endswith(x)
+                    for x in self.ignore_setvar_endswith) or
+                any(kw in symbol for kw in self.ignore_setvar_kws))

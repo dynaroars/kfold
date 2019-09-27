@@ -27,7 +27,7 @@ class Kbuild:
         self.topdir = makefile.parent
         self.makefile = makefile
         self.mysettings = mysettings
-        self.solver = zsolver.ZSolver(self.mysettings.zstate)
+        self.solver = zsolver.ZSolver(self.mysettings)
 
         mlog.info("Kbuild for '{}'".format(self.makefile))
 
@@ -70,8 +70,11 @@ class Kbuild:
         Z3 data structures cannot be saved directly to file
         """
         assert isinstance(tofile, pathlib.Path) and tofile, tofile
-        kinfo = (self.makefile, self.se_time, self.solver.typ_info,
-                 [(zsolver.to_smt2_str(p.cond), p.states) for p in self.paths])
+
+        kinfo = (self.makefile,
+                 [(zsolver.to_smt2_str(p.cond), p.states) for p in self.paths],
+                 list(self.solver.__config_vars__.keys()),
+                 self.se_time)
 
         CM.vsave(tofile, kinfo)
 
@@ -81,25 +84,26 @@ class Kbuild:
         assert isinstance(mysettings, settings.Settings), mysettings
 
         kinfo = CM.vload(fromfile)
-        makefile, se_time, typ_info, path_info = kinfo
+        makefile, paths_info, config_names, se_time = kinfo
 
         paths = Paths([
             Path(zsolver.from_smt2_str(cond), states, mysettings)
-            for cond, states in path_info
+            for cond, states in paths_info
         ])
         kbuild = Kbuild(makefile, mysettings)
+        kbuild.solver.reconstruct(config_names)
         kbuild.se_time = se_time
         kbuild.paths = paths
-        kbuild.typ_info = zsolver.ZSolver.load_obj(typ_info)
         return kbuild
 
 
-class Eval(object):
-    def __init__(self, states, solver):
+class Eval:
+    def __init__(self, states, solver, mysettings):
         assert isinstance(states, dict), states
 
         self.states = states
         self.solver = solver
+        self.mysettings = mysettings
 
     @staticmethod
     def combine(ts, delim=''):
@@ -128,6 +132,7 @@ class Eval(object):
         assert isinstance(val, str), val
 
         val = val.strip()
+
         if val:
             return self.do_fake_expansion(val)
         else:
@@ -296,20 +301,23 @@ class Eval(object):
                     vals = self.do_fake_expansion(v.vals_str)
                 else:
                     vals = [(v.vals_str, zsolver.T)]
-            elif name.startswith(settings.sym_prefix):
+
+            elif (self.mysettings.is_copt(name) or
+                  self.mysettings.is_xopt(name)):
                 vals = self.do_config_var(name)
             else:
                 mlog.warn("'{}' undefined in path".format(name))
-                vals = [(self.solver.undef_val, zsolver.T)]
+                vals = [(self.solver.undef_str, zsolver.T)]
             rs.extend(vals)
         return rs
 
     def do_config_var(self, name):
-        assert name.startswith(settings.sym_prefix), name
+        assert (self.mysettings.is_copt(name) or
+                self.mysettings.is_xopt(name)), name
 
-        s = self.solver.get_tristate_sort(name)
+        symbol, optd = self.solver.get_sort(name)
 
-        vals = [(k, s == self.solver.COptD[k]) for k in self.solver.COptD]
+        vals = [(k, symbol == optd[k]) for k in optd]
         return vals
 
     def get_fun_arg_vals(self, fun, nargs):
@@ -442,14 +450,14 @@ class SetVariable(ParserData):
 
         nameexp = self.stmt.vnameexp
         token = self.stmt.token   # :=
-        val = self.stmt.value
+        val = self.stmt.value.strip()
 
-        myeval = Eval(path.states, self.solver)
+        myeval = Eval(path.states, self.solver, self.mysettings)
         names = myeval.do_expansion(nameexp)
 
         # [('CFLAGS_wp512.o', True)]
         if len(names) == 1 and self.mysettings.ignore_symbol(names[0][0]):
-            mlog.warn("ignoring '{}'".format(names[0][0]))
+            mlog.warn("ignoring setvar '{}'".format(names[0][0]))
             return Paths([path])
 
         unexpanded = token == "="
@@ -505,7 +513,7 @@ class ConditionBlock(ParserData):
         """
         evaluation arguments of the condition and return a Z3 condition
         """
-        myeval = Eval(path.states, self.solver)
+        myeval = Eval(path.states, self.solver, self.mysettings)
 
         if isinstance(cond, parserdata.EqCondition):
             exps1 = myeval.do_expansion(cond.exp1)
@@ -520,7 +528,7 @@ class ConditionBlock(ParserData):
             exp = "$({})".format(cond.exp.s)
             exp = myeval.do_fake_expansion(exp)
 
-            exp_undef = [(self.solver.undef_val, zsolver.T)]
+            exp_undef = [(self.solver.undef_str, zsolver.T)]
             undef_cond = self.get_eq_cond(exp, exp_undef)
 
             return zsolver.neg(undef_cond) if cond.expected else undef_cond
@@ -593,7 +601,7 @@ class Include(ParserData):
         super().__init__(stmt, paths, solver, mysettings)
 
     def parse_single(self, path):
-        myeval = Eval(path.states, self.solver)
+        myeval = Eval(path.states, self.solver, self.mysettings)
         exp = myeval.do_expansion(self.stmt.exp)
         paths = []
         for include_file, include_cond in exp:
