@@ -30,16 +30,18 @@ class Analysis:
                 if c not in self.config_vars:
                     self.config_vars[c] = kbuild.solver.__config_vars__[c]
 
-        mlog.debug("{}: {}, {} kbuilds, {} config vars".format(
-            result_dir, self.mysettings.zstate.__class__.__name__,
-            len(self.kbuilds), len(self.config_vars)))
-
         kfiles_d = self.get_kfiles(None, self.main_dir)
         self.kfiles = frozenset(itertools.chain(*kfiles_d.values()))
 
         # remove files in lib- or obj-
-        mlog.info("{} kfiles: {} files, {} config vars".format(
+        mlog.info("{}: {} {} kfiles, {} files, {} config vars".format(
+            result_dir,
+            self.mysettings.zstate.__class__.__name__,
             len(self.kbuilds), len(self.kfiles), len(self.config_vars)))
+
+        for i, kbuild in enumerate(self.kbuilds):
+            mlog.debug("{}. {}\n{}".format(
+                i + 1, kbuild.makefile, kbuild.paths))
 
     def go(self, args):
         if args.src_dir:
@@ -165,22 +167,42 @@ class Analysis:
         solver = zsolver.ZSolver(self.mysettings) \
             if z3.is_expr(constraint) else None
 
+        paths = [(p, kbuild.makefile)
+                 for kbuild in self.kbuilds
+                 for p in kbuild.paths
+                 if (constraint is None or
+                     solver.is_valid(z3.Implies(constraint, p.cond)))]
+
         files_d = {}
-        for kbuild in self.kbuilds:
-            for path in kbuild.paths:
-                if constraint is None or \
-                   solver.is_valid(z3.Implies(constraint, path.cond)):
-                    for v in path.target_files:
-                        assert isinstance(v, Var), v
+        for path, makefile in paths:
+            print(path)
+            print(path.target_files)
+            for v in path.target_files:
+                assert isinstance(v, Var), v
 
-                        if v.name in self.mysettings.target_vars:
-                            continue  # ignore obj-, lib-
+                if v.name in self.mysettings.target_vars:
+                    continue  # ignore obj-, lib-
 
-                        tfiles_ = [kbuild.makefile.parent / f
-                                   for f in v.vals if f.endswith('.o')]
-                        tfiles_ = [f.relative_to(main_dir) for f in tfiles_]
-                        files_d.setdefault(v.name, []).extend(tfiles_)
+                vals = [self.expand(v, path.vals_d) for v in v.vals
+                        if v.endswith('.o')]
+                vals = list(itertools.chain(*vals))
+                tfiles_ = [makefile.parent / f for f in vals]
+                tfiles_ = [f.relative_to(main_dir) for f in tfiles_]
+                files_d.setdefault(v.name, []).extend(tfiles_)
         return files_d
+
+    @classmethod
+    def expand(cls, val_name, d):
+        """
+        val_name = files2.o
+        d = {files2-y:{1.o, 2.o}}
+        =>
+        1.o, 2.o
+        """
+
+        key = val_name[:-2] + '-y'  # files2.o -> files2-y
+        ret = list(d.get(key, frozenset([]))) + [val_name]
+        return ret
 
     @classmethod
     def get_files_from_dir(cls, build_dir, ignore_dirs, ignore_files):

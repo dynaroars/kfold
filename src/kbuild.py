@@ -349,7 +349,6 @@ class ParserData(object):
             try:
                 new_paths_ = self.parse_single(path)
             except NotImplementedError as ex:
-                raise
                 mlog.warn(ex)
                 new_paths_ = Paths([path])
 

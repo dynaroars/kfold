@@ -200,6 +200,15 @@ class Path:
         return [self.states[name] for name in self.states
                 if self.is_target(name)]
 
+    @property
+    def vals_d(self):
+        try:
+            return self._vals_d
+        except AttributeError:
+            self._vals_d = {self.states[name].name: self.states[name].vals
+                            for name in self.states}
+            return self._vals_d
+
     def is_target(self, t):
         return any(t.startswith(x) for x in self.mysettings.target_vars)
 
