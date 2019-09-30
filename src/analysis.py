@@ -122,16 +122,6 @@ class Analysis:
             "gfiles: excluding {} files not in top_dirs, {} remains"
             .format(len(removes), len(gfiles)))
 
-        # print(gfiles)
-
-        # # remove util-linux/volume_id/unused_*.c
-        # removes = set(f for f in sfiles if 'used_' in f)
-        # for f in removes:
-        #     sfiles.pop(f)
-
-        # mlog.debug(
-        #     "{} files (- {} unsed)".format(len(sfiles), len(removes)))
-
         if gfiles:
             mlog.debug("W: {} files unaccounted for\n{}"
                        .format(len(gfiles), '\n'.join(map(str, gfiles))))

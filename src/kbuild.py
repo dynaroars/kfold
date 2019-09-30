@@ -44,7 +44,8 @@ class Kbuild:
 
         mlog.info("{}: {} paths ({:.2f}s)".format(
             self.makefile, len(self.paths), self.se_time))
-        mlog.debug(self.paths)
+        if settings.detail:
+            print(self.paths)
 
     def myfork(self, new_cond):
         assert z3.is_expr(new_cond), new_cond
@@ -136,7 +137,7 @@ class Eval:
         if val:
             return self.do_fake_expansion(val)
         else:
-            return [('', zsolver.T)]
+            return [('', zsolver.T)]  # TVN: todo
 
     def do_fake_expansion(self, expansion):
         assert isinstance(expansion, str), expansion
@@ -194,6 +195,10 @@ class Eval:
             isinstance(fun._arguments[3], data.StringExpansion) and
                 'no' in fun._arguments[3].s):
             return [('yes', zsolver.T), ('no', zsolver.T)]
+        # elif (len(fun._arguments) == 2 and
+        #       isinstance(fun._arguments[0], data.StringExpansion) and
+        #       'cc-option' == fun._arguments[0]):
+        #     return [('', zsolver.T)]  # TVN: todo
 
         raise NotImplementedError(
             "{}: {}".format(fun.__class__.__name__, fun))
@@ -306,7 +311,7 @@ class Eval:
                   self.mysettings.is_xopt(name)):
                 vals = self.do_config_var(name)
             else:
-                mlog.warn("'{}' undefined in path".format(name))
+                mlog.debug("'{}' undefined in path".format(name))
                 vals = [(self.solver.undef_str, zsolver.T)]
             rs.extend(vals)
         return rs
@@ -341,7 +346,13 @@ class ParserData(object):
         st = time()
         new_paths = Paths()
         for i, path in enumerate(self.paths):
-            new_paths_ = self.parse_single(path)
+            try:
+                new_paths_ = self.parse_single(path)
+            except NotImplementedError as ex:
+                raise
+                mlog.warn(ex)
+                new_paths_ = Paths([path])
+
             new_paths.extend(new_paths_)
 
         if isinstance(self, StatementList):
@@ -404,7 +415,7 @@ class StatementList(ParserData):
         stmts = self.stmt
 
         for i, stmt in enumerate(stmts):
-            mlog.debug("{}/{}. {} paths hit stmt '{}'".format(
+            mlog.info("{}/{}. {} paths hit stmt '{}'".format(
                 i + 1, len(stmts),  len(paths), stmt.to_source().strip()))
 
             if isinstance(stmt, parserdata.SetVariable):
