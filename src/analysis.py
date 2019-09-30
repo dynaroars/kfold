@@ -175,20 +175,22 @@ class Analysis:
 
         files_d = {}
         for path, makefile in paths:
-            print(path)
-            print(path.target_files)
+            vals_d = None
             for v in path.target_files:
                 assert isinstance(v, Var), v
 
                 if v.name in self.mysettings.target_vars:
                     continue  # ignore obj-, lib-
 
-                vals = [self.expand(v, path.vals_d) for v in v.vals
-                        if v.endswith('.o')]
-                vals = list(itertools.chain(*vals))
-                tfiles_ = [makefile.parent / f for f in vals]
-                tfiles_ = [f.relative_to(main_dir) for f in tfiles_]
-                files_d.setdefault(v.name, []).extend(tfiles_)
+                if vals_d is None:
+                    vals_d = path.vals_d
+
+                fs = [self.expand(v, vals_d)
+                      for v in v.vals if v.endswith('.o')]
+                fs = [makefile.parent / f for f in itertools.chain(*fs)]
+
+                fs = [f.relative_to(main_dir) for f in fs]
+                files_d.setdefault(v.name, []).extend(fs)
         return files_d
 
     @classmethod
@@ -201,7 +203,7 @@ class Analysis:
         """
 
         key = val_name[:-2] + '-y'  # files2.o -> files2-y
-        ret = list(d.get(key, frozenset([]))) + [val_name]
+        ret = list(d.get(key, set([]))) + [val_name]
         return ret
 
     @classmethod
