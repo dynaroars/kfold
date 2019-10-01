@@ -1,7 +1,6 @@
 from collections import OrderedDict
 import itertools
 from time import time
-import os.path
 import pathlib
 import pdb
 import z3
@@ -24,30 +23,21 @@ class Kbuild:
         assert makefile.is_file(), makefile
         assert isinstance(mysettings, settings.Settings), mysettings
 
-        self.topdir = makefile.parent
         self.makefile = makefile
         self.mysettings = mysettings
         self.solver = zsolver.ZSolver(self.mysettings)
-
-        mlog.info("Kbuild for '{}'".format(self.makefile))
 
     def symexe(self):
         st = time()
         self.stmts = parser.parsestring(
             self.makefile.read_text(), self.makefile)
 
-        path = Path.get_default(self.topdir, self.mysettings)
+        path = Path.get_default(self.makefile.parent, self.mysettings)
         stmts = StatementList(
             self.stmts, Paths([path]), self.solver, self.mysettings)
         self.paths = stmts.parse()
-        self.se_time = time() - st
 
-        mlog.info("{}: {} paths ({:.2f}s)".format(
-            self.makefile, len(self.paths), self.se_time))
-        if settings.detail:
-            print(self.paths)
-
-    def myfork(self, new_cond):
+    def fork(self, new_cond):
         assert z3.is_expr(new_cond), new_cond
 
         kbuild = self.__class__(self.makefile, self.mysettings)
@@ -60,8 +50,6 @@ class Kbuild:
                 new_path = path.fork(cond)
                 paths.append(new_path)
         kbuild.paths = Paths(paths)
-
-        kbuild.se_time = 0.0
         return kbuild
 
     def save(self, tofile):
@@ -74,9 +62,9 @@ class Kbuild:
 
         kinfo = (self.makefile,
                  [(zsolver.to_smt2_str(p.cond), p.states) for p in self.paths],
-                 list(self.solver.__config_vars__.keys()),
-                 self.se_time)
+                 list(self.solver.__config_vars__.keys()))
 
+        assert not tofile.exists(), tofile
         CM.vsave(tofile, kinfo)
 
     @staticmethod
@@ -85,7 +73,7 @@ class Kbuild:
         assert isinstance(mysettings, settings.Settings), mysettings
 
         kinfo = CM.vload(fromfile)
-        makefile, paths_info, config_names, se_time = kinfo
+        makefile, paths_info, config_names = kinfo
 
         paths = Paths([
             Path(zsolver.from_smt2_str(cond), states, mysettings)
@@ -93,7 +81,6 @@ class Kbuild:
         ])
         kbuild = Kbuild(makefile, mysettings)
         kbuild.solver.reconstruct(config_names)
-        kbuild.se_time = se_time
         kbuild.paths = paths
         return kbuild
 
@@ -377,8 +364,9 @@ class ParserData(object):
         merge_paths = split_paths.merge()
         et_merge = time() - st_merge
 
-        mlog.debug("--- MERGE --- ({} paths):\n{}".format(
-            len(merge_paths), merge_paths))
+        if settings.detail:
+            print("--- MERGE --- ({} paths):\n{}".format(
+                len(merge_paths), merge_paths))
 
         mlog.debug("paths: orig {}, new {} ({:2f}), "
                    "split {} ({:02f}), "
@@ -405,7 +393,7 @@ class ParserData(object):
 class StatementList(ParserData):
     def __init__(self, stmt, paths, solver, mysettings):
         assert isinstance(stmt, parserdata.StatementList), stmt
-
+        assert isinstance(paths, Paths), paths
         super().__init__(stmt, paths, solver, mysettings)
 
     def parse_single(self, path):
@@ -414,7 +402,7 @@ class StatementList(ParserData):
         stmts = self.stmt
 
         for i, stmt in enumerate(stmts):
-            mlog.info("{}/{}. {} paths hit stmt '{}'".format(
+            mlog.debug("{}/{}. {} paths hit stmt '{}'".format(
                 i + 1, len(stmts),  len(paths), stmt.to_source().strip()))
 
             if isinstance(stmt, parserdata.SetVariable):
@@ -618,25 +606,25 @@ class Include(ParserData):
             assert include_file, include_file
             assert len(include_file.split()) == 1
 
-            if not os.path.exists(include_file):
-                mlog.warn(
-                    "include file '{}' does not exist".format(include_file))
-                continue
+            include_file = pathlib.Path(include_file)
+            if not include_file.is_file():
+                include_file = self.mysettings.main_dir / include_file
+                if not include_file.is_file():
+                    mlog.warn("include file '{}' does not exist".format(
+                        include_file))
+                    continue
 
             new_path = self.get_new_path(path, include_cond)
             if not new_path:
                 continue
 
-            fh = open(include_file, "rU")
-            stmts = fh.read()
-            fh.close()
-            stmts = parser.parsestring(stmts, fh.name)
-            stmt_list = StatementList(stmts, [new_path], self.solver,
+            stmts = parser.parsestring(include_file.read_text(), include_file)
+            stmt_list = StatementList(stmts, Paths([new_path]), self.solver,
                                       self.mysettings)
             paths_ = stmt_list.parse()
             paths.extend(paths_)
 
-        return paths
+        return Paths(paths if paths else [path])
 
 
 class Command(ParserData):

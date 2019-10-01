@@ -16,8 +16,6 @@ detail = False
 
 RESULT_SINFO = 'sinfo'
 
-settings_file = 'skbuild.ini'
-
 
 # Linux config var that might not be tristate
 # CONFIG_EXTRA_FIRMWARE_DIR in /firmware/Makefile
@@ -55,9 +53,13 @@ mlog = CM.getLogger(__name__, logger_level)
 
 
 class Settings:
+    filename = 'skbuild.ini'
 
-    def __init__(self, settings_file):
+    def __init__(self, main_dir):
+        assert main_dir.is_dir(), main_dir
+
         # default values
+        self.main_dir = main_dir   # original inpt dir
         self.zstate = TwoState()
         self.top_dirs = []
         self.ignore_dirs = frozenset()
@@ -68,6 +70,7 @@ class Settings:
         self.target_vars = frozenset(["obj-", "lib-"])
         self.ignore_vars = frozenset(["src"])
 
+        settings_file = main_dir / self.filename
         if not settings_file.is_file():
             return
 

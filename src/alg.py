@@ -22,13 +22,15 @@ class Run:
         paths is a list of paths to either makefiles or directories
         """
         self.main_dir = main_dir.resolve()
-        self.mysettings = settings.Settings(
-            self.main_dir / settings.settings_file)
+        self.mysettings = settings.Settings(self.main_dir)
 
     def go(self):
         st = time()
         self.tmpdir = pathlib.Path(tempfile.mkdtemp(
-            dir=settings.tmpdir, prefix="skbuild"))
+            dir=settings.tmpdir, prefix="skbuild_"))
+
+        sinfo = (self.main_dir, self.mysettings)
+        CM.vsave(self.tmpdir / settings.RESULT_SINFO, sinfo)
 
         default_cond = None
 
@@ -42,44 +44,43 @@ class Run:
                      self.get_makefiles(top_dirs)]
         assert makefiles
 
-        results = set()  # (makefile, cond)
+        nkbuilds = 0  # number of created kbuilds
         cache = {}  # makefile -> kbuild
-
         while makefiles:
-            kbuilds = []
+            tmp_kbuilds = []
             for makefile, cond in makefiles:
                 kbuild = cache.setdefault(
                     makefile, self.analyze(makefile))
 
                 if cond is not default_cond:
-                    kbuild = kbuild.myfork(cond)
+                    kbuild = kbuild.fork(cond)
 
-                kbuilds.append(kbuild)
-                results.add(kbuild)
+                tmp_kbuilds.append(kbuild)
 
-            makefiles = self.get_makefiles_from_kbuilds(kbuilds)
+                nkbuilds += 1
+                kbuild.save(self.tmpdir / 'kbuild_{}'.format(nkbuilds))
 
-        mlog.info("obtain {} kbuilds in {:.2f}s".format(
-            len(results), time() - st))
-        self.save(results)
+            makefiles = self.get_makefiles_from_kbuilds(tmp_kbuilds)
+
+        mlog.info("analyzed {} kbuilds in {:.2f}s".format(
+            nkbuilds, time() - st))
+
         return self.tmpdir
 
     def analyze(self, makefile):
         assert makefile.is_file(), makefile
+
+        st = time()
+        mlog.info("analyzing {}".format(makefile))
         kbuild = Kbuild(makefile, self.mysettings)
         kbuild.symexe()
+        mlog.info("{}: {} paths ({:.2f}s)".format(
+            makefile, len(kbuild.paths), time() - st))
+
+        if settings.detail:
+            print(self.paths)
+
         return kbuild
-
-    def save(self, kbuilds):
-        assert isinstance(kbuilds, set) and kbuilds, kbuilds
-
-        result_dir = self.tmpdir
-        assert result_dir.is_dir()
-
-        sinfo = (self.main_dir, self.mysettings)
-        CM.vsave(result_dir / settings.RESULT_SINFO, sinfo)
-        for i, kbuild in enumerate(kbuilds):
-            kbuild.save(result_dir / "kbuild_{}".format(i))
 
     @staticmethod
     def load(result_dir):
@@ -102,7 +103,7 @@ class Run:
 
     @classmethod
     def get_makefiles_from_kbuilds(cls, kbuilds):
-        makefiles = [(path.subdirs(kb.topdir), path.cond)
+        makefiles = [(path.subdirs(kb.makefile.parent), path.cond)
                      for kb in kbuilds for path in kb.paths]
         makefiles = [(subdirs, cond)
                      for subdirs, cond in makefiles if subdirs]
