@@ -40,10 +40,7 @@ class Var(BaseVar):
         assert isinstance(values, frozenset), values
         return self.name == name and values.issubset(self.values)
 
-    def fork(self):
-        return Var(self.name, self.vals, self.flavor, self.mysettings)
-
-    def fork_val(self, vals):
+    def fork_vals(self, vals):
         assert isinstance(vals, frozenset) and vals, vals
         return Var(self.name, vals, self.flavor, self.mysettings)
 
@@ -97,6 +94,8 @@ class Path:
         self.cond = cond
         self.states = states
         self.mysettings = mysettings
+        self.deps = {}
+
         Path.__ct__ += 1
 
     def __del__(self):
@@ -127,7 +126,7 @@ class Path:
         for name, v in self.states.items():
             if ignore_targets and self.is_target(name):
                 continue
-            new_states[name] = v.fork()
+            new_states[name] = v
         return Path(new_cond, new_states, self.mysettings)
 
     def set_var(self, name, token, val):
@@ -135,18 +134,17 @@ class Path:
         assert isinstance(token, str) and token, token
         assert isinstance(val, str), val
 
-        vals = val.split()
+        vals = frozenset(val.split())
+
         if name not in self.states or token in set(["=", ":="]):
-            v = Var(name, frozenset(vals),
-                    Var.get_flavor(token), self.mysettings)
-            self.states[name] = v
+            new_var = Var(name, vals,
+                          Var.get_flavor(token), self.mysettings)
         else:
-            myvar = self.states[name]
-            if token == "+=":
-                new_vals = frozenset(list(myvar.vals) + vals)
-                self.states[name] = myvar.fork_val(new_vals)
-            else:
-                raise NotImplementedError
+            assert token == "+=", token
+            v = self.states[name]
+            new_var = v.fork_vals(v.vals | vals)
+
+        self.states[name] = new_var
 
     def split(self):
         assert self.states
@@ -159,29 +157,31 @@ class Path:
             myvar = self.states[name]
             if not myvar.vals:
                 new_path = self.fork(self.cond, ignore_targets=True)
-                new_path.states[name] = myvar.fork()
+                new_path.states[name] = myvar
                 new_paths.append(new_path)
             else:
                 for v in myvar.vals:
-                    new_path = self.fork(
-                        self.cond, ignore_targets=True)
-                    new_path.states[name] = myvar.fork_val(frozenset([v]))
+                    new_path = self.fork(self.cond, ignore_targets=True)
+                    new_path.states[name] = myvar.fork_vals(frozenset([v]))
                     new_paths.append(new_path)
 
         if not new_paths:
             new_paths.append(self)  # keep path as is
         return new_paths
 
-    def merge_states(self, other):
-        for name in other.states:
-            other_var = other.states[name]
-            assert isinstance(other_var, Var), other_var
+    def merge(self, path):
+        assert isinstance(path, self.__class__), path
+
+        for name in path.states:
+            path_var = path.states[name]
+            assert isinstance(path_var, Var), path_var
             if name in self.states:
-                vals = frozenset(
-                    list(self.states[name].vals) + list(other_var.vals))
-                self.states[name] = self.states[name].fork_val(vals)
+                vals = self.states[name].vals | path_var.vals
+                self.states[name] = self.states[name].fork_vals(vals)
             else:
-                self.states[name] = other_var
+                self.states[name] = path_var
+
+        self.deps.update(path.deps)
 
     @property
     def state_vals(self):
@@ -210,6 +210,27 @@ class Path:
 
     def is_not_target(self, t):
         return not self.is_target(t)
+
+    def update_deps(self, names, deps):
+        assert isinstance(deps, frozenset), deps
+
+        for name in names:
+            self.deps.setdefault(name, set()).update(deps)
+
+    @property
+    def dgraph(self):
+        dgraph_ = {}
+        for name in self.deps:
+            dgraph_.setdefault(name, set()).update(self.deps[name])
+
+        for name in self.states:
+            myvar = self.states[name]
+            dgraph_.setdefault(name, set()).update(myvar.vals)
+
+        for name in dgraph_:
+            assert name not in dgraph_[name]
+
+        return dgraph_
 
     @classmethod
     def get_default(cls, src_dir, mysettings):

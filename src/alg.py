@@ -78,7 +78,7 @@ class Run:
             makefile, len(kbuild.paths), time() - st))
 
         if settings.detail:
-            print(self.paths)
+            print(kbuild.paths)
 
         return kbuild
 
