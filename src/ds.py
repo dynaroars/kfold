@@ -318,6 +318,8 @@ class DPath(BasePath):
     def __init__(self, cond, states, mysettings):
         super().__init__(cond, states, mysettings)
         self.deps = {}
+        # stmt_hash -> (lvals, ldeps), (rvals, rdeps), extradeps
+        self.setvar_d = OrderedDict()
 
     def merge(self, path):
         assert isinstance(path, self.__class__), path

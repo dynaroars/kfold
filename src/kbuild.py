@@ -28,12 +28,14 @@ class Kbuild:
             self.makefile.read_text(), self.makefile)
 
     def symexe(self):
-        stmts = SE.StatementList(self.stmts, self.solver, self.mysettings)
+        stmts = SE.StatementList(
+            self.stmts, tuple(), self.solver, self.mysettings)
 
         mlog.debug("Spying ...")
         dpath = DPath.get_default(self.makefile.parent, self.mysettings)
         stmts.dexe(dpath, frozenset())
-
+        print(dpath.setvar_d)
+        DBG()
         mlog.debug("Symexe ({} used vars) ...".format(len(dpath.used_vars)))
         spath = SPath.get_default(self.makefile.parent, self.mysettings)
         self.paths = stmts.sexe(Paths([spath]), dpath.used_vars)
