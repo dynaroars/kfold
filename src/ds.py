@@ -23,14 +23,14 @@ class Var(BaseVar):
     def __init__(self, name, vals, flavor, mysettings):
         assert isinstance(name, str) and name, name
         assert isinstance(vals, frozenset), vals
-        assert flavor in set([Var.RECURSE, Var.SIMPLY]), flavor
+        assert flavor in set([self.RECURSE, self.SIMPLY]), flavor
         assert isinstance(mysettings, settings.Settings), mysettings
 
         super().__init__()
 
     @property
     def vals_str(self):
-        return ' '.join(sorted(self.vals))
+        return ' '.join(sorted(map(str, self.vals)))
 
     @property
     def is_recurse(self):
@@ -41,11 +41,11 @@ class Var(BaseVar):
         return self.name == name and values.issubset(self.values)
 
     def fork_vals(self, vals):
-        assert isinstance(vals, frozenset) and vals, vals
-        return Var(self.name, vals, self.flavor, self.mysettings)
+        assert isinstance(vals, frozenset), vals
+        return self.__class__(self.name, vals, self.flavor, self.mysettings)
 
     def __str__(self):
-        token = "=" if self.flavor == Var.RECURSE else ":="
+        token = "=" if self.flavor == self.RECURSE else ":="
         return "{} {} {}".format(
             self.name, token, ' '.join(sorted(self.vals)))
 
@@ -57,33 +57,38 @@ class Var(BaseVar):
     def is_undef_target(self):  # obj-, lib-
         return self.name in self.mysettings.target_vars
 
+    @property
+    def subdir_names(self):
+        assert not self.ignorable
+        return [d for d in self.vals if d.endswith('/')]
+
     def subdirs(self, topdir):
         assert topdir.is_dir(), topdir
         assert not self.ignorable
 
-        subdirs = [topdir / d for d in self.vals if d.endswith("/")]
+        subdirs = [topdir / d for d in self.subdir_names]
 
         return subdirs
 
-    @staticmethod
-    def get_flavor(token):
+    @classmethod
+    def get_flavor(cls, token):
         if token in set([":=", "::="]) or token in set(["+="]):
-            flavor = Var.SIMPLY
+            flavor = cls.SIMPLY
         else:
             assert token == "=", token
-            flavor = Var.RECURSE
+            flavor = cls.RECURSE
 
         return flavor
 
-    @staticmethod
-    def src_var(topdir, mysettings):
+    @classmethod
+    def src_var(cls, topdir, mysettings):
         assert topdir.is_dir(), topdir
         assert isinstance(mysettings, settings.Settings), mysettings
 
-        return Var("src", frozenset([topdir]), Var.RECURSE, mysettings)
+        return cls("src", frozenset([topdir]), cls.RECURSE, mysettings)
 
 
-class Path:
+class BasePath:
     __ct__ = 0
 
     def __init__(self, cond, states, mysettings):
@@ -94,12 +99,11 @@ class Path:
         self.cond = cond
         self.states = states
         self.mysettings = mysettings
-        self.deps = {}
 
-        Path.__ct__ += 1
+        self.__ct__ += 1
 
     def __del__(self):
-        Path.__ct__ -= 1
+        self.__ct__ -= 1
 
     def __str__(self):
 
@@ -108,13 +112,6 @@ class Path:
         if ss:
             ss = "{} => {}".format(self.cond, ss)
         return ss
-
-    def subdirs(self, topdir):
-        subdirs_ = [self.states[v].subdirs(topdir)
-                    for v in self.states
-                    if not (self.states[v].ignorable
-                            or self.states[v].is_undef_target)]
-        return frozenset(itertools.chain(*subdirs_))
 
     def fork(self, new_cond, ignore_targets=False):
         """
@@ -127,7 +124,7 @@ class Path:
             if ignore_targets and self.is_target(name):
                 continue
             new_states[name] = v
-        return Path(new_cond, new_states, self.mysettings)
+        return self.__class__(new_cond, new_states, self.mysettings)
 
     def set_var(self, name, token, val):
         assert isinstance(name, str), name
@@ -145,6 +142,31 @@ class Path:
             new_var = v.fork_vals(v.vals | vals)
 
         self.states[name] = new_var
+
+    def is_target(self, t):
+        return any(t.startswith(x) for x in self.mysettings.target_vars)
+
+    @classmethod
+    def get_default(cls, src_dir, mysettings):
+        assert isinstance(src_dir, Var) or src_dir.is_dir(), src_dir
+        assert isinstance(mysettings, settings.Settings), mysettings
+
+        states = {'src': src_dir if isinstance(
+            src_dir, Var) else Var.src_var(src_dir, mysettings)}
+        return cls(zsolver.T, states, mysettings)
+
+
+class SPath(BasePath):
+
+    def __init__(self, cond, states, mysettings):
+        super().__init__(cond, states, mysettings)
+
+    def subdirs(self, topdir):
+        subdirs_ = [self.states[v].subdirs(topdir)
+                    for v in self.states
+                    if not (self.states[v].ignorable
+                            or self.states[v].is_undef_target)]
+        return frozenset(itertools.chain(*subdirs_))
 
     def split(self):
         assert self.states
@@ -169,20 +191,6 @@ class Path:
             new_paths.append(self)  # keep path as is
         return new_paths
 
-    def merge(self, path):
-        assert isinstance(path, self.__class__), path
-
-        for name in path.states:
-            path_var = path.states[name]
-            assert isinstance(path_var, Var), path_var
-            if name in self.states:
-                vals = self.states[name].vals | path_var.vals
-                self.states[name] = self.states[name].fork_vals(vals)
-            else:
-                self.states[name] = path_var
-
-        self.deps.update(path.deps)
-
     @property
     def state_vals(self):
         vals = []
@@ -205,41 +213,8 @@ class Path:
         return {self.states[name].name: self.states[name].vals
                 for name in self.states}
 
-    def is_target(self, t):
-        return any(t.startswith(x) for x in self.mysettings.target_vars)
-
     def is_not_target(self, t):
         return not self.is_target(t)
-
-    def update_deps(self, names, deps):
-        assert isinstance(deps, frozenset), deps
-
-        for name in names:
-            self.deps.setdefault(name, set()).update(deps)
-
-    @property
-    def dgraph(self):
-        dgraph_ = {}
-        for name in self.deps:
-            dgraph_.setdefault(name, set()).update(self.deps[name])
-
-        for name in self.states:
-            myvar = self.states[name]
-            dgraph_.setdefault(name, set()).update(myvar.vals)
-
-        for name in dgraph_:
-            assert name not in dgraph_[name]
-
-        return dgraph_
-
-    @classmethod
-    def get_default(cls, src_dir, mysettings):
-        assert isinstance(src_dir, Var) or src_dir.is_dir(), src_dir
-        assert isinstance(mysettings, settings.Settings), mysettings
-
-        states = {'src': src_dir if isinstance(
-            src_dir, Var) else Var.src_var(src_dir, mysettings)}
-        return cls(zsolver.T, states, mysettings)
 
 
 class Paths(list):
@@ -334,6 +309,97 @@ class Paths(list):
         assert f.is_file(), f
 
         paths_info = CM.vload(f)
-        paths = [Path(zsolver.from_smt_str(smt_str), states)
+        paths = [SPath(zsolver.from_smt_str(smt_str), states)
                  for smt_str, states in paths_info]
         return Paths(paths)
+
+
+class DPath(BasePath):
+    def __init__(self, cond, states, mysettings):
+        super().__init__(cond, states, mysettings)
+        self.deps = {}
+
+    def merge(self, path):
+        assert isinstance(path, self.__class__), path
+
+        for name in path.states:
+            path_var = path.states[name]
+            assert isinstance(path_var, Var), path_var
+            if name in self.states:
+                vals = self.states[name].vals | path_var.vals
+                self.states[name] = self.states[name].fork_vals(vals)
+            else:
+                self.states[name] = path_var
+
+        self.deps.update(path.deps)
+
+    @property
+    def dgraph(self):
+        try:
+            return self._dgraph
+        except AttributeError:
+            _dgraph = {}
+            for name in self.deps:
+                _dgraph.setdefault(name, set()).update(self.deps[name])
+
+            for name in self.states:
+                myvar = self.states[name]
+                _dgraph.setdefault(name, set()).update(myvar.vals)
+
+            for name in _dgraph:
+                if name in _dgraph[name]:
+                    _dgraph[name].remove(name)
+
+            self._dgraph = _dgraph
+            return self._dgraph
+
+    @property
+    def target_deps(self):
+        try:
+            return self._target_deps
+        except AttributeError:
+            target_names = [
+                name for name in self.dgraph if self.is_target(name)]
+            d = {}
+            for name in target_names:
+                deps = set()
+                self.find_deps(name, deps)
+                d[name] = deps
+            self._target_deps = d
+
+            return self._target_deps
+
+    @property
+    def used_vars(self):
+        try:
+            return self._used_vars
+        except AttributeError:
+            _used_vars = [self.target_deps[name]
+                          for name in self.target_deps]
+            _used_vars.append(list(self.target_deps.keys()))
+
+            # also consider name if name is assigned to a subdir, e.g.,
+            # libs-y := subdir/
+            _used_vars.append(
+                name for name in self.dgraph
+                if any(isinstance(d, str) and d.endswith('/')
+                       for d in self.dgraph[name]))
+
+            self._used_vars = frozenset(itertools.chain(*_used_vars))
+            return self._used_vars
+
+    def find_deps(self, name, deps):
+        assert name in self.dgraph, name
+
+        dep_names = set()
+        for dname in self.dgraph[name]:
+            if dname in deps:
+                mlog.warn('Potential dep cycle: {}'.format(dname))
+            else:
+                dep_names.add(dname)
+
+        deps.update(dep_names)
+        for dname in dep_names:
+            if dname not in self.dgraph:
+                continue
+            self.find_deps(dname, deps)

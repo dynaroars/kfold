@@ -7,7 +7,7 @@ from pymake3 import parser
 import helpers.vcommon as CM
 import helpers.zsolver as zsolver
 
-from ds import Path, Paths
+from ds import SPath, DPath, Paths
 import symexe as SE
 
 import settings
@@ -30,12 +30,13 @@ class Kbuild:
     def symexe(self):
         stmts = SE.StatementList(self.stmts, self.solver, self.mysettings)
 
-        dpath = Path.get_default(self.makefile.parent, self.mysettings)
-        stmts.spy_i(dpath, frozenset())
-        print(dpath.deps)
-        DBG()
-        spath = Path.get_default(self.makefile.parent, self.mysettings)
-        self.paths = stmts.symexe(Paths([spath]))
+        mlog.debug("Spying ...")
+        dpath = DPath.get_default(self.makefile.parent, self.mysettings)
+        stmts.dexe(dpath, frozenset())
+
+        mlog.debug("Symexe ({} used vars) ...".format(len(dpath.used_vars)))
+        spath = SPath.get_default(self.makefile.parent, self.mysettings)
+        self.paths = stmts.sexe(Paths([spath]), dpath.used_vars)
 
     def fork(self, new_cond):
         assert z3.is_expr(new_cond), new_cond
@@ -58,13 +59,12 @@ class Kbuild:
         note things are a bit complex because
         Z3 data structures cannot be saved directly to file
         """
-        assert isinstance(tofile, pathlib.Path) and tofile, tofile
-
+        assert (isinstance(tofile, pathlib.Path)
+                and not tofile.exists() and tofile), tofile
         kinfo = (self.makefile,
                  [(zsolver.to_smt2_str(p.cond), p.states) for p in self.paths],
                  list(self.solver.__config_vars__.keys()))
 
-        assert not tofile.exists(), tofile
         CM.vsave(tofile, kinfo)
 
     @staticmethod
@@ -76,7 +76,7 @@ class Kbuild:
         makefile, paths_info, config_names = kinfo
 
         paths = Paths([
-            Path(zsolver.from_smt2_str(cond), states, mysettings)
+            SPath(zsolver.from_smt2_str(cond), states, mysettings)
             for cond, states in paths_info
         ])
         kbuild = Kbuild(makefile, mysettings)

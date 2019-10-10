@@ -59,8 +59,8 @@ class Miscs:
             Q = Queue()
             n_cpus = cpu_count()
             wloads = cls.get_workload(tasks, n_cpus=n_cpus)
-            mlog.debug("{}:running {} jobs using {} threads: {}".format(
-                taskname, len(tasks), len(wloads), list(map(len, wloads))))
+            # mlog.debug("{}:running {} jobs using {} threads: {}".format(
+            #     taskname, len(tasks), len(wloads), list(map(len, wloads))))
 
             workers = [Process(target=wprocess, args=(wl, Q)) for wl in wloads]
 
