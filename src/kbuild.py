@@ -34,7 +34,7 @@ class Kbuild:
         mlog.debug("Spying ...")
         dpath = DPath.get_default(self.makefile.parent, self.mysettings)
         stmts.dexe(dpath, frozenset())
-        print(dpath.setvar_d)
+        dpath.compute_dep()
         DBG()
         mlog.debug("Symexe ({} used vars) ...".format(len(dpath.used_vars)))
         spath = SPath.get_default(self.makefile.parent, self.mysettings)

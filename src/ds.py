@@ -133,11 +133,10 @@ class BasePath:
 
         vals = frozenset(val.split())
 
-        if name not in self.states or token in set(["=", ":="]):
+        if name not in self.states or self.check_token(token):
             new_var = Var(name, vals,
                           Var.get_flavor(token), self.mysettings)
         else:
-            assert token == "+=", token
             v = self.states[name]
             new_var = v.fork_vals(v.vals | vals)
 
@@ -215,6 +214,10 @@ class SPath(BasePath):
 
     def is_not_target(self, t):
         return not self.is_target(t)
+
+    @classmethod
+    def check_token(cls, token):
+        return token in set(["=", ":="])
 
 
 class Paths(list):
@@ -318,22 +321,11 @@ class DPath(BasePath):
     def __init__(self, cond, states, mysettings):
         super().__init__(cond, states, mysettings)
         self.deps = {}
-        # stmt_hash -> (lvals, ldeps), (rvals, rdeps), extradeps
-        self.setvar_d = OrderedDict()
+        self.dep_db = DepDB()  # stmt_hash -> DepInfo
 
-    def merge(self, path):
-        assert isinstance(path, self.__class__), path
-
-        for name in path.states:
-            path_var = path.states[name]
-            assert isinstance(path_var, Var), path_var
-            if name in self.states:
-                vals = self.states[name].vals | path_var.vals
-                self.states[name] = self.states[name].fork_vals(vals)
-            else:
-                self.states[name] = path_var
-
-        self.deps.update(path.deps)
+    @classmethod
+    def check_token(cls, token):
+        return False
 
     @property
     def dgraph(self):
@@ -403,5 +395,108 @@ class DPath(BasePath):
         deps.update(dep_names)
         for dname in dep_names:
             if dname not in self.dgraph:
+                continue
+            self.find_deps(dname, deps)
+
+    def add_dep(self, stmt, sid, lvals, ldeps, rvals, rdeps, xdeps):
+        assert isinstance(sid, tuple) and sid not in self.dep_db, sid
+        self.dep_db[sid] = DepInfo(stmt, lvals, ldeps, rvals, rdeps, xdeps)
+
+    def compute_dep(self):
+        self.dep_db.compute(self.mysettings.target_vars)
+
+
+class DepInfo:
+    def __init__(self, stmt, lvals, ldeps, rvals, rdeps, xdeps):
+        assert isinstance(lvals, frozenset), lvals
+        assert isinstance(ldeps, frozenset), ldeps
+        assert isinstance(rvals, frozenset), rvals
+        assert isinstance(rdeps, frozenset), rdeps
+        assert isinstance(xdeps, frozenset), xdeps
+
+        self.stmt = stmt
+        self.lvals = lvals
+        self.ldeps = ldeps
+        self.rvals = rvals
+        self.rdeps = rdeps
+        self.xdeps = xdeps
+
+    def __str__(self):
+        def _str(fs): return ' '.join(map(str, fs))
+
+        return "{} -> {}, {}; {}, {}; {}".format(
+            self.stmt.to_source().strip(),
+            _str(self.lvals), _str(self.ldeps),
+            _str(self.rvals), _str(self.rdeps),
+            _str(self.xdeps))
+
+    @property
+    def deps(self):
+        return self.lvals | self.ldeps | self.rvals | self.rdeps | self.xdeps
+
+    @property
+    def no_deps(self):
+        return not self.deps
+
+
+class DepDB(OrderedDict):
+    def __str__(self):
+        return '\n'.join("{}: {}".format(
+            ','.join(map(str, sid)), self[sid]) for sid in self)
+
+    @property
+    def lvals(self):
+        lvals_ = set()
+        for di in self.values():
+            lvals_.update(di.lvals)
+        return lvals_
+
+    def compute(self, target_vars):
+
+        # compute dependency for all files
+        dep_d = {}
+        for sid in self:
+            di = self[sid]
+            for name in di.lvals:
+                dep_d.setdefault(name, set()).update(
+                    di.ldeps | di.rvals | di.rdeps | di.xdeps)
+        self.dep_d = dep_d
+
+        # compute dependency for target files
+        target_names = [v for v in dep_d
+                        if any(v.startswith(x) for x in target_vars)]
+        dep_t = {}
+        for name in target_names:
+            deps = set()
+            self.find_deps(name, deps)
+            dep_t[name] = deps
+        self.dep_t = dep_t
+
+        # compute vars that are required by target files
+        used_vars = {}
+        used_vars = [dep_t[name] for name in dep_t]
+        used_vars.append(list(dep_t.keys()))
+
+        # also consider name if name is assigned to a subdir, e.g.,
+        # libs-y := subdir/
+        used_vars.append(name for name in dep_d
+                         if any(isinstance(d, str) and d.endswith('/') for d in dep_d[name]))
+
+        used_vars = frozenset(itertools.chain(*used_vars))
+        self.used_vars = used_vars
+
+    def find_deps(self, name, deps):
+        assert name in self.dep_d, name
+
+        dep_names = set()
+        for dname in self.dep_d[name]:
+            if dname in deps:
+                mlog.warn('Potential dep cycle: {}'.format(dname))
+            else:
+                dep_names.add(dname)
+
+        deps.update(dep_names)
+        for dname in dep_names:
+            if dname not in self.dep_d:
                 continue
             self.find_deps(dname, deps)
