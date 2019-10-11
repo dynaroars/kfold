@@ -2,12 +2,14 @@ from collections import namedtuple, OrderedDict
 import itertools
 import pdb
 
+from pymake3 import parserdata
 import z3
 
 import settings
 import helpers.vcommon as CM
 from helpers.miscs import Miscs
 import helpers.zsolver as zsolver
+
 
 mlog = CM.getLogger(__name__, settings.logger_level)
 
@@ -320,90 +322,18 @@ class Paths(list):
 class DPath(BasePath):
     def __init__(self, cond, states, mysettings):
         super().__init__(cond, states, mysettings)
-        self.deps = {}
-        self.dep_db = DepDB()  # stmt_hash -> DepInfo
+        self.ddb = DepDB()  # stmt_hash -> DepInfo
 
     @classmethod
     def check_token(cls, token):
         return False
 
-    @property
-    def dgraph(self):
-        try:
-            return self._dgraph
-        except AttributeError:
-            _dgraph = {}
-            for name in self.deps:
-                _dgraph.setdefault(name, set()).update(self.deps[name])
-
-            for name in self.states:
-                myvar = self.states[name]
-                _dgraph.setdefault(name, set()).update(myvar.vals)
-
-            for name in _dgraph:
-                if name in _dgraph[name]:
-                    _dgraph[name].remove(name)
-
-            self._dgraph = _dgraph
-            return self._dgraph
-
-    @property
-    def target_deps(self):
-        try:
-            return self._target_deps
-        except AttributeError:
-            target_names = [
-                name for name in self.dgraph if self.is_target(name)]
-            d = {}
-            for name in target_names:
-                deps = set()
-                self.find_deps(name, deps)
-                d[name] = deps
-            self._target_deps = d
-
-            return self._target_deps
-
-    @property
-    def used_vars(self):
-        try:
-            return self._used_vars
-        except AttributeError:
-            _used_vars = [self.target_deps[name]
-                          for name in self.target_deps]
-            _used_vars.append(list(self.target_deps.keys()))
-
-            # also consider name if name is assigned to a subdir, e.g.,
-            # libs-y := subdir/
-            _used_vars.append(
-                name for name in self.dgraph
-                if any(isinstance(d, str) and d.endswith('/')
-                       for d in self.dgraph[name]))
-
-            self._used_vars = frozenset(itertools.chain(*_used_vars))
-            return self._used_vars
-
-    def find_deps(self, name, deps):
-        assert name in self.dgraph, name
-
-        dep_names = set()
-        for dname in self.dgraph[name]:
-            if dname in deps:
-                mlog.warn('Potential dep cycle: {}'.format(dname))
-            else:
-                dep_names.add(dname)
-
-        deps.update(dep_names)
-        for dname in dep_names:
-            if dname not in self.dgraph:
-                continue
-            self.find_deps(dname, deps)
-
     def add_dep(self, stmt, sid, lvals, ldeps, rvals, rdeps, xdeps):
-        assert isinstance(sid, tuple) and sid not in self.dep_db, sid
-        self.dep_db[sid] = DepInfo(stmt, lvals, ldeps, rvals, rdeps, xdeps)
+        assert isinstance(sid, tuple) and sid not in self.ddb, sid
+        self.ddb[sid] = DepInfo(stmt, lvals, ldeps, rvals, rdeps, xdeps)
 
     def compute_dep(self):
-        self.dep_db.compute(self.mysettings.target_vars)
+        self.ddb.compute(self.mysettings.target_vars)
 
 
 class DepInfo:
@@ -444,6 +374,16 @@ class DepDB(OrderedDict):
         return '\n'.join("{}: {}".format(
             ','.join(map(str, sid)), self[sid]) for sid in self)
 
+    def skip(self, sid):
+        if sid not in self:
+            return False
+
+        di = self[sid]
+        assert isinstance(
+            di.stmt, parserdata.SetVariable), di.stmt.to_source().strip()
+
+        return all(name not in self.used_vars for name in di.lvals)
+
     @property
     def lvals(self):
         lvals_ = set()
@@ -473,14 +413,14 @@ class DepDB(OrderedDict):
         self.dep_t = dep_t
 
         # compute vars that are required by target files
-        used_vars = {}
         used_vars = [dep_t[name] for name in dep_t]
         used_vars.append(list(dep_t.keys()))
 
         # also consider name if name is assigned to a subdir, e.g.,
         # libs-y := subdir/
         used_vars.append(name for name in dep_d
-                         if any(isinstance(d, str) and d.endswith('/') for d in dep_d[name]))
+                         if any(isinstance(d, str) and d.endswith('/')
+                                for d in dep_d[name]))
 
         used_vars = frozenset(itertools.chain(*used_vars))
         self.used_vars = used_vars

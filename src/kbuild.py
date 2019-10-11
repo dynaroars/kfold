@@ -35,10 +35,11 @@ class Kbuild:
         dpath = DPath.get_default(self.makefile.parent, self.mysettings)
         stmts.dexe(dpath, frozenset())
         dpath.compute_dep()
-        DBG()
-        mlog.debug("Symexe ({} used vars) ...".format(len(dpath.used_vars)))
+
+        mlog.debug("Symexe ({} used vars) ...".format(
+            len(dpath.ddb.used_vars)))
         spath = SPath.get_default(self.makefile.parent, self.mysettings)
-        self.paths = stmts.sexe(Paths([spath]), dpath.used_vars)
+        self.paths = stmts.sexe(Paths([spath]), dpath.ddb)
 
     def fork(self, new_cond):
         assert z3.is_expr(new_cond), new_cond
