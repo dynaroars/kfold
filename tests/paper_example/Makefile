@@ -18,8 +18,15 @@ obj-y += mytest-$(TESTTEST)
 
 obj-y += scan.o   #safe, doesn't depend on any vars expansion  (topdir, hash(stmt)) -> Var(...)
 
-NOTUSED-$(CONFIG_A) := obj-y   #ignore ..
-
+NOTUSED-$(CONFIG_1) := 1 
+NOTUSED-$(CONFIG_2) := 2
+NOTUSED-$(CONFIG_3) := 3
+NOTUSED-$(CONFIG_4) := 4
+NOTUSED-$(CONFIG_5) := 5
+NOTUSED-$(CONFIG_6) := 6
+NOTUSED-$(CONFIG_7) := 7
+NOTUSED-$(CONFIG_8) := 8
+NOTUSED-$(CONFIG_9) := 9 
 
 
 # obj-*   (e.g., obj-y,  obj-m)
