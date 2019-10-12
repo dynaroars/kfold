@@ -1,5 +1,4 @@
-from __future__ import print_function
-
+from abc import ABC, abstractmethod
 import logging
 import re
 import os
@@ -17,7 +16,7 @@ _log = logging.getLogger('pymake.data')
 _tabwidth = 4
 
 
-class Location(object):
+class Location:
     """
     A location within a makefile.
 
@@ -114,7 +113,7 @@ def parsecommandlineargs(args):
     return stmts, r, ' '.join(overrides)
 
 
-class Statement(object):
+class Statement(ABC):
     """
     Represents parsed make file syntax.
 
@@ -122,26 +121,32 @@ class Statement(object):
     basic methods defined below.
     """
 
+    def __init__(self, sid):
+        self.sid = None
+
+    @abstractmethod
     def execute(self, makefile, context):
         """Executes this Statement within a make file execution context."""
-        raise Exception("%s must implement execute()." % self.__class__)
+        pass
 
+    @abstractmethod
     def to_source(self):
         """Obtain the make file "source" representation of the Statement.
 
         This converts an individual Statement back to a string that can again
         be parsed into this Statement.
         """
-        raise Exception("%s must implement to_source()." % self.__class__)
+        pass
 
+    @abstractmethod
     def __eq__(self, other):
-        raise Exception("%s must implement __eq__." % self.__class__)
+        pass
 
     def __ne__(self, other):
         return self.__eq__(other)
 
 
-class DummyRule(object):
+class DummyRule:
     __slots__ = ()
 
     def addcommand(self, r):
@@ -323,7 +328,8 @@ class StaticPatternRule(Statement):
         context.currule = rule
 
     def dump(self, fd, indent):
-        print("%sStaticPatternRule %s: %s: %s" % (indent, self.targetexp, self.patternexp, self.depexp), file=fd)
+        print("%sStaticPatternRule %s: %s: %s" %
+              (indent, self.targetexp, self.patternexp, self.depexp), file=fd)
 
     def to_source(self):
         sep = ':'
@@ -470,9 +476,11 @@ class SetVariable(Statement):
                 if oldval is not None:
                     continue
                 value = self.value
+
             elif self.token == '=':
                 flavor = data.Variables.FLAVOR_RECURSIVE
                 value = self.value
+
             else:
                 assert self.token == ':='
 
@@ -484,17 +492,18 @@ class SetVariable(Statement):
             v.set(vname, flavor, self.source, value)
 
     def dump(self, fd, indent):
-        print("%sSetVariable<%s> %s %s\n%s %r" % (indent, self.valueloc, self.vnameexp, self.token, indent, self.value), file=fd)
+        print("%sSetVariable<%s> %s %s\n%s %r" % (indent, self.valueloc,
+                                                  self.vnameexp, self.token, indent, self.value), file=fd)
 
     def __eq__(self, other):
         if not isinstance(other, SetVariable):
             return False
 
-        return self.vnameexp == other.vnameexp \
-            and self.token == other.token \
-            and self.value == other.value \
-            and self.targetexp == other.targetexp \
-            and self.source == other.source
+        return (self.vnameexp == other.vnameexp
+                and self.token == other.token
+                and self.value == other.value
+                and self.targetexp == other.targetexp
+                and self.source == other.source)
 
     def to_source(self):
         chars = []
@@ -547,7 +556,7 @@ class SetVariable(Statement):
             value)
 
 
-class Condition(object):
+class Condition(ABC):
     """
     An abstract "condition", either ifeq or ifdef, perhaps negated.
 
@@ -557,9 +566,9 @@ class Condition(object):
 
     def evaluate(self, makefile)
     """
-
+    @abstractmethod
     def __eq__(self, other):
-        raise Exception("%s must implement __eq__." % __class__)
+        pass
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -591,15 +600,16 @@ class EqCondition(Condition):
         return (r1 == r2) == self.expected
 
     def __str__(self):
-        return "ifeq (expected=%s) %s %s" % (self.expected, self.exp1, self.exp2)
+        return "ifeq (expected={}) {} {}".format(
+            self.expected, self.exp1, self.exp2)
 
     def __eq__(self, other):
         if not isinstance(other, EqCondition):
             return False
 
-        return self.exp1 == other.exp1 \
-            and self.exp2 == other.exp2 \
-            and self.expected == other.expected
+        return (self.exp1 == other.exp1
+                and self.exp2 == other.exp2
+                and self.expected == other.expected)
 
 
 class IfdefCondition(Condition):
@@ -629,7 +639,7 @@ class IfdefCondition(Condition):
         return (len(value) > 0) == self.expected
 
     def __str__(self):
-        return "ifdef (expected=%s) %s" % (self.expected, self.exp)
+        return "ifdef (expected={}) {}".format(self.expected, self.exp)
 
     def __eq__(self, other):
         if not isinstance(other, IfdefCondition):
@@ -696,7 +706,8 @@ class ConditionBlock(Statement):
         i = 0
         for c, statements in self._groups:
             if c.evaluate(makefile):
-                _log.debug("Condition at %s met by clause #%i", self.loc, i)
+                _log.debug(
+                    "Condition at {} met by clause #{}".format(self.loc, i))
                 statements.execute(makefile, context)
                 return
 
@@ -944,7 +955,8 @@ class ExportDirective(Statement):
             makefile.exportedvars[v] = True
 
     def dump(self, fd, indent):
-        print("%sExport (single=%s) %s" % (indent, self.single, self.exp), file=fd)
+        print("%sExport (single=%s) %s" %
+              (indent, self.single, self.exp), file=fd)
 
     def to_source(self):
         return ('export %s' % self.exp.to_source()).rstrip()
@@ -1021,7 +1033,7 @@ class EmptyDirective(Statement):
         return self.exp == other.exp
 
 
-class _EvalContext(object):
+class _EvalContext:
     __slots__ = ('currule', 'weak')
 
     def __init__(self, weak):
@@ -1060,7 +1072,7 @@ class StatementList(list):
         return fd.getvalue()
 
     def to_source(self):
-        return '\n'.join([s.to_source() for s in self])
+        return '\n'.join(s.to_source() for s in self)
 
 
 def iterstatements(stmts):
