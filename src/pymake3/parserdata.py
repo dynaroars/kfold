@@ -121,9 +121,6 @@ class Statement(ABC):
     basic methods defined below.
     """
 
-    def __init__(self, sid):
-        self.sid = None
-
     @abstractmethod
     def execute(self, makefile, context):
         """Executes this Statement within a make file execution context."""
@@ -175,6 +172,7 @@ class Rule(Statement):
         assert isinstance(targetexp, (data.Expansion, data.StringExpansion))
         assert isinstance(depexp, (data.Expansion, data.StringExpansion))
 
+        super().__init__()
         self.targetexp = targetexp
         self.depexp = depexp
         self.doublecolon = doublecolon
@@ -435,6 +433,8 @@ class SetVariable(Statement):
         assert targetexp is None or isinstance(
             targetexp, (data.Expansion, data.StringExpansion))
 
+        super().__init__()
+
         if source is None:
             source = data.Variables.SOURCE_MAKEFILE
 
@@ -682,6 +682,9 @@ class ConditionBlock(Statement):
     __slots__ = ('loc', '_groups')
 
     def __init__(self, loc, condition):
+
+        super().__init__()
+
         self.loc = loc
         self._groups = []
         self.addcondition(loc, condition)
@@ -848,6 +851,7 @@ class Include(Statement):
 
     def __init__(self, exp, required, weak):
         assert isinstance(exp, (data.Expansion, data.StringExpansion))
+        super().__init__()
         self.exp = exp
         self.required = required
         self.weak = weak
@@ -886,6 +890,7 @@ class VPathDirective(Statement):
 
     def __init__(self, exp):
         assert isinstance(exp, (data.Expansion, data.StringExpansion))
+        super().__init__()
         self.exp = exp
 
     def execute(self, makefile, context):
@@ -939,6 +944,7 @@ class ExportDirective(Statement):
 
     def __init__(self, exp, concurrent_set):
         assert isinstance(exp, (data.Expansion, data.StringExpansion))
+        super().__init__()
         self.exp = exp
         self.concurrent_set = concurrent_set
 
@@ -979,6 +985,7 @@ class UnexportDirective(Statement):
     __slots__ = ('exp',)
 
     def __init__(self, exp):
+        super().__init__()
         self.exp = exp
 
     def execute(self, makefile, context):
@@ -1012,6 +1019,7 @@ class EmptyDirective(Statement):
 
     def __init__(self, exp):
         assert isinstance(exp, (data.Expansion, data.StringExpansion))
+        super().__init__()
         self.exp = exp
 
     def execute(self, makefile, context):
@@ -1040,7 +1048,7 @@ class _EvalContext:
         self.weak = weak
 
 
-class StatementList(list):
+class StatementList(list, Statement):
     """
     A list of Statement instances.
 

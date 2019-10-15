@@ -144,7 +144,8 @@ class Analysis:
             build_dir, self.mysettings.ignore_dirs,
             self.mysettings.ignore_files)
 
-        mlog.debug("{} kfiles, {} gfiles".format(len(kfiles), len(gfiles)))
+        msg = "{} kfiles, {} gfiles".format(len(kfiles), len(gfiles))
+        mlog.debug(msg)
 
         if gfiles != kfiles:
             only_in_g = gfiles - kfiles
@@ -158,7 +159,7 @@ class Analysis:
                     len(only_in_k), ', '.join(sorted(map(str, only_in_k)))))
 
         else:
-            mlog.info("all {} files matched".format(len(kfiles)))
+            mlog.info("{} => all matched".format(msg))
 
     def get_kfiles(self, constraint, main_dir):
         assert constraint is None or z3.is_expr(constraint), constraint

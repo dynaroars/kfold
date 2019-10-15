@@ -15,9 +15,8 @@ DBG = pdb.set_trace
 
 
 class ExpansionBase(ABC):
-    def __init__(self, solver, mysettings):
+    def __init__(self, solver):
         self.solver = solver
-        self.mysettings = mysettings
 
     @classmethod
     def combine(cls, ts, delim=''):
@@ -222,8 +221,8 @@ class ExpansionBase(ABC):
                 else:
                     vals = [(v.vals_str, zsolver.T)]
 
-            elif (self.mysettings.is_copt(name) or
-                  self.mysettings.is_xopt(name)):
+            elif (self.solver.mysettings.is_copt(name) or
+                  self.solver.mysettings.is_xopt(name)):
                 vals = self.do_config_var(name)
 
             else:
@@ -234,8 +233,8 @@ class ExpansionBase(ABC):
         return rs, names
 
     def do_config_var(self, name):
-        assert (self.mysettings.is_copt(name) or
-                self.mysettings.is_xopt(name)), name
+        assert (self.solver.mysettings.is_copt(name) or
+                self.solver.mysettings.is_xopt(name)), name
 
         symbol, optd = self.solver.get_sort(name)
 
@@ -260,8 +259,8 @@ class ExpansionSExe(ExpansionBase):
 
 
 class ExpansionDExe(ExpansionBase):
-    def __init__(self, solver, mysettings):
-        super().__init__(solver, mysettings)
+    def __init__(self, solver):
+        super().__init__(solver)
         self.deps = set()
 
     @classmethod

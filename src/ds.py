@@ -328,9 +328,10 @@ class DPath(BasePath):
     def check_token(cls, token):
         return False
 
-    def add_dep(self, stmt, sid, lvals, ldeps, rvals, rdeps, xdeps):
-        assert isinstance(sid, tuple) and sid not in self.ddb, sid
-        self.ddb[sid] = DepInfo(stmt, lvals, ldeps, rvals, rdeps, xdeps)
+    def add_dep(self, stmt, lvals, ldeps, rvals, rdeps, xdeps):
+        assert isinstance(
+            stmt.sid, tuple) and stmt.sid not in self.ddb, stmt.sid
+        self.ddb[stmt.sid] = DepInfo(stmt, lvals, ldeps, rvals, rdeps, xdeps)
 
     def compute_dep(self):
         self.ddb.compute(self.mysettings.target_vars)
@@ -355,18 +356,10 @@ class DepInfo:
         def _str(fs): return ' '.join(map(str, fs))
 
         return "{} -> {}, {}; {}, {}; {}".format(
-            self.stmt.to_source().strip(),
+            self.stmt.stmt.to_source().strip(),
             _str(self.lvals), _str(self.ldeps),
             _str(self.rvals), _str(self.rdeps),
             _str(self.xdeps))
-
-    @property
-    def deps(self):
-        return self.lvals | self.ldeps | self.rvals | self.rdeps | self.xdeps
-
-    @property
-    def no_deps(self):
-        return not self.deps
 
 
 class DepDB(OrderedDict):
@@ -379,8 +372,8 @@ class DepDB(OrderedDict):
             return False
 
         di = self[sid]
-        assert isinstance(
-            di.stmt, parserdata.SetVariable), di.stmt.to_source().strip()
+        assert isinstance(di.stmt.stmt, parserdata.SetVariable), \
+            di.stmt.stmt.to_source().strip()
 
         return all(name not in self.used_vars for name in di.lvals)
 
@@ -430,10 +423,10 @@ class DepDB(OrderedDict):
 
         dep_names = set()
         for dname in self.dep_d[name]:
-            if dname in deps:
-                mlog.warn('Potential dep cycle: {}'.format(dname))
-            else:
+            if dname not in deps:
                 dep_names.add(dname)
+            #     mlog.warn('Potential dep cycle: {}'.format(dname))
+            # else:
 
         deps.update(dep_names)
         for dname in dep_names:

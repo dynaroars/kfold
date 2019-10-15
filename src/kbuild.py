@@ -28,18 +28,21 @@ class Kbuild:
             self.makefile.read_text(), self.makefile)
 
     def symexe(self):
-        stmts = SE.StatementList(
-            self.stmts, tuple(), self.solver, self.mysettings)
-
+        mystmts = SE.StatementList.create(self.stmts, tuple())
         mlog.debug("Spying ...")
+
+        def set_solver(stmt):
+            stmt.solver = self.solver
+        mystmts.traverse(set_solver)
         dpath = DPath.get_default(self.makefile.parent, self.mysettings)
-        stmts.dexe(dpath, frozenset())
+        mystmts.dexe(dpath, frozenset())
         dpath.compute_dep()
+        mystmts.check_skip(dpath.ddb)
 
         mlog.debug("Symexe ({} used vars) ...".format(
             len(dpath.ddb.used_vars)))
         spath = SPath.get_default(self.makefile.parent, self.mysettings)
-        self.paths = stmts.sexe(Paths([spath]), dpath.ddb)
+        self.paths = mystmts.sexe(Paths([spath]), dpath.ddb)
 
     def fork(self, new_cond):
         assert z3.is_expr(new_cond), new_cond

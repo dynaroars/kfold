@@ -119,6 +119,7 @@ class ZSolver:
         self.undef_val = cOptD[zstate.undef_val]       # z3 var
 
         self.solver = z3.Solver()
+        self.mysettings = mysettings
 
     def check(self, f):
         assert z3.is_expr(f), f
@@ -166,33 +167,6 @@ class ZSolver:
             self.__config_vars__[name] = symbol, optD
 
         return self.__config_vars__[name]
-
-    # @property
-    # def typ_info(self):
-    #     """
-    #     type information that can be saved to file
-    #     """
-
-    #     return list(self.__config_vars__.keys())
-
-        # (self.cOptTyp.name(),
-        #        [(v, e.decl().name()) for v, e in
-        #         self.cOptD.items()],
-        #        list(self.__config_vars__))
-
-    # @staticmethod
-    # def load_obj(typ_info):
-    #     """
-    #     reconstruct type info from object
-    #     """
-    #     name, vals_exprs, config_vars = typ_info
-    #     vals, exprs = zip(*vals_exprs)
-
-    #     cOptTyp, exprs = z3.EnumSort(name, exprs)
-    #     cOptD = dict(zip(vals, exprs))
-    #     config_vars = OrderedDict((name, cOptTyp) for name in config_vars)
-
-    #     return cOptTyp, cOptD, config_vars
 
     def reconstruct(self, config_names):
         assert all(isinstance(name, str)
