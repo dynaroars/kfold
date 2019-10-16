@@ -28,7 +28,11 @@ class Kbuild:
             self.makefile.read_text(), self.makefile)
 
     def symexe(self):
-        mystmts = SE.StatementList.create(self.stmts, tuple())
+        mystmts = SE.StatementList.create(self.stmts, sid=tuple(), pred=None)
+        lst = mystmts.stmts[-1]
+        preds = {}
+        SE.Statement.get_preds(lst, preds)
+        DBG()
         mlog.debug("Spying ...")
 
         def set_solver(stmt):
