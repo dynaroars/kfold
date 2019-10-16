@@ -33,7 +33,9 @@ class Kbuild:
 
         def set_solver(stmt):
             stmt.solver = self.solver
-        mystmts.traverse(set_solver)
+            return True
+
+        mystmts.set_solver(self.solver)
         dpath = DPath.get_default(self.makefile.parent, self.mysettings)
         mystmts.dexe(dpath, frozenset())
         dpath.compute_dep()
