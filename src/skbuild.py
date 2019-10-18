@@ -4,9 +4,11 @@ from helpers.vcommon import getLogLevel, getLogger
 
 DBG = pdb.set_trace
 
+
 def is_analysis_mode(path):
-    return (any(f.is_file() and f.name == settings.RESULT_SINFO
-                for f in path.iterdir()))
+    return (path.is_dir() and
+            (any(f.is_file() and f.name == settings.RESULT_SINFO
+                 for f in path.iterdir())))
 
 
 if __name__ == '__main__':
@@ -66,17 +68,17 @@ if __name__ == '__main__':
         mlog.info("DEBUG MODE ON. Use python -O to optimize")
 
     import pathlib
-    makefile_dir = pathlib.Path(args.path)
-    assert makefile_dir.is_dir(), makefile_dir
+    mypath = pathlib.Path(args.path)
+    assert mypath.is_file() or mypath.is_dir(), mypath
 
-    if is_analysis_mode(makefile_dir):
+    if is_analysis_mode(mypath):
         from analysis import Analysis
-        cls = Analysis(makefile_dir)
+        cls = Analysis(mypath)
         tmpdir = cls.go(args)
 
     else:
         from alg import Run
-        cls = Run(makefile_dir)
+        cls = Run(mypath)
         tmpdir = cls.go()
 
     if tmpdir and tmpdir.is_dir():

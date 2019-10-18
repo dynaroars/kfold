@@ -69,6 +69,7 @@ class Settings:
         self.ignore_setvar_kws = frozenset()
         self.target_vars = frozenset(["obj-", "lib-"])
         self.ignore_vars = frozenset(["src"])
+        self.xopts = {}
 
         settings_file = main_dir / self.filename
         if not settings_file.is_file():
@@ -82,8 +83,8 @@ class Settings:
         myconfig = config['COMMON']
 
         try:
-            self.zstate = TriState() if myconfig.getboolean(
-                'use_tristate') else TwoState()
+            if myconfig.getboolean('use_tristate'):
+                self.zstate = TriState()
         except AttributeError:
             pass
 
@@ -128,7 +129,6 @@ class Settings:
         except AttributeError:
             pass
 
-        self.xopts = {}
         try:
             myconfig = config['COPTIONS']  # BITS = 32 64
             for k in myconfig:

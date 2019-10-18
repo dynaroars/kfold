@@ -17,11 +17,13 @@ DBG = pdb.set_trace
 
 
 class Run:
-    def __init__(self, main_dir):
+    def __init__(self, mypath):
         """
         paths is a list of paths to either makefiles or directories
         """
-        self.main_dir = main_dir.resolve()
+        self.mypath = mypath.resolve()
+        self.main_dir = (self.mypath.parent
+                         if self.mypath.is_file() else self.mypath)
         self.mysettings = settings.Settings(self.main_dir)
 
     def go(self):
@@ -34,14 +36,18 @@ class Run:
 
         default_cond = None
 
-        if self.mysettings.top_dirs:
-            top_dirs = [self.main_dir / d for d in self.mysettings.top_dirs]
-            top_dirs = [d for d in top_dirs if d.is_dir()]
+        if self.mypath.is_file():  # explicit Makefile input
+            makefiles = [(self.mypath, default_cond)]
         else:
-            top_dirs = [self.main_dir]
+            if self.mysettings.top_dirs:
+                top_dirs = [self.main_dir /
+                            d for d in self.mysettings.top_dirs]
+                top_dirs = [d for d in top_dirs if d.is_dir()]
+            else:
+                top_dirs = [self.main_dir]
 
-        makefiles = [(makefile, default_cond) for makefile in
-                     self.get_makefiles(top_dirs)]
+            makefiles = [(makefile, default_cond) for makefile in
+                         self.get_makefiles(top_dirs)]
         assert makefiles
 
         nkbuilds = 0  # number of created kbuilds
