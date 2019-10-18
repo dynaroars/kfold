@@ -333,8 +333,8 @@ class DPath(BasePath):
             stmt.sid, tuple) and stmt.sid not in self.ddb, stmt.sid
         self.ddb[stmt.sid] = DepInfo(stmt, lvals, ldeps, rvals, rdeps, xdeps)
 
-    def compute_dep(self):
-        self.ddb.compute(self.mysettings.target_vars)
+    def compute_used_vars(self):
+        self.ddb.compute_used_vars(self.mysettings.target_vars)
 
 
 class DepInfo:
@@ -384,7 +384,7 @@ class DepDB(OrderedDict):
             lvals_.update(di.lvals)
         return lvals_
 
-    def compute(self, target_vars):
+    def compute_used_vars(self, target_vars):
 
         # compute dependency for all files
         dep_d = {}

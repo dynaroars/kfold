@@ -27,28 +27,31 @@ class Kbuild:
         self.stmts = parser.parsestring(
             self.makefile.read_text(), self.makefile)
 
+    def spy(self, stmts):
+        mlog.debug("Spying ...")
+        stmts.set_solver(self.solver)
+        dpath = DPath.get_default(self.makefile.parent, self.mysettings)
+        stmts.dexe(dpath, frozenset())
+        return dpath
+
     def symexe(self):
-        mystmts = SE.StatementList.create(self.stmts, sid=tuple(), pred=None)
+        mystmts = SE.StatementList.create(self.stmts, sid=tuple())
+        dpath = self.spy(mystmts)
+        dpath.compute_used_vars()
+        mystmts = mystmts.myreduce(dpath.ddb)
+        # mystmts.check_skip(dpath.ddb)
+
+        mystmts.set_preds(pred=None)
+
         lst = mystmts.stmts[-1]
         preds = {}
         SE.Statement.get_preds(lst, preds)
-        DBG()
-        mlog.debug("Spying ...")
 
-        def set_solver(stmt):
-            stmt.solver = self.solver
-            return True
-
-        mystmts.set_solver(self.solver)
-        dpath = DPath.get_default(self.makefile.parent, self.mysettings)
-        mystmts.dexe(dpath, frozenset())
-        dpath.compute_dep()
-        mystmts.check_skip(dpath.ddb)
-
-        mlog.debug("Symexe ({} used vars) ...".format(
-            len(dpath.ddb.used_vars)))
-        spath = SPath.get_default(self.makefile.parent, self.mysettings)
-        self.paths = mystmts.sexe(Paths([spath]), dpath.ddb)
+        # mlog.debug("Symexe ({} used vars) ...".format(
+        #     len(dpath.ddb.used_vars)))
+        # spath = SPath.get_default(self.makefile.parent, self.mysettings)
+        # self.paths = mystmts.sexe(Paths([spath]), dpath.ddb)
+        self.paths = []
 
     def fork(self, new_cond):
         assert z3.is_expr(new_cond), new_cond

@@ -2,9 +2,6 @@ obj-$(CONFIG_1) += 1.o
 obj-$(CONFIG_2) += 2.o
 
 
-
-
-
 obj-$(CONFIG_A) := 1.o #2.o
 obj-$(CONFIG_A) += 3.o   #same lhv
 obj-$(CONFIG_B) += 3.o   #same rhv
