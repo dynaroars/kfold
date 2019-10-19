@@ -599,9 +599,13 @@ class EqCondition(Condition):
         r2 = self.exp2.resolvestr(makefile, makefile.variables)
         return (r1 == r2) == self.expected
 
-    def __str__(self):
-        return "ifeq (expected={}) {} {}".format(
-            self.expected, self.exp1, self.exp2)
+    def __str__(self, details=True):
+        if details:
+            return "ifeq (expected={}) {} {}".format(
+                self.expected, self.exp1, self.exp2)
+        else:
+            return "ifeq ({}, {})".format(
+                self.exp1.to_source(), self.exp2.to_source())
 
     def __eq__(self, other):
         if not isinstance(other, EqCondition):

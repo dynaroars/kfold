@@ -147,6 +147,13 @@ class BasePath:
     def is_target(self, t):
         return any(t.startswith(x) for x in self.mysettings.target_vars)
 
+    def subdirs(self, topdir):
+        subdirs_ = [self.states[v].subdirs(topdir)
+                    for v in self.states
+                    if not (self.states[v].ignorable
+                            or self.states[v].is_undef_target)]
+        return frozenset(itertools.chain(*subdirs_))
+
     @classmethod
     def get_default(cls, src_dir, mysettings):
         assert isinstance(src_dir, Var) or src_dir.is_dir(), src_dir
@@ -161,13 +168,6 @@ class SPath(BasePath):
 
     def __init__(self, cond, states, mysettings):
         super().__init__(cond, states, mysettings)
-
-    def subdirs(self, topdir):
-        subdirs_ = [self.states[v].subdirs(topdir)
-                    for v in self.states
-                    if not (self.states[v].ignorable
-                            or self.states[v].is_undef_target)]
-        return frozenset(itertools.chain(*subdirs_))
 
     def split(self):
         assert self.states
@@ -385,7 +385,6 @@ class DepDB(OrderedDict):
         return lvals_
 
     def compute_used_vars(self, target_vars):
-
         # compute dependency for all files
         dep_d = {}
         for sid in self:
@@ -415,8 +414,7 @@ class DepDB(OrderedDict):
                          if any(isinstance(d, str) and d.endswith('/')
                                 for d in dep_d[name]))
 
-        used_vars = frozenset(itertools.chain(*used_vars))
-        self.used_vars = used_vars
+        self.used_vars = frozenset(itertools.chain(*used_vars))
 
     def find_deps(self, name, deps):
         assert name in self.dep_d, name

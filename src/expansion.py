@@ -54,8 +54,12 @@ class ExpansionBase(ABC):
         assert isinstance(expansion, str), expansion
 
         stmts = parser.parsestring(expansion, None)
-        assert (len(stmts) == 1 and
-                isinstance(stmts[0], parserdata.EmptyDirective)), stmts
+        assert (len(stmts) == 1), stmts
+        if not isinstance(stmts[0], parserdata.EmptyDirective):
+            # linux-3.19/drivers/isdn/hisax/Makefile
+            mlog.warn("NotImplemented: {}: {}".format(
+                stmts[0].__class__.__name__, stmts[0].to_source()))
+            return ''
         ret = self.do_expansion(stmts[0].exp, states)
         return ret
 
@@ -74,23 +78,28 @@ class ExpansionBase(ABC):
         if isinstance(elem, str):
             return [(elem, zsolver.T)]
         elif isfun:
-            if isinstance(elem, functions.VariableRef):
-                return self.do_fun_VariableRef(elem, states)
-            elif isinstance(elem, functions.SubstFunction):
-                return self.do_fun_SubstFunction(elem, states)
-            elif isinstance(elem, functions.PatSubstFunction):
-                return self.do_fun_PatSubstFunction(elem, states)
-            elif isinstance(elem, functions.WildcardFunction):
-                return self.do_fun_WildcardFunction(elem, states)
-            elif isinstance(elem, functions.FilteroutFunction):
-                return self.do_fun_Filterout(elem, states)
-            elif isinstance(elem, functions.AddPrefixFunction):
-                return self.do_fun_AddPrefixFunction(elem, states)
-            elif isinstance(elem, functions.CallFunction):
-                return self.do_CallFunction(elem, states)
-            else:
-                raise NotImplementedError(
-                    "{}: {}".format(elem.__class__.__name__, elem))
+            try:
+                if isinstance(elem, functions.VariableRef):
+                    return self.do_fun_VariableRef(elem, states)
+                elif isinstance(elem, functions.SubstFunction):
+                    return self.do_fun_SubstFunction(elem, states)
+                elif isinstance(elem, functions.PatSubstFunction):
+                    return self.do_fun_PatSubstFunction(elem, states)
+                elif isinstance(elem, functions.WildcardFunction):
+                    return self.do_fun_WildcardFunction(elem, states)
+                elif isinstance(elem, functions.FilteroutFunction):
+                    return self.do_fun_Filterout(elem, states)
+                elif isinstance(elem, functions.AddPrefixFunction):
+                    return self.do_fun_AddPrefixFunction(elem, states)
+                elif isinstance(elem, functions.CallFunction):
+                    return self.do_CallFunction(elem, states)
+                else:
+                    raise NotImplementedError()
+            except NotImplementedError:
+                mlog.warn("NotImplemented: {}: {}".format(
+                    elem.__class__.__name__, elem.to_source()))
+                return []
+
         else:
             return self.do_expansion(elem, states)
 
@@ -108,8 +117,7 @@ class ExpansionBase(ABC):
                 'no' in fun._arguments[3].s):
             return [('yes', zsolver.T), ('no', zsolver.T)]
 
-        raise NotImplementedError(
-            "{}: {}".format(fun.__class__.__name__, fun))
+        raise NotImplementedError()
 
     def do_fun_AddPrefixFunction(self, fun, states):
         """

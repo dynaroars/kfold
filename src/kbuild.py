@@ -24,34 +24,31 @@ class Kbuild:
         self.makefile = makefile
         self.mysettings = mysettings
         self.solver = zsolver.ZSolver(self.mysettings)
-        self.stmts = parser.parsestring(
+
+    def preprocess(self):
+        stmts = parser.parsestring(
             self.makefile.read_text(), self.makefile)
-
-    def spy(self, stmts):
-        mlog.debug("Spying ...")
-        stmts.set_solver(self.solver)
+        mystmts = SE.StatementList.create(stmts, sid=tuple())
+        siz = mystmts.siz
+        mlog.debug("Preprocessing {} stmts".format(siz))
+        mystmts.set_solver(self.solver)
         dpath = DPath.get_default(self.makefile.parent, self.mysettings)
-        stmts.dexe(dpath, frozenset())
-        return dpath
-
-    def symexe(self):
-        mystmts = SE.StatementList.create(self.stmts, sid=tuple())
-        dpath = self.spy(mystmts)
+        mystmts.dexe(dpath, frozenset())
         dpath.compute_used_vars()
         mystmts = mystmts.myreduce(dpath.ddb)
-        # mystmts.check_skip(dpath.ddb)
-
+        nremoved = siz - mystmts.siz
+        mlog.debug("After processing {} remain {}".format(
+            mystmts.siz, "({} removed)".format(nremoved) if nremoved else ''))
         mystmts.set_preds(pred=None)
 
-        lst = mystmts.stmts[-1]
-        preds = {}
-        SE.Statement.get_preds(lst, preds)
+        self.stmts = mystmts
+        self.dpath = dpath
 
-        # mlog.debug("Symexe ({} used vars) ...".format(
-        #     len(dpath.ddb.used_vars)))
-        # spath = SPath.get_default(self.makefile.parent, self.mysettings)
-        # self.paths = mystmts.sexe(Paths([spath]), dpath.ddb)
-        self.paths = []
+    def symexe(self):
+        mlog.debug("Symexe ({} used vars) ...".format(
+            len(self.dpath.ddb.used_vars)))
+        spath = SPath.get_default(self.makefile.parent, self.mysettings)
+        self.paths = self.stmts.sexe(Paths([spath]), self.dpath.ddb)
 
     def fork(self, new_cond):
         assert z3.is_expr(new_cond), new_cond

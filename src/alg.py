@@ -68,8 +68,8 @@ class Run:
 
             makefiles = self.get_makefiles_from_kbuilds(tmp_kbuilds)
 
-        mlog.info("analyzed {} kbuilds in {:.2f}s".format(
-            nkbuilds, time() - st))
+        mlog.info("analyzed {} kbuilds from {} makefiles in {:.2f}s".format(
+            nkbuilds, len(cache), time() - st))
 
         return self.tmpdir
 
@@ -77,8 +77,9 @@ class Run:
         assert makefile.is_file(), makefile
 
         st = time()
-        mlog.info("analyzing {}".format(makefile))
+        mlog.info("analyzing '{}'".format(makefile))
         kbuild = Kbuild(makefile, self.mysettings)
+        kbuild.preprocess()
         kbuild.symexe()
         mlog.info("{}: {} paths ({:.2f}s)".format(
             makefile, len(kbuild.paths), time() - st))
