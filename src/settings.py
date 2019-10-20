@@ -55,13 +55,13 @@ mlog = CM.getLogger(__name__, logger_level)
 class Settings:
     filename = 'skbuild.ini'
 
-    def __init__(self, main_dir):
-        assert main_dir.is_dir(), main_dir
+    def __init__(self, maindir):
+        assert maindir.is_dir(), maindir
 
         # default values
-        self.main_dir = main_dir   # original inpt dir
+        self.maindir = maindir   # original inpt dir
         self.zstate = TwoState()
-        self.top_dirs = []
+        self.topdirs = []
         self.ignore_dirs = frozenset()
         self.ignore_files = frozenset()
         self.ignore_setvar_startswith = frozenset()
@@ -71,7 +71,7 @@ class Settings:
         self.ignore_vars = frozenset(["src"])
         self.xopts = {}
 
-        settings_file = main_dir / self.filename
+        settings_file = maindir / self.filename
         if not settings_file.is_file():
             return
 
@@ -89,7 +89,7 @@ class Settings:
             pass
 
         try:
-            self.top_dirs = myconfig.get('top_dirs').split()
+            self.topdirs = myconfig.get('top_dirs').split()
         except AttributeError:
             pass
 

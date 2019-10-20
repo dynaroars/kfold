@@ -21,6 +21,10 @@ if __name__ == '__main__':
        type=str,
        help="""path to Linux Makefile or dirs""")
 
+    ag("--partial_cachedir", "-partial_cachedir",
+       type=str,
+       help="dir containing saved results (from incomplete run)")
+
     ag("--log_level", "-log_level",
        help="set logger info",
        type=int,
@@ -68,18 +72,18 @@ if __name__ == '__main__':
         mlog.info("DEBUG MODE ON. Use python -O to optimize")
 
     import pathlib
-    mypath = pathlib.Path(args.path)
-    assert mypath.is_file() or mypath.is_dir(), mypath
+    path = pathlib.Path(args.path)
+    assert path.is_file() or path.is_dir(), path
 
-    if is_analysis_mode(mypath):
+    if is_analysis_mode(path):
         from analysis import Analysis
-        cls = Analysis(mypath)
+        cls = Analysis(path)
         tmpdir = cls.go(args)
 
     else:
         from alg import Run
-        cls = Run(mypath)
-        tmpdir = cls.go()
+        cls = Run(path)
+        tmpdir = cls.go(args)
 
     if tmpdir and tmpdir.is_dir():
         if args.rmtmp:
