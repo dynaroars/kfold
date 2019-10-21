@@ -2,9 +2,7 @@ import tempfile
 from time import time
 import pathlib
 import pdb
-
 import z3
-
 import settings
 import helpers.vcommon as CM
 import helpers.zsolver as zsolver
@@ -12,23 +10,23 @@ from kbuild import Kbuild
 
 mlog = CM.getLogger(__name__, settings.logger_level)
 
-
 DBG = pdb.set_trace
 
 
 class Run:
-    default_cond = None
+    cache = "cache"
 
     def __init__(self, path):
         """
         paths is a list of paths to either makefiles or directories
         """
+        assert path.exists(), path
         self.path = path.resolve()
         self.maindir = self.path.parent if self.path.is_file() else self.path
         self.mysettings = settings.Settings(self.maindir)
 
         if self.path.is_file():  # explicit Makefile input
-            makefiles = [(self.path, self.default_cond)]
+            makefiles = [self.path]
         else:
             if self.mysettings.topdirs:
                 topdirs = [self.maindir /
@@ -37,62 +35,90 @@ class Run:
             else:
                 topdirs = [self.maindir]
 
-            makefiles = [(makefile, self.default_cond) for makefile in
-                         self.get_makefiles(topdirs)]
+            makefiles = self.get_makefiles(topdirs)
 
         assert makefiles
-        self.makefiles = makefiles
+        self.makefiles = [(f, Kbuild.default_cond) for f in makefiles]
+
+        # tmp dirs
+        self.tmpdir = pathlib.Path(tempfile.mkdtemp(
+            dir=settings.tmpdir, prefix="kb_{}_".format(self.path.name)))
+        mlog.info("tmpdir '{}'".format(self.tmpdir))
+        self.cachedir = self.tmpdir / self.cache
+        pathlib.Path.mkdir(self.cachedir)
 
     def go(self, args):
 
         st = time()
-        self.tmpdir = pathlib.Path(tempfile.mkdtemp(
-            dir=settings.tmpdir, prefix="skbuild_"))
-        mlog.info("tmpdir '{}'".format(self.tmpdir))
-        cachedir = self.tmpdir / 'cache'
-        pathlib.Path.mkdir(cachedir)
-
-        cache = {}  # makefile -> kbuild file
+        cache = {}  # {makefile -> {hash_cond -> kbuild file}}
         if args.partial_cachedir:
             self.load_from_cachedir(pathlib.Path(args.partial_cachedir),
-                                    cachedir, cache, self.mysettings)
+                                    self.cachedir, cache, self.mysettings)
 
             mlog.debug('loaded {} cached files'.format(len(cache)))
 
         sinfo = (self.maindir, self.mysettings)
         CM.vsave(self.tmpdir / settings.RESULT_SINFO, sinfo)
 
-        nkbuilds = 0  # number of created kbuilds
         makefiles = self.makefiles
         while makefiles:
             tmp_kbuilds = []
             for makefile, cond in makefiles:
-                nkbuilds += 1
-
-                if makefile in cache:
-                    saved_file = cache[makefile]
-                    print('cached {} -> {}'.format(makefile, saved_file))
-                    kbuild = Kbuild.load(saved_file, self.mysettings)
-                else:
-                    kbuild = self.analyze(makefile)
-
-                    saved_file = cachedir / 'kbuild_{}'.format(nkbuilds)
-                    assert not saved_file.exists(), saved_file
-                    kbuild.save(saved_file)
-                    cache[makefile] = saved_file
-
-                if cond is not self.default_cond:
-                    kbuild = kbuild.fork(cond)
-
+                kbuild = self.go_makefile(makefile, cond, tmp_kbuilds, cache)
                 tmp_kbuilds.append(kbuild)
-                kbuild.save(self.tmpdir / 'kbuild_{}'.format(nkbuilds))
 
             makefiles = self.get_makefiles_from_kbuilds(tmp_kbuilds)
 
-        mlog.info("analyzed {} kbuilds from {} makefiles in {:.2f}s".format(
-            nkbuilds, len(cache), time() - st))
+        msg = "analyzed {} makefiles in {:.2f}s".format(
+            len(cache), time() - st)
+        mlog.info(msg)
 
+        CM.vsave(self.tmpdir / 'done', msg)
         return self.tmpdir
+
+    def go_makefile(self, makefile, cond, tmp_kbuilds, cache):
+
+        cond_hash = hash(cond)
+
+        def write(kbuild):
+            kfile = '_'.join(kbuild.makefile.parts).replace('/', '_')
+            kfile = "{}_{}".format(kfile, kbuild.precond_hash)
+            kfile = (self.cachedir / kfile).with_suffix('.kbuild')
+            assert not kfile.exists(), kfile
+            kbuild.save(kfile)
+            cache[kbuild.makefile][kbuild.precond_hash] = kfile
+
+        def fork(kbuild, cond):
+            assert cond is not Kbuild.default_cond
+            kbuild = kbuild.fork(cond)
+            assert cond_hash == kbuild.precond_hash
+            return kbuild
+
+        if makefile not in cache:
+            kbuild = self.analyze(makefile)
+            cache[kbuild.makefile] = {}
+            write(kbuild)
+            assert hash(Kbuild.default_cond) in cache[kbuild.makefile]
+
+            if cond_hash != kbuild.precond_hash:
+                kbuild = fork(kbuild, cond)
+                write(kbuild)
+                assert cond_hash in cache[kbuild.makefile]
+        else:
+            mlog.warn('{} already in cache1'.format(makefile))
+            if cond_hash in cache[makefile]:
+                mlog.warn(
+                    '{} also in cache 2. Nothing to do'.format(makefile))
+                kfile = cache[makefile][cond_hash]
+                kbuild = Kbuild.load(kfile, self.mysettings)
+            else:
+                assert hash(Kbuild.default_cond) in cache[kbuild.makefile]
+                kbuild = cache[makefile][hash(Kbuild.default_cond)]
+                kbuild = fork(kbuild, cond)
+                write(kbuild)
+                assert cond_hash in cache[kbuild.makefile]
+
+        return kbuild
 
     def analyze(self, makefile):
         assert makefile.is_file(), makefile

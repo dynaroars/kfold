@@ -79,7 +79,6 @@ if __name__ == '__main__':
         from analysis import Analysis
         cls = Analysis(path)
         tmpdir = cls.go(args)
-
     else:
         from alg import Run
         cls = Run(path)

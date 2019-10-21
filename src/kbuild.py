@@ -17,10 +17,13 @@ DBG = pdb.set_trace
 
 
 class Kbuild:
+    default_cond = None
+
     def __init__(self, makefile, mysettings):
         assert makefile.is_file(), makefile
         assert isinstance(mysettings, settings.Settings), mysettings
 
+        self.precond_hash = hash(self.default_cond)
         self.makefile = makefile
         self.mysettings = mysettings
         self.solver = zsolver.ZSolver(self.mysettings)
@@ -63,6 +66,7 @@ class Kbuild:
                 new_path = path.fork(cond)
                 paths.append(new_path)
         kbuild.paths = Paths(paths)
+        kbuild.precond_hash = hash(new_cond)
         return kbuild
 
     def save(self, tofile):
