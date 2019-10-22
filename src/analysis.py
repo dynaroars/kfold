@@ -14,11 +14,14 @@ DBG = pdb.set_trace
 
 
 class Analysis:
-    def __init__(self, result_dir):
-        assert result_dir.is_dir(), result_dir
+    def __init__(self, maindir, mysettings, kbuilds):
+        # from alg import Run
+        # self.orig_path, self.mysettings, self.kbuilds = Run.load(result_dir)
+        # self.maindir = Run.get_maindir(self.orig_path)
+        self.maindir = maindir
+        self.mysettings = mysettings
+        self.kbuilds = kbuilds
 
-        from alg import Run
-        self.main_dir, self.mysettings, self.kbuilds = Run.load(result_dir)
         assert len(self.kbuilds)
 
         self.config_vars = {}
@@ -30,12 +33,11 @@ class Analysis:
                 if c not in self.config_vars:
                     self.config_vars[c] = kbuild.solver.__config_vars__[c]
 
-        kfiles_d = self.get_kfiles(None, self.main_dir)
+        kfiles_d = self.get_kfiles(None, self.maindir)
         self.kfiles = frozenset(itertools.chain(*kfiles_d.values()))
 
         # remove files in lib- or obj-
-        mlog.info("{}: {} {} kfiles, {} files, {} config vars".format(
-            result_dir,
+        mlog.info("{} {} kfiles, {} files, {} config vars".format(
             self.mysettings.zstate.__class__.__name__,
             len(self.kbuilds), len(self.kfiles), len(self.config_vars)))
 
@@ -111,7 +113,7 @@ class Analysis:
         # in setting topdirs
         # kbuild dirs also do not include dirs in setting topdirs that do
         # not have a Kbuild makefile
-        kbuild_dirs = set(kb.topdir.relative_to(self.main_dir)
+        kbuild_dirs = set(kb.topdir.relative_to(self.maindir)
                           for kb in self.kbuilds)
 
         removes = set(f for f in gfiles
@@ -136,7 +138,7 @@ class Analysis:
         # get results from kbuild constraints
         config_constraint = self.config2constraint(
             build_dir / '.config')
-        kfiles = self.get_kfiles(config_constraint, self.main_dir)
+        kfiles = self.get_kfiles(config_constraint, self.maindir)
         kfiles = frozenset(f for target in kfiles for f in kfiles[target])
 
         # get groundtruth results
@@ -161,9 +163,9 @@ class Analysis:
         else:
             mlog.info("{} => all matched".format(msg))
 
-    def get_kfiles(self, constraint, main_dir):
+    def get_kfiles(self, constraint, maindir):
         assert constraint is None or z3.is_expr(constraint), constraint
-        assert isinstance(main_dir, pathlib.Path), main_dir
+        assert isinstance(maindir, pathlib.Path), maindir
 
         solver = zsolver.ZSolver(self.mysettings) \
             if z3.is_expr(constraint) else None
@@ -190,7 +192,7 @@ class Analysis:
                       for v in v.vals if v.endswith('.o')]
                 fs = [makefile.parent / f for f in itertools.chain(*fs)]
 
-                fs = [f.relative_to(main_dir) for f in fs]
+                fs = [f.relative_to(maindir) for f in fs]
                 files_d.setdefault(v.name, []).extend(fs)
         return files_d
 

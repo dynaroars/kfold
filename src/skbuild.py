@@ -5,10 +5,10 @@ from helpers.vcommon import getLogLevel, getLogger
 DBG = pdb.set_trace
 
 
-def is_analysis_mode(path):
-    return (path.is_dir() and
-            (any(f.is_file() and f.name == settings.RESULT_SINFO
-                 for f in path.iterdir())))
+# def is_analysis_mode(path):
+#     return (path.is_dir() and
+#             (any(f.is_file() and f.name == settings.RESULT_SINFO
+#                  for f in path.iterdir())))
 
 
 if __name__ == '__main__':
@@ -20,10 +20,6 @@ if __name__ == '__main__':
     ag('path',
        type=str,
        help="""path to Linux Makefile or dirs""")
-
-    ag("--partial_cachedir", "-partial_cachedir",
-       type=str,
-       help="dir containing saved results (from incomplete run)")
 
     ag("--log_level", "-log_level",
        help="set logger info",
@@ -75,14 +71,17 @@ if __name__ == '__main__':
     path = pathlib.Path(args.path)
     assert path.is_file() or path.is_dir(), path
 
-    if is_analysis_mode(path):
-        from analysis import Analysis
-        cls = Analysis(path)
-        tmpdir = cls.go(args)
-    else:
-        from alg import Run
-        cls = Run(path)
-        tmpdir = cls.go(args)
+    from alg import Run
+    tmpdir = Run.doit(path, args)
+
+    # mode = Run.check_path(path)
+    # if mode is None:
+    #     cls = Run(path)
+    #     tmpdir = cls.go(args)
+    # else:
+    #     from analysis import Analysis
+    #     cls = Analysis(path)
+    #     tmpdir = cls.go(args)
 
     if tmpdir and tmpdir.is_dir():
         if args.rmtmp:

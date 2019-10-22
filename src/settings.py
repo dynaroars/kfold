@@ -14,9 +14,6 @@ mp_task_len = 50  # parallel processing when >= mp_task_len
 detail = False
 
 
-RESULT_SINFO = 'sinfo'
-
-
 # Linux config var that might not be tristate
 # CONFIG_EXTRA_FIRMWARE_DIR in /firmware/Makefile
 

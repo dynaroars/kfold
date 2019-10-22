@@ -19,11 +19,11 @@ DBG = pdb.set_trace
 class Kbuild:
     default_cond = None
 
-    def __init__(self, makefile, mysettings):
+    def __init__(self, makefile, mysettings, precond_hash):
         assert makefile.is_file(), makefile
         assert isinstance(mysettings, settings.Settings), mysettings
 
-        self.precond_hash = hash(self.default_cond)
+        self.precond_hash = precond_hash
         self.makefile = makefile
         self.mysettings = mysettings
         self.solver = zsolver.ZSolver(self.mysettings)
@@ -56,7 +56,7 @@ class Kbuild:
     def fork(self, new_cond):
         assert z3.is_expr(new_cond), new_cond
 
-        kbuild = self.__class__(self.makefile, self.mysettings)
+        kbuild = self.__class__(self.makefile, self.mysettings, hash(new_cond))
 
         paths = []
         for path in self.paths:
@@ -66,7 +66,6 @@ class Kbuild:
                 new_path = path.fork(cond)
                 paths.append(new_path)
         kbuild.paths = Paths(paths)
-        kbuild.precond_hash = hash(new_cond)
         return kbuild
 
     def save(self, tofile):
@@ -77,7 +76,7 @@ class Kbuild:
         """
         assert (isinstance(tofile, pathlib.Path)
                 and not tofile.exists() and tofile), tofile
-        kinfo = (self.makefile,
+        kinfo = (self.makefile, self.precond_hash,
                  [(zsolver.to_smt2_str(p.cond), p.states) for p in self.paths],
                  list(self.solver.__config_vars__.keys()))
 
@@ -89,13 +88,13 @@ class Kbuild:
         assert isinstance(mysettings, settings.Settings), mysettings
 
         kinfo = CM.vload(fromfile)
-        makefile, paths_info, config_names = kinfo
+        makefile, precond_hash, paths_info, config_names = kinfo
 
         paths = Paths([
             SPath(zsolver.from_smt2_str(cond), states, mysettings)
             for cond, states in paths_info
         ])
-        kbuild = Kbuild(makefile, mysettings)
+        kbuild = Kbuild(makefile, mysettings, precond_hash)
         kbuild.solver.reconstruct(config_names)
         kbuild.paths = paths
         return kbuild
