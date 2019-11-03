@@ -78,6 +78,7 @@ class Run:
 
     def go(self):
         def symlink(kfile):
+            # TODO:  need to check the case kfile does not exist
             assert kfile.is_file(), kfile
 
             kfile_lnk = self.kbuilds_dir / kfile.name
@@ -169,6 +170,7 @@ class Run:
         mlog.info("analyzing '{}'".format(makefile))
         kbuild = Kbuild(makefile, self.mysettings, hash(Kbuild.default_cond))
         kbuild.preprocess()
+
         kbuild.symexe()
         mlog.info("{}: {} paths ({:.2f}s)".format(
             makefile, len(kbuild.paths), time() - st))
@@ -177,52 +179,6 @@ class Run:
             print(kbuild.paths)
 
         return kbuild
-
-    # @classmethod
-    # def load(cls, result_dir):
-    #     assert result_dir.is_dir(), result_dir
-
-    #     kbuilds_dir, cache_dir, sinfo_file, done_file = \
-    #         cls.get_files(result_dir)
-
-    #     done = done_file.exists()
-    #     if done:
-    #         orig_path, mysettings = CM.vload(sinfo_file)
-    #         kbuilds = [Kbuild.load(f.resolve(), mysettings)
-    #                    for f in kbuilds_dir.iterdir()]
-
-    #     else:
-    #         kbuilds = [(f, Kbuild.load(f, mysettings))
-    #                    for f in result_dir.iterdir()
-    #                    if f.is_file() and f.suffix == cls.kbuild_suffix]
-    #         cache = {}
-    #         for f, kbuild in kbuilds:
-    #             makefile = kbuild.makefile
-    #             cond_hash = kbuild.precond_hash
-    #             if makefile not in cache:
-    #                 cache[makefile] = {}
-    #             if cond_hash not in cache[makefile]:
-    #                 cache[makefile][cond_hash] = f
-
-    #     return done, orig_path, mysettings, kbuilds
-
-    # @classmethod
-    # def load_from_cachedir(cls, old_cachedir, cachedir, cache, mysettings):
-    #     assert old_cachedir.is_dir(), old_cachedir
-    #     assert cachedir.is_dir(), cachedir
-    #     assert isinstance(cache, dict), cache
-
-    #     import shutil
-    #     for from_f in old_cachedir.iterdir():
-    #         to_f = cachedir / (from_f.relative_to(old_cachedir))
-    #         assert from_f.is_file(), from_f
-    #         assert not to_f.exists(), to_f
-    #         shutil.copy(from_f, to_f)
-    #         kbuild = Kbuild.load(from_f, mysettings)
-    #         makefile = kbuild.makefile
-
-    #         assert makefile not in cache, makefile
-    #         cache[makefile] = to_f
 
     @classmethod
     def get_makefiles(cls, paths):

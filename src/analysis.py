@@ -2,7 +2,7 @@ import itertools
 import pdb
 import pathlib
 import z3
-from ds import Var
+from ds import SVar
 
 import helpers.vcommon as CM
 import helpers.zsolver as zsolver
@@ -180,7 +180,7 @@ class Analysis:
         for path, makefile in paths:
             vals_d = None
             for v in path.target_files:
-                assert isinstance(v, Var), v
+                assert isinstance(v, SVar), v
 
                 if v.name in self.mysettings.target_vars:
                     continue  # ignore obj-, lib-

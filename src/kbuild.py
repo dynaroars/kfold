@@ -39,10 +39,13 @@ class Kbuild:
         mystmts.dexe(dpath, frozenset())
         dpath.compute_used_vars()
         mystmts = mystmts.myreduce(dpath.ddb)
-        nremoved = siz - mystmts.siz
+        newsiz = mystmts.siz if mystmts else 0
+        nremoved = siz - newsiz
         mlog.debug("After processing {} remain {}".format(
-            mystmts.siz, "({} removed)".format(nremoved) if nremoved else ''))
-        mystmts.set_preds(pred=None)
+            newsiz, "({} removed)".format(nremoved) if nremoved else ''))
+
+        if mystmts:
+            mystmts.set_preds(pred=None)
 
         self.stmts = mystmts
         self.dpath = dpath
@@ -51,7 +54,11 @@ class Kbuild:
         mlog.debug("Symexe ({} used vars) ...".format(
             len(self.dpath.ddb.used_vars)))
         spath = SPath.get_default(self.makefile.parent, self.mysettings)
-        self.paths = self.stmts.sexe(Paths([spath]), self.dpath.ddb)
+        paths = Paths([spath])
+        if self.stmts:
+            self.paths = self.stmts.sexe(paths, self.dpath.ddb)
+        else:
+            self.paths = paths
 
     def fork(self, new_cond):
         assert z3.is_expr(new_cond), new_cond

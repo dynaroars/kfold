@@ -18,7 +18,7 @@ DBG = pdb.set_trace
 BaseVar = namedtuple("BaseVar", "name vals flavor mysettings")
 
 
-class Var(BaseVar):
+class MVar(BaseVar):
     RECURSE = "RECURSE"   # =, define
     SIMPLY = "SIMPLY"  # := , ::=
 
@@ -30,30 +30,52 @@ class Var(BaseVar):
 
         super().__init__()
 
-    @property
-    def vals_str(self):
-        return ' '.join(sorted(map(str, self.vals)))
+    def __str__(self):
+        token = "=" if self.flavor == self.RECURSE else ":="
+        return "{}({} {} {})".format(
+            self.__class__.__name__,
+            self.name, token,
+            ' '.join(sorted(self.vals)))
 
     @property
     def is_recurse(self):
         return self.flavor == self.RECURSE
 
-    def issubset(self, name, values):
-        assert isinstance(values, frozenset), values
-        return self.name == name and values.issubset(self.values)
-
     def fork_vals(self, vals):
         assert isinstance(vals, frozenset), vals
         return self.__class__(self.name, vals, self.flavor, self.mysettings)
 
-    def __str__(self):
-        token = "=" if self.flavor == self.RECURSE else ":="
-        return "{} {} {}".format(
-            self.name, token, ' '.join(sorted(self.vals)))
+    @classmethod
+    def src_var(cls, topdir, mysettings):
+        assert topdir.is_dir(), topdir
+        assert isinstance(mysettings, settings.Settings), mysettings
+
+        return cls("src", frozenset([topdir]), cls.RECURSE, mysettings)
+
+    @classmethod
+    def get_flavor(cls, token):
+        if token in set([":=", "::="]) or token in set(["+="]):
+            flavor = cls.SIMPLY
+        else:
+            assert token == "=", token
+            flavor = cls.RECURSE
+
+        return flavor
 
     @property
     def ignorable(self):
         return self.name in self.mysettings.ignore_vars
+
+
+class DVar(MVar):
+    pass
+
+
+class SVar(MVar):
+
+    def issubset(self, name, values):
+        assert isinstance(values, frozenset), values
+        return self.name == name and values.issubset(self.values)
 
     @property
     def is_undef_target(self):  # obj-, lib-
@@ -68,29 +90,10 @@ class Var(BaseVar):
         assert topdir.is_dir(), topdir
         assert not self.ignorable
 
-        subdirs = [topdir / d for d in self.subdir_names]
-
-        return subdirs
-
-    @classmethod
-    def get_flavor(cls, token):
-        if token in set([":=", "::="]) or token in set(["+="]):
-            flavor = cls.SIMPLY
-        else:
-            assert token == "=", token
-            flavor = cls.RECURSE
-
-        return flavor
-
-    @classmethod
-    def src_var(cls, topdir, mysettings):
-        assert topdir.is_dir(), topdir
-        assert isinstance(mysettings, settings.Settings), mysettings
-
-        return cls("src", frozenset([topdir]), cls.RECURSE, mysettings)
+        return [topdir / d for d in self.subdir_names]
 
 
-class BasePath:
+class Path:
     __ct__ = 0
 
     def __init__(self, cond, states, mysettings):
@@ -128,22 +131,6 @@ class BasePath:
             new_states[name] = v
         return self.__class__(new_cond, new_states, self.mysettings)
 
-    def set_var(self, name, token, val):
-        assert isinstance(name, str), name
-        assert isinstance(token, str) and token, token
-        assert isinstance(val, str), val
-
-        vals = frozenset(val.split())
-
-        if name not in self.states or self.check_token(token):
-            new_var = Var(name, vals,
-                          Var.get_flavor(token), self.mysettings)
-        else:
-            v = self.states[name]
-            new_var = v.fork_vals(v.vals | vals)
-
-        self.states[name] = new_var
-
     def is_target(self, t):
         return any(t.startswith(x) for x in self.mysettings.target_vars)
 
@@ -156,15 +143,15 @@ class BasePath:
 
     @classmethod
     def get_default(cls, src_dir, mysettings):
-        assert isinstance(src_dir, Var) or src_dir.is_dir(), src_dir
+        assert isinstance(src_dir, MVar) or src_dir.is_dir(), src_dir
         assert isinstance(mysettings, settings.Settings), mysettings
 
         states = {'src': src_dir if isinstance(
-            src_dir, Var) else Var.src_var(src_dir, mysettings)}
+            src_dir, MVar) else MVar.src_var(src_dir, mysettings)}
         return cls(zsolver.T, states, mysettings)
 
 
-class SPath(BasePath):
+class SPath(Path):
 
     def __init__(self, cond, states, mysettings):
         super().__init__(cond, states, mysettings)
@@ -191,6 +178,22 @@ class SPath(BasePath):
         if not new_paths:
             new_paths.append(self)  # keep path as is
         return new_paths
+
+    def set_var(self, name, token, val):
+        assert isinstance(name, str), name
+        assert isinstance(token, str) and token, token
+        assert isinstance(val, str), val
+
+        vals = frozenset(val.split())
+
+        if name not in self.states or self.check_token(token):
+            new_var = SVar(name, vals,
+                           SVar.get_flavor(token), self.mysettings)
+        else:
+            v = self.states[name]
+            new_var = v.fork_vals(v.vals | vals)
+
+        self.states[name] = new_var
 
     @property
     def state_vals(self):
@@ -319,7 +322,7 @@ class Paths(list):
         return Paths(paths)
 
 
-class DPath(BasePath):
+class DPath(Path):
     def __init__(self, cond, states, mysettings):
         super().__init__(cond, states, mysettings)
         self.ddb = DepDB()  # stmt_hash -> DepInfo
@@ -335,6 +338,23 @@ class DPath(BasePath):
 
     def compute_used_vars(self):
         self.ddb.compute_used_vars(self.mysettings.target_vars)
+
+    def set_var(self, name, token, vals):
+        assert isinstance(name, str), name
+        assert isinstance(token, str) and token, token
+        assert isinstance(vals, frozenset) and all(
+            isinstance(v, str) for v in vals), vals
+
+        if name not in self.states or self.check_token(token):
+            newvar = DVar(name, vals, DVar.get_flavor(token), self.mysettings)
+        else:
+            myvar = self.states[name]
+            myvals = myvar.vals
+            combs = itertools.product(*[myvals, vals])
+            newvals = frozenset([v1 + ' ' + v2 for v1, v2 in combs])
+            newvar = myvar.fork_vals(newvals)
+
+        self.states[name] = newvar
 
 
 class DepInfo:

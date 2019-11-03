@@ -15,13 +15,21 @@ DBG = pdb.set_trace
 
 
 class ExpansionBase(ABC):
+    default_str = ''
+
     def __init__(self, solver):
         self.solver = solver
 
     @classmethod
+    def combine_helper(cls, comb, ss, c, delim):
+        #print('hi', comb, ss, c)
+        comb.append((delim.join(ss), c))
+        #print('ba', comb, ss, c)
+
+    @classmethod
     def combine(cls, ts, delim=''):
         """
-        take in a list of tuple(str, cond) and
+        take in a list of list of tuple(str, cond) and
         combine the strs if cond is satisfied
         Example 1
         ts = [[('my-', None)], [('on', None)], [('-', None)],
@@ -30,7 +38,21 @@ class ExpansionBase(ABC):
         """
         assert ts, ts
 
-        if len(ts) == 1:
+        def uniq(l):
+            s = set()
+            ret = []
+            for e in l:
+                if e not in s:
+                    s.add(e)
+                    ret.append(e)
+            return ret
+
+        ts = [uniq(t) for t in ts]
+        ts = [t for t in ts if t]
+
+        if not ts:
+            return []
+        elif len(ts) == 1:
             return ts[0]
         comb = []
         for pair in itertools.product(*ts):
@@ -38,46 +60,59 @@ class ExpansionBase(ABC):
             c = zsolver.mconj(cs)
             cls.combine_helper(comb, ss, c, delim)
 
+        #print('combine', ts, comb)
         return comb
 
     def do_val(self, val, states):
+        """
+        t1 := 1 2 3
+        obj-y += $(t1) $(t1)
+        """
         assert isinstance(val, str), val
-
-        val = val.strip()
-
-        if val:
-            return self.do_fake_expansion(val, states)
-        else:
-            return [('', zsolver.T)]
+        ret = self.do_fake_expansion(val.strip(), states)
+        return ret
 
     def do_fake_expansion(self, expansion, states):
-        assert isinstance(expansion, str), expansion
+        expansion = str(expansion)
 
+        #assert isinstance(expansion, str), expansion
+        #print('do_fake_expansion', expansion)
         stmts = parser.parsestring(expansion, None)
-        assert (len(stmts) == 1), stmts
+
+        if not stmts:
+            return []
+
         if not isinstance(stmts[0], parserdata.EmptyDirective):
             # linux-3.19/drivers/isdn/hisax/Makefile
             mlog.warn("NotImplemented: {}: {}".format(
                 stmts[0].__class__.__name__, stmts[0].to_source()))
-            return ''
+            return []
+
         ret = self.do_expansion(stmts[0].exp, states)
+        # print('do_fake_expansion ret', ret)
         return ret
 
     def do_expansion(self, expansion, states):
-
+        #print('do_expansion', expansion)
         if isinstance(expansion, data.StringExpansion):  # 'x'
-            return [(expansion.s, zsolver.T)]
+            ret = [(expansion.s, zsolver.T)]
         else:
             assert isinstance(expansion, data.Expansion), expansion
             elems = [self.do_elem(elem, isfun, states)
                      for elem, isfun in expansion]
-            comb = self.combine(elems)
-            return comb
+            #print('mycombine', elems)
+            ret = self.combine(elems)
+
+        #print('do_expansion result', ret)
+        return ret
 
     def do_elem(self, elem, isfun, states):
+        # print('do_elem', elem)
         if isinstance(elem, str):
+            #print('do_elem_str', elem)
             return [(elem, zsolver.T)]
         elif isfun:
+            #print('do_elem_str fun', elem)
             try:
                 if isinstance(elem, functions.VariableRef):
                     return self.do_fun_VariableRef(elem, states)
@@ -218,16 +253,19 @@ class ExpansionBase(ABC):
         assert isinstance(fun, functions.VariableRef), fun
         assert isinstance(states, dict), states
 
+        # print('do_fun_VariableRef', fun)
         names = self.do_expansion(fun.vname, states)
-
+        #print('do_fun_VariableRef names', fun, names)
         rs = []
-        for name, _ in names:
+        for name, cond in names:
             if name in states:
-                v = states[name]
-                if v.is_recurse:
-                    vals = self.do_fake_expansion(v.vals_str, states)
-                else:
-                    vals = [(v.vals_str, zsolver.T)]
+                myvar = states[name]
+                vals = []
+                for val in myvar.vals:
+                    if myvar.is_recurse:
+                        vals.extend(self.do_fake_expansion(val, states))
+                    else:
+                        vals.append((val, zsolver.T))
 
             elif (self.solver.mysettings.is_copt(name) or
                   self.solver.mysettings.is_xopt(name)):
@@ -235,9 +273,11 @@ class ExpansionBase(ABC):
 
             else:
                 mlog.debug("'{}' undefined in path".format(name))
-                vals = [(self.solver.undef_str, zsolver.T)]
-            rs.extend(vals)
+                vals = []
 
+            vals = [(v_, zsolver.mconj([cond, cond_])) for v_, cond_ in vals]
+            rs.extend(vals)
+        #print('do_fun_VariableRef return', fun, rs)
         return rs, names
 
     def do_config_var(self, name):
@@ -245,9 +285,9 @@ class ExpansionBase(ABC):
                 self.solver.mysettings.is_xopt(name)), name
 
         symbol, optd = self.solver.get_sort(name)
-
-        vals = [(k, symbol == optd[k]) for k in optd]
-        return vals
+        ret = [(k, symbol == optd[k]) for k in optd]
+        # print('do_config_var', name, ret)
+        return ret
 
     def get_fun_arg_vals(self, fun, nargs, states):
         assert nargs >= 1, nargs
@@ -271,13 +311,16 @@ class ExpansionDExe(ExpansionBase):
         super().__init__(solver)
         self.deps = set()
 
-    @classmethod
-    def combine_helper(cls, comb, ss, c, delim):
-        ss = [s.split() for s in ss]
-        ss = [s if s else [''] for s in ss]
-        for ss_ in itertools.product(*ss):
-            a = (delim.join(ss_), c)
-            comb.append(a)
+    # @classmethod
+    # def combine_helper(cls, comb, ss, c, delim):
+    #     print('hi', comb, ss, c)
+    #     ss = [s.split() for s in ss]
+    #     ss = [s if s else [cls.default_str] for s in ss]
+    #     for ss_ in itertools.product(*ss):
+    #         a = (delim.join(ss_), c)
+    #         comb.append(a)
+
+    #     print('ba', comb, ss, c)
 
     def do_fun_VariableRef(self, fun, states):
         rs, names = super().do_fun_VariableRef(fun, states)
