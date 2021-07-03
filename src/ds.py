@@ -2,7 +2,6 @@ from collections import namedtuple, OrderedDict
 import itertools
 import pdb
 
-from pymake3 import parserdata
 import z3
 
 import settings
@@ -126,13 +125,13 @@ class Path:
 
         new_states = OrderedDict()
         for name, v in self.states.items():
-            if ignore_targets and self.is_target(name):
+            if ignore_targets and self.mysettings.is_target(name):
                 continue
             new_states[name] = v
         return self.__class__(new_cond, new_states, self.mysettings)
 
-    def is_target(self, t):
-        return any(t.startswith(x) for x in self.mysettings.target_vars)
+    # def is_target(self, t):
+    #     return any(t.startswith(x) for x in self.mysettings.target_vars)
 
     def subdirs(self, topdir):
         subdirs_ = [self.states[v].subdirs(topdir)
@@ -150,6 +149,9 @@ class Path:
             src_dir, MVar) else MVar.src_var(src_dir, mysettings)}
         return cls(zsolver.T, states, mysettings)
 
+    def is_default(self):
+        return len(self.states) == 1
+
 
 class SPath(Path):
 
@@ -161,7 +163,7 @@ class SPath(Path):
 
         new_paths = []
         for name in self.states:
-            if self.is_not_target(name):  # don't split
+            if not self.mysettings.is_target(name):  # don't split
                 continue
 
             myvar = self.states[name]
@@ -187,11 +189,10 @@ class SPath(Path):
         vals = frozenset(val.split())
 
         if name not in self.states or self.check_token(token):
-            new_var = SVar(name, vals,
-                           SVar.get_flavor(token), self.mysettings)
+            new_var = SVar(name, vals, SVar.get_flavor(token), self.mysettings)
         else:
-            v = self.states[name]
-            new_var = v.fork_vals(v.vals | vals)
+            myvar = self.states[name]
+            new_var = myvar.fork_vals(myvar.vals | vals)
 
         self.states[name] = new_var
 
@@ -210,15 +211,15 @@ class SPath(Path):
     @property
     def target_files(self):
         return [self.states[name] for name in self.states
-                if self.is_target(name)]
+                if self.mysettings.is_target(name)]
 
     @property
     def vals_d(self):
         return {self.states[name].name: self.states[name].vals
                 for name in self.states}
 
-    def is_not_target(self, t):
-        return not self.is_target(t)
+    # def is_not_target(self, t):
+    #     return not self.mysettings.is_target(t)
 
     @classmethod
     def check_token(cls, token):
@@ -332,12 +333,12 @@ class DPath(Path):
         return False
 
     def add_dep(self, stmt, lvals, ldeps, rvals, rdeps, xdeps):
-        assert isinstance(
-            stmt.sid, tuple) and stmt.sid not in self.ddb, stmt.sid
-        self.ddb[stmt.sid] = DepInfo(stmt, lvals, ldeps, rvals, rdeps, xdeps)
+        assert isinstance(lvals, frozenset) and lvals, lvals
+        assert isinstance(rvals, frozenset), rvals
+        assert isinstance(stmt.sid, tuple) and \
+            stmt.sid not in self.ddb, stmt.sid
 
-    def compute_used_vars(self):
-        self.ddb.compute_used_vars(self.mysettings.target_vars)
+        self.ddb[stmt.sid] = DepInfo(lvals, ldeps, rvals, rdeps, xdeps)
 
     def set_var(self, name, token, vals):
         assert isinstance(name, str), name
@@ -351,21 +352,23 @@ class DPath(Path):
             myvar = self.states[name]
             myvals = myvar.vals
             combs = itertools.product(*[myvals, vals])
-            newvals = frozenset([v1 + ' ' + v2 for v1, v2 in combs])
+            newvals = frozenset(x + ' ' + y for x, y in combs)
             newvar = myvar.fork_vals(newvals)
 
         self.states[name] = newvar
 
 
 class DepInfo:
-    def __init__(self, stmt, lvals, ldeps, rvals, rdeps, xdeps):
+    def __init__(self, lvals, ldeps, rvals, rdeps, xdeps):
         assert isinstance(lvals, frozenset), lvals
         assert isinstance(ldeps, frozenset), ldeps
         assert isinstance(rvals, frozenset), rvals
         assert isinstance(rdeps, frozenset), rdeps
         assert isinstance(xdeps, frozenset), xdeps
 
-        self.stmt = stmt
+        lvals = frozenset(itertools.chain(*[v.split() for v in lvals]))
+        rvals = frozenset(itertools.chain(*[v.split() for v in rvals]))
+
         self.lvals = lvals
         self.ldeps = ldeps
         self.rvals = rvals
@@ -375,8 +378,7 @@ class DepInfo:
     def __str__(self):
         def _str(fs): return ' '.join(map(str, fs))
 
-        return "{} -> {}, {}; {}, {}; {}".format(
-            self.stmt.stmt.to_source().strip(),
+        return "lv {}, ld {}; rv {}, rd {}; x {}".format(
             _str(self.lvals), _str(self.ldeps),
             _str(self.rvals), _str(self.rdeps),
             _str(self.xdeps))
@@ -392,17 +394,14 @@ class DepDB(OrderedDict):
             return False
 
         di = self[sid]
-        assert isinstance(di.stmt.stmt, parserdata.SetVariable), \
-            di.stmt.stmt.to_source().strip()
-
         return all(name not in self.used_vars for name in di.lvals)
 
-    @property
-    def lvals(self):
-        lvals_ = set()
-        for di in self.values():
-            lvals_.update(di.lvals)
-        return lvals_
+    def set_preds(self, preds):
+        for sid in preds:
+            if sid not in self:
+                mlog.warn('{} in preds but not in self'.format(sid))
+            else:
+                self[sid].set_preds(preds[sid])
 
     def compute_used_vars(self, target_vars):
         # compute dependency for all files
@@ -443,8 +442,6 @@ class DepDB(OrderedDict):
         for dname in self.dep_d[name]:
             if dname not in deps:
                 dep_names.add(dname)
-            #     mlog.warn('Potential dep cycle: {}'.format(dname))
-            # else:
 
         deps.update(dep_names)
         for dname in dep_names:

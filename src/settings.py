@@ -142,6 +142,9 @@ class Settings:
     def is_xopt(self, name):
         return name in self.xopts
 
+    def is_target(self, name):
+        return any(name.startswith(v) for v in self.target_vars)
+
     def ignore_symbol(self, symbol):
         return (any(symbol.startswith(x)
                     for x in self.ignore_setvar_startswith) or

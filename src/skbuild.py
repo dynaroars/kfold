@@ -5,12 +5,6 @@ from helpers.vcommon import getLogLevel, getLogger
 DBG = pdb.set_trace
 
 
-# def is_analysis_mode(path):
-#     return (path.is_dir() and
-#             (any(f.is_file() and f.name == settings.RESULT_SINFO
-#                  for f in path.iterdir())))
-
-
 if __name__ == '__main__':
 
     import argparse

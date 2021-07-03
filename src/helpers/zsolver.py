@@ -41,7 +41,6 @@ def simplify(f):
     if f_ is not None:
         return f_
 
-    assert z3.is_expr(f), f
     t = z3.Tactic('ctx-solver-simplify')
     f_ = t(f).as_expr()
 

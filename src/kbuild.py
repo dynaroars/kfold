@@ -15,7 +15,6 @@ mlog = CM.getLogger(__name__, settings.logger_level)
 
 DBG = pdb.set_trace
 
-
 class Kbuild:
     default_cond = None
 
@@ -31,32 +30,36 @@ class Kbuild:
     def preprocess(self):
         stmts = parser.parsestring(
             self.makefile.read_text(), self.makefile)
-        mystmts = SE.StatementList.create(stmts, sid=tuple())
+        mystmts = SE.StatementList.create(stmts, tuple(), self.solver)
         siz = mystmts.siz
         mlog.debug("Preprocessing {} stmts".format(siz))
-        mystmts.set_solver(self.solver)
         dpath = DPath.get_default(self.makefile.parent, self.mysettings)
         mystmts.dexe(dpath, frozenset())
-        dpath.compute_used_vars()
-        mystmts = mystmts.myreduce(dpath.ddb)
+
+        ddb = dpath.ddb
+        ddb.compute_used_vars(self.mysettings.target_vars)
+        mystmts = mystmts.myreduce(ddb)
         newsiz = mystmts.siz if mystmts else 0
         nremoved = siz - newsiz
-        mlog.debug("After processing {} remain {}".format(
+        mlog.debug("After preprocessing {} stmts remain {}".format(
             newsiz, "({} removed)".format(nremoved) if nremoved else ''))
 
         if mystmts:
             mystmts.set_preds(pred=None)
+            # preds = {}
+            # mystmts.set_all_preds(preds)
+            # ddb.set_preds(preds)
 
         self.stmts = mystmts
-        self.dpath = dpath
+        self.ddb = ddb
 
     def symexe(self):
         mlog.debug("Symexe ({} used vars) ...".format(
-            len(self.dpath.ddb.used_vars)))
+            len(self.ddb.used_vars)))
         spath = SPath.get_default(self.makefile.parent, self.mysettings)
         paths = Paths([spath])
         if self.stmts:
-            self.paths = self.stmts.sexe(paths, self.dpath.ddb)
+            self.paths = self.stmts.sexe(paths, self.ddb)
         else:
             self.paths = paths
 

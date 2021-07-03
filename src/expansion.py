@@ -15,16 +15,8 @@ DBG = pdb.set_trace
 
 
 class ExpansionBase(ABC):
-    default_str = ''
-
     def __init__(self, solver):
         self.solver = solver
-
-    @classmethod
-    def combine_helper(cls, comb, ss, c, delim):
-        #print('hi', comb, ss, c)
-        comb.append((delim.join(ss), c))
-        #print('ba', comb, ss, c)
 
     @classmethod
     def combine(cls, ts, delim=''):
@@ -58,9 +50,8 @@ class ExpansionBase(ABC):
         for pair in itertools.product(*ts):
             ss, cs = list(zip(*pair))
             c = zsolver.mconj(cs)
-            cls.combine_helper(comb, ss, c, delim)
+            comb.append((delim.join(ss), c))
 
-        #print('combine', ts, comb)
         return comb
 
     def do_val(self, val, states):
@@ -74,9 +65,6 @@ class ExpansionBase(ABC):
 
     def do_fake_expansion(self, expansion, states):
         expansion = str(expansion)
-
-        #assert isinstance(expansion, str), expansion
-        #print('do_fake_expansion', expansion)
         stmts = parser.parsestring(expansion, None)
 
         if not stmts:
@@ -297,9 +285,6 @@ class ExpansionBase(ABC):
 
 
 class ExpansionSExe(ExpansionBase):
-    @classmethod
-    def combine_helper(cls, comb, ss, c, delim):
-        comb.append((delim.join(ss), c))
 
     def do_fun_VariableRef(self, fun, states):
         rs, names = super().do_fun_VariableRef(fun, states)
@@ -310,17 +295,6 @@ class ExpansionDExe(ExpansionBase):
     def __init__(self, solver):
         super().__init__(solver)
         self.deps = set()
-
-    # @classmethod
-    # def combine_helper(cls, comb, ss, c, delim):
-    #     print('hi', comb, ss, c)
-    #     ss = [s.split() for s in ss]
-    #     ss = [s if s else [cls.default_str] for s in ss]
-    #     for ss_ in itertools.product(*ss):
-    #         a = (delim.join(ss_), c)
-    #         comb.append(a)
-
-    #     print('ba', comb, ss, c)
 
     def do_fun_VariableRef(self, fun, states):
         rs, names = super().do_fun_VariableRef(fun, states)

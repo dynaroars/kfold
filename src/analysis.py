@@ -12,12 +12,8 @@ mlog = CM.getLogger(__name__, settings.logger_level)
 
 DBG = pdb.set_trace
 
-
 class Analysis:
     def __init__(self, maindir, mysettings, kbuilds):
-        # from alg import Run
-        # self.orig_path, self.mysettings, self.kbuilds = Run.load(result_dir)
-        # self.maindir = Run.get_maindir(self.orig_path)
         self.maindir = maindir
         self.mysettings = mysettings
         self.kbuilds = kbuilds
@@ -240,8 +236,8 @@ class Analysis:
             try:
                 myconfigs[name] = cOptD[val]
             except KeyError:
-                assert name not in self.config_vars
                 mlog.warn("ignore {} = {}".format(name, val))
+                #assert name not in self.config_vars
 
         undef_val = solver.undef_val
         nundefs = 0
