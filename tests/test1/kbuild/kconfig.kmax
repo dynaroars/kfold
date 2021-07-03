@@ -1,0 +1,19 @@
+config CONFIG_F bool
+prompt CONFIG_F ( not CONFIG_E)
+config CONFIG_E bool
+prompt CONFIG_E (CONFIG_B)
+config CONFIG_B bool
+prompt CONFIG_B (CONFIG_A)
+config CONFIG_A bool
+prompt CONFIG_A (1)
+config CONFIG_D bool
+config CONFIG_G bool
+prompt CONFIG_G (1)
+config CONFIG_C bool
+prompt CONFIG_C (1)
+def_bool CONFIG_C 0 (1)
+dep CONFIG_F ( not CONFIG_E)
+dep CONFIG_E (CONFIG_B)
+dep CONFIG_B (CONFIG_A)
+rev_dep CONFIG_D (CONFIG_C)
+rev_dep CONFIG_G (CONFIG_E and CONFIG_B)

@@ -1,0 +1,11 @@
+
+# mytest := a.o b.o
+obj-$(CONFIG_A) += a.o
+obj-$(CONFIG_B) += b.o a.o
+# objx-$(CONFIG_C) += c.o
+lib-$(CONFIG_D) += c.o
+# obj-$(CONFIG_E) += $(mytest)
+obj-$(CONFIG_F) += f1.o f2.o
+#boo-$(CONFIG_C) += b.o
+#obj-y += boo-$(CONFIG_C)
+obj-y += objx-y

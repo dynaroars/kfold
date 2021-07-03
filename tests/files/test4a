@@ -1,0 +1,9 @@
+#obj-y := $(addprefix src/,foo bar)
+t0 := 0-$(CONFIG_A)
+t0 += 1-$(CONFIG_B)
+# t2 := 2 3
+
+# t1 := 1
+t12  := 1 2 3 4 5
+obj-y += $(t1) $(t0)  #$(t0) 
+# obj-y += $(t1) $(t2)

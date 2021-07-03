@@ -1,0 +1,3 @@
+obj-$(CONFIG_A) += a.o
+obj-$(CONFIG_B) += b.o
+obj-$(CONFIG_C) += c.o

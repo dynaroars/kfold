@@ -1,0 +1,5 @@
+ifeq ($(CONFIG_A),y)
+lib-y += a.o
+endif
+
+lib-$(CONFIG_A) += b.o

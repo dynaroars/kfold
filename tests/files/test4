@@ -1,0 +1,3 @@
+t-1-$(CONFIG_A) := 1
+t-2-$(CONFIG_B) := 2 3
+obj-y += $(t-1-$(CONFIG_A)) $(t-2-$(CONFIG_B))

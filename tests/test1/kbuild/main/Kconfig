@@ -1,0 +1,10 @@
+menu "example configs"
+
+config A
+	bool "A"
+
+config B
+	bool "B"
+  depends on A
+
+endmenu

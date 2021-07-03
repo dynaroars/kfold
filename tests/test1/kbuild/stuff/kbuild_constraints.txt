@@ -1,0 +1,17 @@
+__main__:WARNING:DEBUG MODE ON. Can be slow! (Use python -O ... for optimization)
+analysis:INFO:analyzing 1 files/dirs
+alg:INFO:processing makefile: /home/paul/research/repos/multibuild/tests/kbuild_test/main/Makefile
+analysis:INFO:results01:
+presence_conditions: 8, compilation_units: 8
+8 presence conditions: 
+/home/paul/research/repos/multibuild/tests/kbuild_test/main/6.o: Or(CONFIG_G, CONFIG_F)
+/home/paul/research/repos/multibuild/tests/kbuild_test/main/7.o: CONFIG_G
+/home/paul/research/repos/multibuild/tests/kbuild_test/main/2.o: And(CONFIG_B, CONFIG_C)
+/home/paul/research/repos/multibuild/tests/kbuild_test/main/3.o: And(Not(CONFIG_B), CONFIG_C)
+/home/paul/research/repos/multibuild/tests/kbuild_test/main/main.o: True
+/home/paul/research/repos/multibuild/tests/kbuild_test/main/5.o: CONFIG_E
+/home/paul/research/repos/multibuild/tests/kbuild_test/main/1.o: CONFIG_A
+/home/paul/research/repos/multibuild/tests/kbuild_test/main/4.o: Or(And(CONFIG_B, CONFIG_C), And(Not(CONFIG_B), CONFIG_C))
+analysis:INFO:8 all_c_files: /home/paul/research/repos/multibuild/tests/kbuild_test/main/3.c, /home/paul/research/repos/multibuild/tests/kbuild_test/main/7.c, /home/paul/research/repos/multibuild/tests/kbuild_test/main/2.c, /home/paul/research/repos/multibuild/tests/kbuild_test/main/6.c, /home/paul/research/repos/multibuild/tests/kbuild_test/main/1.c, /home/paul/research/repos/multibuild/tests/kbuild_test/main/5.c, /home/paul/research/repos/multibuild/tests/kbuild_test/main/4.c, /home/paul/research/repos/multibuild/tests/kbuild_test/main/main.c
+analysis:INFO:8 compilation_units: /home/paul/research/repos/multibuild/tests/kbuild_test/main/6.o, /home/paul/research/repos/multibuild/tests/kbuild_test/main/7.o, /home/paul/research/repos/multibuild/tests/kbuild_test/main/2.o, /home/paul/research/repos/multibuild/tests/kbuild_test/main/3.o, /home/paul/research/repos/multibuild/tests/kbuild_test/main/4.o, /home/paul/research/repos/multibuild/tests/kbuild_test/main/5.o, /home/paul/research/repos/multibuild/tests/kbuild_test/main/main.o, /home/paul/research/repos/multibuild/tests/kbuild_test/main/1.o
+analysis:INFO:time: 0.00766205787659

@@ -1,0 +1,6 @@
+symexe:DEBUG:paths: orig 126, new 252 (0.119768), split 504 (0.003376), merge 130 (3.513405), mem 0, configs 131, time 3.636562
+symexe:DEBUG:34/126. 130 paths hitting 43 SetVariable: obj-$(CONFIG_NF_NAT_SIP) += nf_nat_sip.o
+
+
+symexe:DEBUG:paths: orig 80, new 160 (0.055116), split 320 (0.002304), merge 82 (0.293482), mem 0, configs 131, time 0.350915
+symexe:DEBUG:42/126. 82 paths hitting 54 SetVariable: obj-$(CONFIG_NFT_CT) += nft_ct.o
