@@ -14,14 +14,13 @@ import logging
 import sys
 import traceback
 import os
-import imp
 import glob
 import site
 from collections import deque
 # XXXkhuey Work around http://bugs.python.org/issue1731717
 subprocess._cleanup = lambda: None
 if sys.platform == 'win32':
-    from pymake import win32process
+    from pymake3 import win32process
 
 _log = logging.getLogger('pymake.process')
 

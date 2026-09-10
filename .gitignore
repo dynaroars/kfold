@@ -2,9 +2,12 @@
 *.pyc
 .*
 !.editorconfig
+!.github/
+!.github/workflows/
+!.github/workflows/lean.yml
 !.gitignore
 
-/README.md
+!/README.md
 /TODO
 /src/Log at 2019-01-27 6-08-23 PM.txt
 /src/Log at 2019-01-28 8-06-50 AM.txt
@@ -16,4 +19,3 @@
 /src/unused.py
 /src/out.1
 /src/out1
-

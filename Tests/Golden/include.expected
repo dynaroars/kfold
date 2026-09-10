@@ -1,0 +1,2 @@
+included.o	built-in	CONFIG_INCLUDE=y
+root.o	built-in	true

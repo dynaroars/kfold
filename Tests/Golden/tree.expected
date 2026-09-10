@@ -1,0 +1,2 @@
+child/child.o	built-in	CONFIG_CHILD=y
+root.o	built-in	true
