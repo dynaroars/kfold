@@ -99,8 +99,10 @@ tools/acquire_source.py https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.
 
 The acquisition workspace records input and extracted-tree digests, preserves
 the archive when applicable, rejects archive traversal/special-file hazards,
-and publishes the source directory only after successful extraction. The
-analyzer CLI does not yet invoke this preparation stage automatically.
+and publishes the source directory only after successful extraction. Failed
+HTTP downloads retain a URL-keyed partial in the persistent cache and resume
+with a ranged request on a later run. Publisher checksum/signature verification
+and automatic analyzer-CLI integration are not yet implemented.
 
 Compare configured predictions with a build directory and find source files
 not accounted for by the predicted objects:

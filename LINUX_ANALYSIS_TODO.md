@@ -36,7 +36,9 @@ checks, computes input/source digests, and commits a manifest-backed workspace
 atomically. HTTPS download support is implemented in the script but still needs
 local-server retry/resume tests and CLI pipeline integration before P1 can be
 marked complete. The e2e suite now exercises an interrupted response followed
-by a ranged retry; persistent cross-run download recovery remains pending.
+by a ranged retry, including recovery from a partial saved by a failed prior
+run. Checksum/signature verification against publisher metadata and CLI
+pipeline integration remain pending.
 
 ## 1. Product goal and definition of done
 

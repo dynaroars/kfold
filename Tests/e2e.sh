@@ -231,12 +231,26 @@ server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
 thread = threading.Thread(target=server.serve_forever, daemon=True)
 thread.start()
 try:
+    url = f"http://127.0.0.1:{server.server_port}/linux.tar"
     output = Path(sys.argv[1])
+    cache = output.parent / "source-cache"
+    try:
+        acquire_source.acquire(
+            url,
+            output,
+            {"max_files": 100, "max_expanded_bytes": 10000, "max_download_bytes": 100000},
+            1,
+            cache,
+        )
+    except acquire_source.AcquireError:
+        pass
+    assert list(cache.glob("*.part"))
     manifest = acquire_source.acquire(
-        f"http://127.0.0.1:{server.server_port}/linux.tar",
+        url,
         output,
         {"max_files": 100, "max_expanded_bytes": 10000, "max_download_bytes": 100000},
         3,
+        cache,
     )
     assert Handler.requests >= 2
     assert manifest["input_kind"] == "https-archive"

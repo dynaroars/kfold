@@ -196,17 +196,42 @@ def download(url, destination, max_bytes, retries):
     raise AcquireError(f"download failed after {retries} attempts: {error}")
 
 
-def acquire(input_value, output_dir, limits, retries):
+def acquire(input_value, output_dir, limits, retries, cache_dir=None):
     if output_dir.exists():
         raise AcquireError(f"output directory already exists: {output_dir}")
     output_dir.parent.mkdir(parents=True, exist_ok=True)
+    if cache_dir is None:
+        cache_dir = output_dir.parent / ".source-cache"
+    cache_dir = Path(cache_dir).resolve()
     temporary = Path(tempfile.mkdtemp(prefix=f".{output_dir.name}.", dir=output_dir.parent))
     try:
         source = temporary / "source"
         archive = temporary / "archive"
         started = time.time()
         if input_value.startswith(("https://", "http://")):
-            download(input_value, archive, limits["max_download_bytes"], retries)
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            url_key = hashlib.sha256(input_value.encode("utf-8")).hexdigest()
+            cache_index = cache_dir / f"{url_key}.json"
+            cached_archive = None
+            if cache_index.exists():
+                try:
+                    cached_digest = json.loads(cache_index.read_text(encoding="utf-8"))["sha256"]
+                    candidate = cache_dir / f"{cached_digest}.archive"
+                    if candidate.is_file():
+                        cached_archive = candidate
+                except (OSError, KeyError, TypeError, json.JSONDecodeError):
+                    cached_archive = None
+            if cached_archive is None:
+                cached_download = cache_dir / f"{url_key}.download"
+                download(input_value, cached_download, limits["max_download_bytes"], retries)
+                input_digest = sha256_file(cached_download)
+                cached_archive = cache_dir / f"{input_digest}.archive"
+                if not cached_archive.exists():
+                    cached_download.replace(cached_archive)
+                else:
+                    cached_download.unlink()
+                cache_index.write_text(json.dumps({"sha256": input_digest}) + "\n", encoding="utf-8")
+            shutil.copy2(cached_archive, archive)
             input_kind = "https-archive"
             input_digest = sha256_file(archive)
             archive_size = archive.stat().st_size
@@ -256,6 +281,7 @@ def acquire(input_value, output_dir, limits, retries):
             "retrieved_unix_seconds": started,
             "limits": limits,
             "source_directory": "source",
+            "cache_directory": str(cache_dir) if input_kind == "https-archive" else None,
         }
         (temporary / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         temporary.rename(output_dir)
@@ -269,6 +295,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", help="local tree/archive or http(s) archive URL")
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--cache-dir", type=Path)
     parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("--max-files", type=int, default=DEFAULT_MAX_FILES)
     parser.add_argument("--max-expanded-bytes", type=int, default=DEFAULT_MAX_EXPANDED_BYTES)
@@ -282,7 +309,7 @@ def main():
         "max_download_bytes": args.max_download_bytes,
     }
     try:
-        manifest = acquire(args.input, args.output_dir.resolve(), limits, args.retries)
+        manifest = acquire(args.input, args.output_dir.resolve(), limits, args.retries, args.cache_dir)
     except AcquireError as error:
         print(f"acquire_source: {error}", file=sys.stderr)
         return 2
