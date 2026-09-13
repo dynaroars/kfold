@@ -23,9 +23,9 @@ remain unsupported and must not be treated as complete.
 
 The typed report context is committed as `2912242`. The baseline recorder in
 `tools/record_baseline.py` is now covered by the e2e suite and writes a manifest,
-raw report, stderr, and dirty patch for each run. A complete pinned Linux
-release baseline has not yet been archived; the existing Linux/BusyBox fixture
-measurements remain preliminary.
+raw report, stderr, and dirty patch for each run, with SHA-256 hashes for the
+captured artifacts. A complete pinned Linux release baseline has not yet been
+archived; the existing Linux/BusyBox fixture measurements remain preliminary.
 
 The CLI now accepts `--strict`: it still emits an incomplete JSON report, but
 returns status 1 when any diagnostic makes the analysis incomplete. Full
