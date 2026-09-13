@@ -11,6 +11,14 @@ Status convention: `[x]` means implemented in the working tree, not necessarily
 committed or validated on a current complete Linux release. `[ ]` means remaining.
 Commands and layouts below are proposed interfaces unless stated otherwise.
 
+Current implementation evidence (2026-09-13): the first checkpoint is committed
+as `071f8fa`. Direct top-level `$(eval TEXT)` statements, including statements
+inside analyzed conditionals, now expand and execute generated assignments in
+order in the recursive IO evaluator. This is intentionally only a subset of
+the P3 contract: nested eval, generated rule semantics, guarded termination,
+command execution, and effect provenance remain unsupported and must not be
+treated as complete.
+
 ## 1. Product goal and definition of done
 
 A user supplies a Linux source archive URL and runs one command. skbuild resolves

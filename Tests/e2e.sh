@@ -53,6 +53,23 @@ diff -u "$project_root/Tests/Golden/tree.expected" \
 diff -u "$project_root/Tests/Golden/wildcard.expected" \
   "$tmp_dir/wildcard.actual"
 
+"$project_root/.lake/build/bin/skbuild" --json \
+  "$project_root/Tests/Fixtures/eval" > "$tmp_dir/eval.json"
+
+python3 - "$tmp_dir/eval.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    report = json.load(stream)
+
+assert report["complete"] is True
+assert report["diagnostics"] == []
+by_path = {item["path"]: item for item in report["files"]}
+assert set(by_path) == {"first.o", "second.o", "guarded.o"}
+assert by_path["guarded.o"]["condition_text"] == "CONFIG_EXTRA=y"
+PY
+
 cp -R "$project_root/Tests/Fixtures/wildcard" "$tmp_dir/wildcard-cache"
 "$project_root/.lake/build/bin/skbuild" --json \
   --cache="$tmp_dir/wildcard.cache.json" "$tmp_dir/wildcard-cache" \

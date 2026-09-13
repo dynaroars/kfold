@@ -168,6 +168,10 @@ behavior.
   Kbuild subtrees.  A current tristate run reports more than 40,000 conditional
   object records.  Its report is incomplete where the historical snapshot lacks
   generated paths or uses unsupported side-effecting Make behavior.
+- The recursive evaluator supports direct top-level `$(eval TEXT)` statements,
+  including guarded statements, by parsing and executing generated assignments
+  at the current sequence point.  This subset is tested independently; nested
+  eval and generated rule semantics remain outside the supported scope.
 
 These are implementation measurements, not yet paper-quality benchmark claims.
 They should be reproduced on a documented machine and configuration before

@@ -22,6 +22,26 @@ private def diagnostic
     (incomplete : Bool := true) : Diagnostic :=
   { code, severity := .warning, message, span, makesIncomplete := incomplete }
 
+private partial def directEvalSpans : Array Statement → Array SourceSpan
+  | statements => statements.flatMap fun statement =>
+      match statement with
+      | .expression (.function .eval _) span => #[span]
+      | .conditional branches _ => branches.flatMap fun branch =>
+          directEvalSpans branch.statements
+      | _ => #[]
+
+private def suppressHandledEvalDiagnostics
+    (statements : Array Statement)
+    (diagnostics : Array Diagnostic) : Array Diagnostic :=
+  let handled := directEvalSpans statements
+  diagnostics.filter fun diagnostic =>
+    !handled.any fun span =>
+      diagnostic.span == span &&
+        ((diagnostic.code == "SKB1003" &&
+            diagnostic.message == "Make function 'eval' is parsed but not symbolically evaluated") ||
+          (diagnostic.code == "SKB1004" &&
+            diagnostic.message == "top-level expansion side effects are not evaluated"))
+
 def automaticEnvironment
     (sourceRoot : System.FilePath)
     (sourceName : String := ".") : Environment :=
@@ -163,6 +183,46 @@ mutual
             }
           total := appendExecution total branchResult
         return { total with paths := mergePaths total.paths }
+    | .expression (.function .eval args) span =>
+        match args[0]? with
+        | none =>
+            return {
+              paths := paths
+              diagnostics := #[diagnostic "SKB1003" "eval requires one argument" span]
+            }
+        | some argument =>
+            let mut result : Execution := { paths := #[] }
+            for path in paths do
+              let alternatives := expandText settings path.environment argument
+              if alternatives.isEmpty then
+                result := appendExecution result {
+                  paths := #[path],
+                  diagnostics := #[diagnostic "SKB1003"
+                    "eval argument could not be expanded" span]
+                }
+              for alternative in alternatives do
+                let condition := path.condition.conj alternative.condition
+                if !feasible settings condition then continue
+                match Parser.parse alternative.value (span.file ++ ":eval") with
+                | .error message =>
+                    result := appendExecution result {
+                      paths := #[{ path with condition }],
+                      diagnostics := #[diagnostic "SKB1003"
+                        s!"cannot parse generated eval text: {message}" span]
+                    }
+                | .ok generated =>
+                    -- Generated text is evaluated at this sequence point.  It
+                    -- must not be dependency-reduced in isolation: an eval
+                    -- commonly defines a helper consumed by a later outer
+                    -- assignment.
+                    let generatedExecution ← executeStatementsIO settings base generated.statements
+                      #[{ path with condition }] includeStack
+                      false knownContributions
+                    result := appendExecution result {
+                      generatedExecution with
+                      diagnostics := validateMakefile generated ++ generatedExecution.diagnostics
+                    }
+            return { result with paths := mergePaths result.paths }
     | other => return executeStatement settings other paths streamTargets knownContributions
 end
 
@@ -197,6 +257,7 @@ def analyzeFile
         (reduced.canStreamTargets settings)
       return .ok { execution with
         targetContributions := mergeTargetContributions execution.targetContributions
-        diagnostics := validateMakefile reduced ++ execution.diagnostics }
+        diagnostics := suppressHandledEvalDiagnostics reduced.statements
+          (validateMakefile reduced ++ execution.diagnostics) }
 
 end Skbuild
