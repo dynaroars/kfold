@@ -58,10 +58,22 @@ def analyzeTree (settings : Settings) (root : System.FilePath) : IO (Except Stri
     filesystemPaths
     workingDirectory := sourceRoot.toString
   }
+  let mut result : TreeAnalysis := {}
   let mut queue : Array WorkItem := #[{ path := first, condition := .top }]
+  for directory in settings.topDirectories do
+    let childDirectory := resolveFilePath rootBase directory
+    match ← findMakefile childDirectory with
+    | some makefile => queue := queue.push { path := makefile, condition := .top }
+    | none =>
+        result := { result with diagnostics := result.diagnostics.push {
+          code := "SKB3001"
+          severity := .warning
+          message := s!"configured Kbuild directory has no Kbuild or Makefile: {childDirectory}"
+          span := SourceSpan.unknown first.toString
+          makesIncomplete := true
+        } }
   let mut cursor := 0
   let mut visited : List String := []
-  let mut result : TreeAnalysis := {}
   while cursor < queue.size do
     let item := queue[cursor]!
     cursor := cursor + 1

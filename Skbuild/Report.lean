@@ -47,11 +47,36 @@ def filePresenceJson (file : FilePresence) : Json := Json.mkObj [
   ("condition_text", file.condition.render)
 ]
 
+/-
+  These fields deliberately describe what the analyzer can establish from the
+  current invocation.  In particular, an incomplete run is `unknown`, rather
+  than an over- or under-approximation: the direction of an error depends on
+  the unsupported Make/Kbuild feature.
+-/
+def reportCoverageJson (diagnostics : Array Diagnostic) : Json :=
+  let incomplete := diagnostics.any (·.makesIncomplete)
+  let unsupported := diagnostics.any fun diagnostic =>
+    diagnostic.makesIncomplete &&
+      (diagnostic.code.startsWith "SKB1" || diagnostic.code.startsWith "SKB2")
+  let missingInput := diagnostics.any fun diagnostic =>
+    diagnostic.makesIncomplete &&
+      (diagnostic.code == "SKB2001" || diagnostic.code == "SKB2003" ||
+        diagnostic.code == "SKB2004")
+  Json.mkObj [
+    ("selected_scope", "configured-makefiles"),
+    ("input_coverage", if missingInput then "incomplete" else if incomplete then "unknown" else "complete"),
+    ("unsupported_semantics", unsupported),
+    ("kconfig_validity", "not-checked"),
+    ("build_validation", "not-requested"),
+    ("qualification", if incomplete then "unknown" else "exact-within-modeled-scope")
+  ]
+
 def reportJson (files : Array FilePresence) (diagnostics : Array Diagnostic) : Json :=
   let incomplete := diagnostics.any (·.makesIncomplete)
   Json.mkObj [
     ("schema", toJson (1 : Nat)),
     ("complete", !incomplete),
+    ("coverage", reportCoverageJson diagnostics),
     ("files", Json.arr <| (sortFiles files).map filePresenceJson),
     ("diagnostics", Json.arr <| diagnostics.map diagnosticJson)
   ]

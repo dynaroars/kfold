@@ -52,6 +52,35 @@ objects for a concrete configuration:
 .lake/build/bin/skbuild --no-recursive path/to/linux/drivers/Makefile
 ```
 
+The checked-in BusyBox snapshot includes a project configuration for its
+`core-y`/`libs-y` top-level layout and can be analyzed recursively:
+
+```sh
+.lake/build/bin/skbuild --tristate --json tests/busybox/Makfiles_only/busybox_orig
+```
+
+Its top-level Makefile uses host-dependent `shell` and `error` calls, so the
+report intentionally remains incomplete while still reporting the objects in
+its configured Kbuild subtrees.
+
+The checked-in Linux snapshot likewise has a project configuration covering
+its top-level Kbuild subtrees:
+
+```sh
+.lake/build/bin/skbuild --tristate --json tests/linux/linux_orig
+```
+
+It reports more than 40,000 conditional object records. The historical source
+snapshot omits some generated/includes paths, and a few files use unsupported
+side-effecting Make operations, so its report is also intentionally incomplete.
+
+JSON reports retain the `complete` field for compatibility and also include a
+`coverage` object. Its `selected_scope`, `input_coverage`,
+`unsupported_semantics`, `kconfig_validity`, `build_validation`, and
+`qualification` fields make the limits of an incomplete result explicit;
+`qualification: "unknown"` must not be interpreted as evidence that an object
+is dead.
+
 Compare configured predictions with a build directory and find source files
 not accounted for by the predicted objects:
 

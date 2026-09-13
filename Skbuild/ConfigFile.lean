@@ -40,7 +40,7 @@ def parse (contents : String) : Except String Settings := do
       | throw s!"settings line {lineNumber}: expected key=value"
     let name := trimString rawName
     let value := trimString rawValue
-    if currentSection == "COMMON" then
+    if currentSection == "COMMON" || currentSection == "DEFAULT" then
       match name with
       | "use_tristate" =>
           match parseBool value with

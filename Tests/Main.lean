@@ -173,6 +173,19 @@ def main : IO UInt32 := do
     config.targetPrefixes.contains "host-"
   assertTrue "settings parser supports finite domains" <|
     (config.domainFor "BITS").values == ["32", "64", ""]
+  let legacyConfig ← match Settings.parse "[DEFAULT]\ntop_dirs = applets\ntarget_vars = obj- core-\n" with
+    | .ok value => pure value
+    | .error message => throw <| IO.userError message
+  assertTrue "settings parser accepts legacy DEFAULT settings sections" <|
+    legacyConfig.topDirectories == ["applets"] && legacyConfig.targetPrefixes.contains "core-"
+  let busyboxTargetAst ← match Parser.parse "core-y += applets/\n" "busybox-target-test" with
+    | .ok value => pure value
+    | .error message => throw <| IO.userError message
+  let busyboxSettings : Settings := { targetPrefixes := ["obj-", "lib-", "core-"] }
+  let busyboxDirectories := extractDirectories busyboxSettings <|
+    executeMakefile busyboxSettings busyboxTargetAst
+  assertTrue "custom target prefixes participate in directory traversal" <|
+    busyboxDirectories.any (·.path == "applets/")
   let automaticBitsAst ← match Parser.parse "obj-y += unit_$(BITS).o\n" "bits-test" with
     | .ok value => pure value
     | .error message => throw <| IO.userError message

@@ -22,11 +22,11 @@ structure FilePresence where
   condition : Formula
   deriving Repr, BEq, Inhabited
 
-def targetKind? (name : String) : Option TargetKind :=
-  if name == "obj-y" then some .builtIn
-  else if name == "obj-m" then some .module
-  else if name == "lib-y" || name == "lib-m" then some .library
-  else none
+def targetKind? (settings : Settings) (name : String) : Option TargetKind :=
+  if !settings.isTarget name || !(name.endsWith "-y" || name.endsWith "-m") then none
+  else if name.startsWith "lib-" || name.startsWith "libs-" then some .library
+  else if name.endsWith "-m" then some .module
+  else some .builtIn
 
 def mergeFilePresence (items : Array FilePresence) : Array FilePresence := Id.run do
   let mut output := #[]
@@ -76,14 +76,14 @@ def extractFiles (settings : Settings) (execution : Execution) : Array FilePrese
       }
   let allContributions := execution.targetContributions ++ storedContributions
   let streamed := allContributions.flatMap fun contribution =>
-    match targetKind? contribution.name with
+    match targetKind? settings contribution.name with
     | none => #[]
     | some target =>
         (contribution.value.splitOn " ").toArray.flatMap fun file =>
           expandComposite allContributions target file contribution.condition
   let merged := mergeFilePresence <| streamed ++ execution.paths.flatMap fun path =>
     path.environment.toArray.flatMap fun (name, stored) =>
-      match targetKind? name with
+      match targetKind? settings name with
       | none => #[]
       | some target =>
           (expandText settings path.environment stored.value).flatMap fun expanded =>
@@ -116,13 +116,13 @@ def mergeDirectoryPresence (items : Array DirectoryPresence) : Array DirectoryPr
 
 def extractDirectories (settings : Settings) (execution : Execution) : Array DirectoryPresence :=
   let streamed := execution.targetContributions.flatMap fun contribution =>
-    if !(targetKind? contribution.name).isSome then #[]
+    if !(targetKind? settings contribution.name).isSome then #[]
     else (contribution.value.splitOn " ").toArray.filterMap fun directory =>
       if directory.endsWith "/" then some { path := directory, condition := contribution.condition }
       else none
   let merged := mergeDirectoryPresence <| streamed ++ execution.paths.flatMap fun path =>
     path.environment.toArray.flatMap fun (name, stored) =>
-      if !(targetKind? name).isSome then #[]
+      if !(targetKind? settings name).isSome then #[]
       else
         (expandText settings path.environment stored.value).flatMap fun expanded =>
           let condition := path.condition.conj expanded.condition

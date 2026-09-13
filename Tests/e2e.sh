@@ -101,7 +101,55 @@ with open(sys.argv[1], encoding="utf-8") as stream:
 
 assert report["schema"] == 1
 assert report["complete"] is True
+assert report["coverage"] == {
+    "selected_scope": "configured-makefiles",
+    "input_coverage": "complete",
+    "unsupported_semantics": False,
+    "kconfig_validity": "not-checked",
+    "build_validation": "not-requested",
+    "qualification": "exact-within-modeled-scope",
+}
 assert [item["path"] for item in report["files"]] == ["child/child.o", "root.o"]
+PY
+
+"$project_root/.lake/build/bin/skbuild" --json \
+  "$project_root/tests/busybox/Makfiles_only/busybox_orig" \
+  > "$tmp_dir/busybox.json" 2>/dev/null
+
+python3 - "$tmp_dir/busybox.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    report = json.load(stream)
+
+paths = {item["path"] for item in report["files"]}
+assert "applets/applets.o" in paths
+assert "archival/gzip.o" in paths
+assert len(report["files"]) > 500
+assert report["complete"] is False
+assert report["coverage"]["qualification"] == "unknown"
+assert report["coverage"]["unsupported_semantics"] is True
+assert {item["code"] for item in report["diagnostics"]} <= {"SKB1003", "SKB1004"}
+PY
+
+"$project_root/.lake/build/bin/skbuild" --tristate --json \
+  "$project_root/tests/linux/linux_orig" \
+  > "$tmp_dir/linux.json" 2>/dev/null
+
+python3 - "$tmp_dir/linux.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    report = json.load(stream)
+
+paths = {item["path"] for item in report["files"]}
+assert "block/badblocks.o" in paths
+assert "drivers/base/core.o" in paths
+assert len(report["files"]) > 40000
+assert report["complete"] is False
+assert report["coverage"]["qualification"] == "unknown"
 PY
 
 "$project_root/.lake/build/bin/skbuild" --json \
