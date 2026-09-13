@@ -14,6 +14,8 @@ private def appendExecution (left right : Execution) : Execution :=
   { paths := left.paths ++ right.paths
     targetContributions := left.targetContributions ++ right.targetContributions
     contributionMasks := left.contributionMasks ++ right.contributionMasks
+    handledEvalSpans := left.handledEvalSpans ++ right.handledEvalSpans
+    handledEvalExpressions := left.handledEvalExpressions ++ right.handledEvalExpressions
     diagnostics := left.diagnostics ++ right.diagnostics }
 
 private def diagnostic
@@ -22,18 +24,29 @@ private def diagnostic
     (incomplete : Bool := true) : Diagnostic :=
   { code, severity := .warning, message, span, makesIncomplete := incomplete }
 
-private partial def directEvalSpans : Array Statement → Array SourceSpan
-  | statements => statements.flatMap fun statement =>
-      match statement with
-      | .expression (.function .eval _) span => #[span]
-      | .conditional branches _ => branches.flatMap fun branch =>
-          directEvalSpans branch.statements
-      | _ => #[]
+private partial def exprContainsEval : Expr → Bool
+  | .literal _ => false
+  | .variable name => exprContainsEval name
+  | .function fn args => fn == .eval || args.any exprContainsEval
+  | .concat parts => parts.any exprContainsEval
 
 private def suppressHandledEvalDiagnostics
     (statements : Array Statement)
+    (handled : Array SourceSpan)
+    (handledExpressions : Array Expr)
     (diagnostics : Array Diagnostic) : Array Diagnostic :=
-  let handled := directEvalSpans statements
+  let definitionSpans := statements.flatMap fun statement =>
+    match statement with
+    | .assignment _ _ value _ span =>
+        if handledExpressions.any (· == value) then #[span] else #[]
+    | .conditional branches _ => branches.flatMap fun branch =>
+        branch.statements.flatMap fun nested =>
+          match nested with
+          | .assignment _ _ value _ span =>
+              if handledExpressions.any (· == value) then #[span] else #[]
+          | _ => #[]
+    | _ => #[]
+  let handled := handled ++ definitionSpans
   diagnostics.filter fun diagnostic =>
     !handled.any fun span =>
       diagnostic.span == span &&
@@ -75,6 +88,135 @@ partial def discoverSourceRoot (start : System.FilePath) : IO System.FilePath :=
   ascend start.normalize start.normalize
 
 mutual
+  partial def executeExpressionIO
+      (settings : Settings)
+      (base : System.FilePath)
+      (expression : Expr)
+      (span : SourceSpan)
+      (paths : Array SymPath)
+      (includeStack : List String)
+      (knownContributions : Array TargetContribution) : IO Execution := do
+    match expression with
+    | .function .eval args =>
+        match args[0]? with
+        | none =>
+            return {
+              paths := paths
+              diagnostics := #[diagnostic "SKB1003" "eval requires one argument" span]
+            }
+        | some argument =>
+            let mut result : Execution := { paths := #[] }
+            for path in paths do
+              let alternatives := expandText settings path.environment argument
+              if alternatives.isEmpty then
+                result := appendExecution result {
+                  paths := #[path]
+                  diagnostics := #[diagnostic "SKB1003"
+                    "eval argument could not be expanded" span]
+                }
+              for alternative in alternatives do
+                let condition := path.condition.conj alternative.condition
+                if !feasible settings condition then continue
+                match Parser.parse alternative.value (span.file ++ ":eval") with
+                | .error message =>
+                    result := appendExecution result {
+                      paths := #[{ path with condition }]
+                      diagnostics := #[diagnostic "SKB1003"
+                        s!"cannot parse generated eval text: {message}" span]
+                    }
+                | .ok generated =>
+                    -- Do not reduce generated text independently: an eval can
+                    -- define a helper consumed by a later outer statement.
+                    let generatedExecution ← executeStatementsIO settings base generated.statements
+                      #[{ path with condition }] includeStack false knownContributions
+                    result := appendExecution result {
+                      generatedExecution with
+                      handledEvalSpans := #[span] ++ generatedExecution.handledEvalSpans
+                      diagnostics := validateMakefile generated ++ generatedExecution.diagnostics
+                    }
+            return { result with paths := mergePaths result.paths }
+    | .function .ifThenElse args =>
+        match args[0]?, args[1]? with
+        | some conditionExpression, some thenExpression =>
+            let mut result : Execution := { paths := #[] }
+            for path in paths do
+              let conditions := expandText settings path.environment conditionExpression
+              for condition in conditions do
+                let pathCondition := path.condition.conj condition.condition
+                if !feasible settings pathCondition then continue
+                let chosen := if condition.value.trimAscii.toString.isEmpty then
+                  args[2]?.getD (.literal "")
+                else thenExpression
+                let branch ← executeExpressionIO settings base chosen span
+                  #[{ path with condition := pathCondition }] includeStack knownContributions
+                result := appendExecution result branch
+            return { result with paths := mergePaths result.paths }
+        | _, _ => return { paths }
+    | .concat parts =>
+        let mut current : Execution := { paths }
+        for part in parts do
+          let next ← executeExpressionIO settings base part span current.paths includeStack
+            (knownContributions ++ current.targetContributions)
+          current := {
+            paths := mergePaths next.paths
+            targetContributions := current.targetContributions ++ next.targetContributions
+            contributionMasks := current.contributionMasks ++ next.contributionMasks
+            handledEvalSpans := current.handledEvalSpans ++ next.handledEvalSpans
+            handledEvalExpressions := current.handledEvalExpressions ++ next.handledEvalExpressions
+            diagnostics := current.diagnostics ++ next.diagnostics
+          }
+        return current
+    | .variable name =>
+        let mut result : Execution := { paths := #[] }
+        for path in paths do
+          let names := expandText settings path.environment name
+          for named in names do
+            let condition := path.condition.conj named.condition
+            match path.environment.get? named.value with
+            | none => result := appendExecution result { paths := #[{ path with condition }] }
+                | some stored =>
+                    let expanded ← executeExpressionIO settings base stored.value span
+                      #[{ path with condition }] includeStack knownContributions
+                    result := appendExecution result {
+                      expanded with
+                      handledEvalExpressions := if exprContainsEval stored.value then
+                        #[stored.value] ++ expanded.handledEvalExpressions
+                      else expanded.handledEvalExpressions
+                    }
+        return { result with paths := mergePaths result.paths }
+    | .function .call args =>
+        match args[0]? with
+        | none => return { paths }
+        | some nameExpression =>
+            let mut result : Execution := { paths := #[] }
+            for path in paths do
+              let names := expandText settings path.environment nameExpression
+              for named in names do
+                let condition := path.condition.conj named.condition
+                match path.environment.get? named.value with
+                | none => result := appendExecution result { paths := #[{ path with condition }] }
+                | some storedMacro =>
+                    let mut callPaths : Array (Environment × Formula) :=
+                      #[(path.environment.set "0" ⟨.simple, .literal named.value⟩, condition)]
+                    for (argument, index) in (args.toList.drop 1).zip (List.range (args.size - 1)) do
+                      let values := expandText settings path.environment argument
+                      callPaths := callPaths.flatMap fun (environment, guard) =>
+                        values.map fun value =>
+                          (environment.set (toString (index + 1))
+                            ⟨.simple, .literal value.value⟩,
+                            guard.conj value.condition)
+                    for (environment, guard) in callPaths do
+                      let called ← executeExpressionIO settings base storedMacro.value span
+                        #[{ path with condition := guard, environment }] includeStack knownContributions
+                      result := appendExecution result {
+                        called with
+                        handledEvalExpressions := if exprContainsEval storedMacro.value then
+                          #[storedMacro.value] ++ called.handledEvalExpressions
+                        else called.handledEvalExpressions
+                      }
+            return { result with paths := mergePaths result.paths }
+    | _ => return { paths }
+
   partial def executeStatementsIO
       (settings : Settings)
       (base : System.FilePath)
@@ -95,6 +237,8 @@ mutual
             next.contributionMasks ++ next.targetContributions
         contributionMasks := execution.contributionMasks ++ next.contributionMasks
         diagnostics := execution.diagnostics ++ next.diagnostics
+        handledEvalExpressions := execution.handledEvalExpressions ++ next.handledEvalExpressions
+        handledEvalSpans := execution.handledEvalSpans ++ next.handledEvalSpans
       }
     return execution
 
@@ -183,46 +327,8 @@ mutual
             }
           total := appendExecution total branchResult
         return { total with paths := mergePaths total.paths }
-    | .expression (.function .eval args) span =>
-        match args[0]? with
-        | none =>
-            return {
-              paths := paths
-              diagnostics := #[diagnostic "SKB1003" "eval requires one argument" span]
-            }
-        | some argument =>
-            let mut result : Execution := { paths := #[] }
-            for path in paths do
-              let alternatives := expandText settings path.environment argument
-              if alternatives.isEmpty then
-                result := appendExecution result {
-                  paths := #[path],
-                  diagnostics := #[diagnostic "SKB1003"
-                    "eval argument could not be expanded" span]
-                }
-              for alternative in alternatives do
-                let condition := path.condition.conj alternative.condition
-                if !feasible settings condition then continue
-                match Parser.parse alternative.value (span.file ++ ":eval") with
-                | .error message =>
-                    result := appendExecution result {
-                      paths := #[{ path with condition }],
-                      diagnostics := #[diagnostic "SKB1003"
-                        s!"cannot parse generated eval text: {message}" span]
-                    }
-                | .ok generated =>
-                    -- Generated text is evaluated at this sequence point.  It
-                    -- must not be dependency-reduced in isolation: an eval
-                    -- commonly defines a helper consumed by a later outer
-                    -- assignment.
-                    let generatedExecution ← executeStatementsIO settings base generated.statements
-                      #[{ path with condition }] includeStack
-                      false knownContributions
-                    result := appendExecution result {
-                      generatedExecution with
-                      diagnostics := validateMakefile generated ++ generatedExecution.diagnostics
-                    }
-            return { result with paths := mergePaths result.paths }
+    | .expression expression span =>
+        return ← executeExpressionIO settings base expression span paths includeStack knownContributions
     | other => return executeStatement settings other paths streamTargets knownContributions
 end
 
@@ -257,7 +363,8 @@ def analyzeFile
         (reduced.canStreamTargets settings)
       return .ok { execution with
         targetContributions := mergeTargetContributions execution.targetContributions
-        diagnostics := suppressHandledEvalDiagnostics reduced.statements
+        diagnostics := suppressHandledEvalDiagnostics reduced.statements execution.handledEvalSpans
+          execution.handledEvalExpressions
           (validateMakefile reduced ++ execution.diagnostics) }
 
 end Skbuild

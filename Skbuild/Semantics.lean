@@ -12,6 +12,8 @@ structure Execution where
   paths : Array SymPath
   targetContributions : Array TargetContribution := #[]
   contributionMasks : Array ContributionMask := #[]
+  handledEvalSpans : Array SourceSpan := #[]
+  handledEvalExpressions : Array Expr := #[]
   diagnostics : Array Diagnostic := #[]
   deriving Repr, Inhabited
 

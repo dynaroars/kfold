@@ -12,12 +12,14 @@ committed or validated on a current complete Linux release. `[ ]` means remainin
 Commands and layouts below are proposed interfaces unless stated otherwise.
 
 Current implementation evidence (2026-09-13): the first checkpoint is committed
-as `071f8fa`. Direct top-level `$(eval TEXT)` statements, including statements
-inside analyzed conditionals, now expand and execute generated assignments in
-order in the recursive IO evaluator. This is intentionally only a subset of
-the P3 contract: nested eval, generated rule semantics, guarded termination,
-command execution, and effect provenance remain unsupported and must not be
-treated as complete.
+as `071f8fa`. The recursive IO evaluator now expands and executes a bounded
+subset of generated assignments in order, including direct and guarded
+`$(eval TEXT)`, `eval` nested in `if` and concatenation, and macro bodies
+invoked through `call`. Executed eval spans and called definition bodies are
+tracked so only handled validation warnings are qualified away. This remains
+only a subset of the P3 contract: generated rule semantics, recursive depth
+limits, guarded termination, command execution, and complete effect provenance
+remain unsupported and must not be treated as complete.
 
 The typed report context is committed as `2912242`. The baseline recorder in
 `tools/record_baseline.py` is now covered by the e2e suite and writes a manifest,

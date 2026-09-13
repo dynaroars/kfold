@@ -66,8 +66,12 @@ with open(sys.argv[1], encoding="utf-8") as stream:
 assert report["complete"] is True
 assert report["diagnostics"] == []
 by_path = {item["path"]: item for item in report["files"]}
-assert set(by_path) == {"first.o", "second.o", "guarded.o"}
+assert set(by_path) == {
+    "first.o", "second.o", "guarded.o", "if.o", "concat.o", "macro.o"
+}
 assert by_path["guarded.o"]["condition_text"] == "CONFIG_EXTRA=y"
+assert by_path["if.o"]["condition_text"] == "CONFIG_EXTRA=y"
+assert report["coverage"]["qualification"] == "exact-within-modeled-scope"
 PY
 
 cp -R "$project_root/Tests/Fixtures/wildcard" "$tmp_dir/wildcard-cache"
