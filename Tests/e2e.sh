@@ -163,16 +163,41 @@ assert manifest["source_file_count"] == 2
 assert (root / "source/Makefile").exists()
 PY
 
-python3 - "$tmp_dir/unsafe.tar" <<'PY'
+python3 - "$tmp_dir/safe.tar" "$tmp_dir/unsafe.tar" <<'PY'
 import io
 import sys
 import tarfile
 
 with tarfile.open(sys.argv[1], "w") as archive:
+    member = tarfile.TarInfo("linux/Kbuild")
+    data = b"obj-y += kernel.o\n"
+    member.size = len(data)
+    archive.addfile(member, io.BytesIO(data))
+with tarfile.open(sys.argv[2], "w") as archive:
     member = tarfile.TarInfo("../escape")
     member.size = 1
     archive.addfile(member, io.BytesIO(b"x"))
 PY
+safe_sha256=$(sha256sum "$tmp_dir/safe.tar" | awk '{print $1}')
+"$project_root/tools/acquire_source.py" "$tmp_dir/safe.tar" \
+  --sha256 "$safe_sha256" --output-dir "$tmp_dir/verified-output" > /dev/null
+python3 - "$tmp_dir/verified-output/manifest.json" <<'PY'
+import json
+import sys
+
+manifest = json.load(open(sys.argv[1], encoding="utf-8"))
+assert manifest["verification"]["status"] == "verified"
+assert manifest["verification"]["method"] == "sha256"
+PY
+set +e
+"$project_root/tools/acquire_source.py" "$tmp_dir/safe.tar" \
+  --sha256 "0000000000000000000000000000000000000000000000000000000000000000" \
+  --output-dir "$tmp_dir/mismatched-output" > /dev/null 2> "$tmp_dir/mismatch.err"
+checksum_rc=$?
+set -e
+test "$checksum_rc" -eq 2
+test ! -e "$tmp_dir/mismatched-output"
+grep -q "SHA-256 mismatch" "$tmp_dir/mismatch.err"
 set +e
 "$project_root/tools/acquire_source.py" "$tmp_dir/unsafe.tar" \
   --output-dir "$tmp_dir/unsafe-output" > /dev/null 2> "$tmp_dir/unsafe.err"

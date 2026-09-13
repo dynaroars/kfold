@@ -101,8 +101,10 @@ The acquisition workspace records input and extracted-tree digests, preserves
 the archive when applicable, rejects archive traversal/special-file hazards,
 and publishes the source directory only after successful extraction. Failed
 HTTP downloads retain a URL-keyed partial in the persistent cache and resume
-with a ranged request on a later run. Publisher checksum/signature verification
-and automatic analyzer-CLI integration are not yet implemented.
+with a ranged request on a later run. Publisher checksum verification is
+available with `--sha256` or `--checksum-url`, and the manifest records its
+result. Cryptographic signature verification and automatic analyzer-CLI
+integration are not yet implemented.
 
 Compare configured predictions with a build directory and find source files
 not accounted for by the predicted objects:

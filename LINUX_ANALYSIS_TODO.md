@@ -38,7 +38,9 @@ local-server retry/resume tests and CLI pipeline integration before P1 can be
 marked complete. The e2e suite now exercises an interrupted response followed
 by a ranged retry, including recovery from a partial saved by a failed prior
 run. Checksum/signature verification against publisher metadata and CLI
-pipeline integration remain pending.
+publisher metadata is now supported through an explicit digest or checksum
+sidecar URL and recorded in the manifest; cryptographic signature verification
+and CLI pipeline integration remain pending.
 
 ## 1. Product goal and definition of done
 

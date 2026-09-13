@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import sys
 import tarfile
@@ -196,7 +197,40 @@ def download(url, destination, max_bytes, retries):
     raise AcquireError(f"download failed after {retries} attempts: {error}")
 
 
-def acquire(input_value, output_dir, limits, retries, cache_dir=None):
+def fetch_checksum(url, retries):
+    error = None
+    for _ in range(retries):
+        try:
+            with urllib.request.urlopen(url, timeout=30) as response:
+                data = response.read(1024 * 1024 + 1)
+                if len(data) > 1024 * 1024:
+                    raise AcquireError("checksum sidecar exceeds maximum size")
+                return data.decode("utf-8")
+        except (OSError, urllib.error.URLError, UnicodeError, AcquireError) as caught:
+            error = caught
+    raise AcquireError(f"checksum sidecar download failed after {retries} attempts: {error}")
+
+
+def checksum_from_sidecar(text, input_value):
+    candidates = re.findall(r"(?im)\b([0-9a-f]{64})\b(?:\s+[* ]?([^\s]+))?", text)
+    if not candidates:
+        raise AcquireError("checksum sidecar contains no SHA-256 digest")
+    basename = Path(input_value.split("?", 1)[0]).name
+    for digest, name in candidates:
+        if name == basename:
+            return digest
+    return candidates[0][0]
+
+
+def acquire(
+    input_value,
+    output_dir,
+    limits,
+    retries,
+    cache_dir=None,
+    expected_sha256=None,
+    checksum_url=None,
+):
     if output_dir.exists():
         raise AcquireError(f"output directory already exists: {output_dir}")
     output_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -208,6 +242,14 @@ def acquire(input_value, output_dir, limits, retries, cache_dir=None):
         source = temporary / "source"
         archive = temporary / "archive"
         started = time.time()
+        if checksum_url is not None:
+            if not input_value.startswith(("https://", "http://")):
+                raise AcquireError("checksum sidecar URLs require an HTTP(S) archive input")
+            expected_sha256 = checksum_from_sidecar(fetch_checksum(checksum_url, retries), input_value)
+        if expected_sha256 is not None:
+            expected_sha256 = expected_sha256.lower()
+            if not re.fullmatch(r"[0-9a-f]{64}", expected_sha256):
+                raise AcquireError("expected SHA-256 must be exactly 64 hexadecimal characters")
         if input_value.startswith(("https://", "http://")):
             cache_dir.mkdir(parents=True, exist_ok=True)
             url_key = hashlib.sha256(input_value.encode("utf-8")).hexdigest()
@@ -269,6 +311,10 @@ def acquire(input_value, output_dir, limits, retries, cache_dir=None):
             archive_format = None
 
         source_digest, source_file_count = tree_digest(source)
+        if expected_sha256 is not None and input_digest != expected_sha256:
+            raise AcquireError(
+                f"SHA-256 mismatch: expected {expected_sha256}, received {input_digest}"
+            )
         manifest = {
             "schema": 1,
             "input": input_value,
@@ -282,6 +328,13 @@ def acquire(input_value, output_dir, limits, retries, cache_dir=None):
             "limits": limits,
             "source_directory": "source",
             "cache_directory": str(cache_dir) if input_kind == "https-archive" else None,
+            "verification": {
+                "method": "sha256" if expected_sha256 is not None else "none",
+                "status": "verified" if expected_sha256 is not None else "not-requested",
+                "expected_sha256": expected_sha256,
+                "checksum_url": checksum_url,
+                "signature": "not-verified",
+            },
         }
         (temporary / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         temporary.rename(output_dir)
@@ -296,6 +349,8 @@ def main():
     parser.add_argument("input", help="local tree/archive or http(s) archive URL")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--cache-dir", type=Path)
+    parser.add_argument("--sha256")
+    parser.add_argument("--checksum-url")
     parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("--max-files", type=int, default=DEFAULT_MAX_FILES)
     parser.add_argument("--max-expanded-bytes", type=int, default=DEFAULT_MAX_EXPANDED_BYTES)
@@ -309,7 +364,15 @@ def main():
         "max_download_bytes": args.max_download_bytes,
     }
     try:
-        manifest = acquire(args.input, args.output_dir.resolve(), limits, args.retries, args.cache_dir)
+        manifest = acquire(
+            args.input,
+            args.output_dir.resolve(),
+            limits,
+            args.retries,
+            args.cache_dir,
+            args.sha256,
+            args.checksum_url,
+        )
     except AcquireError as error:
         print(f"acquire_source: {error}", file=sys.stderr)
         return 2
