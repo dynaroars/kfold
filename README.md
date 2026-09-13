@@ -90,6 +90,18 @@ tools/record_baseline.py --output-dir results/baselines/tree Tests/Fixtures/tree
 The artifact contains the pinned revision, dirty diff, command, machine and
 Lean toolchain, input digest, timing/RSS, result counts, raw JSON, and stderr.
 
+Source acquisition can be prepared independently of analysis:
+
+```sh
+tools/acquire_source.py https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.tar.xz \
+  --output-dir results/workspaces/linux
+```
+
+The acquisition workspace records input and extracted-tree digests, preserves
+the archive when applicable, rejects archive traversal/special-file hazards,
+and publishes the source directory only after successful extraction. The
+analyzer CLI does not yet invoke this preparation stage automatically.
+
 Compare configured predictions with a build directory and find source files
 not accounted for by the predicted objects:
 

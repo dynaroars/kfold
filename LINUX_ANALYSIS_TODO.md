@@ -30,6 +30,13 @@ returns status 1 when any diagnostic makes the analysis incomplete. Full
 distinction among command failure, resource exhaustion, and interruption is
 still pending.
 
+`tools/acquire_source.py` is the first P1 orchestration component. It supports
+local trees and tar/zip archives, performs bounded safe extraction with link
+checks, computes input/source digests, and commits a manifest-backed workspace
+atomically. HTTPS download support is implemented in the script but still needs
+local-server retry/resume tests and CLI pipeline integration before P1 can be
+marked complete.
+
 ## 1. Product goal and definition of done
 
 A user supplies a Linux source archive URL and runs one command. skbuild resolves

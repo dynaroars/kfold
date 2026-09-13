@@ -148,6 +148,40 @@ assert (root / "dirty.diff").exists()
 assert (root / "stderr.txt").exists()
 PY
 
+"$project_root/tools/acquire_source.py" \
+  "$project_root/Tests/Fixtures/tree" \
+  --output-dir "$tmp_dir/acquired-tree" > "$tmp_dir/acquired-tree.json"
+python3 - "$tmp_dir/acquired-tree" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+assert manifest["input_kind"] == "local-tree"
+assert manifest["source_file_count"] == 2
+assert (root / "source/Makefile").exists()
+PY
+
+python3 - "$tmp_dir/unsafe.tar" <<'PY'
+import io
+import sys
+import tarfile
+
+with tarfile.open(sys.argv[1], "w") as archive:
+    member = tarfile.TarInfo("../escape")
+    member.size = 1
+    archive.addfile(member, io.BytesIO(b"x"))
+PY
+set +e
+"$project_root/tools/acquire_source.py" "$tmp_dir/unsafe.tar" \
+  --output-dir "$tmp_dir/unsafe-output" > /dev/null 2> "$tmp_dir/unsafe.err"
+acquire_rc=$?
+set -e
+test "$acquire_rc" -eq 2
+test ! -e "$tmp_dir/unsafe-output"
+grep -q "escapes extraction root" "$tmp_dir/unsafe.err"
+
 "$project_root/.lake/build/bin/skbuild" --json \
   "$project_root/tests/busybox/Makfiles_only/busybox_orig" \
   > "$tmp_dir/busybox.json" 2>/dev/null
