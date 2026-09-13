@@ -46,6 +46,14 @@ def snapshot_digest(path):
     return digest.hexdigest(), len(files)
 
 
+def file_digest(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while chunk := stream.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--analyzer", default=".lake/build/bin/skbuild")
@@ -97,6 +105,16 @@ def main():
         "revision": revision,
         "dirty": bool(dirty_diff),
         "dirty_diff_sha256": dirty_diff_digest,
+        "artifacts": {
+            "dirty_diff": "dirty.diff",
+            "report": "report.json" if report_path.exists() else None,
+            "stderr": "stderr.txt",
+        },
+        "artifact_sha256": {
+            "dirty_diff": dirty_diff_digest,
+            "report": file_digest(report_path) if report_path.exists() else None,
+            "stderr": file_digest(output_dir / "stderr.txt"),
+        },
         "machine": {
             "system": platform.system(),
             "release": platform.release(),

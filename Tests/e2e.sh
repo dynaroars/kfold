@@ -147,6 +147,10 @@ assert manifest["schema"] == 1
 assert manifest["revision"]
 assert manifest["input_sha256"]
 assert manifest["result"]["file_count"] == 2
+assert manifest["artifacts"] == {
+    "dirty_diff": "dirty.diff", "report": "report.json", "stderr": "stderr.txt"
+}
+assert all(len(value) == 64 for value in manifest["artifact_sha256"].values())
 assert report["complete"] is True
 assert (root / "dirty.diff").exists()
 assert (root / "stderr.txt").exists()
