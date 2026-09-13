@@ -182,6 +182,71 @@ test "$acquire_rc" -eq 2
 test ! -e "$tmp_dir/unsafe-output"
 grep -q "escapes extraction root" "$tmp_dir/unsafe.err"
 
+python3 - "$tmp_dir/http-workspace" "$project_root" <<'PY'
+import io
+import importlib.util
+import sys
+import tarfile
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+module_path = Path(sys.argv[2]) / "tools/acquire_source.py"
+spec = importlib.util.spec_from_file_location("acquire_source", module_path)
+acquire_source = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(acquire_source)
+
+archive = io.BytesIO()
+with tarfile.open(fileobj=archive, mode="w") as stream:
+    member = tarfile.TarInfo("linux/Kbuild")
+    data = b"obj-y += kernel.o\n"
+    member.size = len(data)
+    stream.addfile(member, io.BytesIO(data))
+payload = archive.getvalue()
+
+class Handler(BaseHTTPRequestHandler):
+    requests = 0
+
+    def do_GET(self):
+        Handler.requests += 1
+        start = int(self.headers.get("Range", "bytes=0-").split("=")[1].split("-")[0])
+        if Handler.requests == 1:
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload[: len(payload) // 2])
+            self.wfile.flush()
+            self.connection.close()
+            return
+        self.send_response(206)
+        self.send_header("Content-Length", str(len(payload) - start))
+        self.send_header("Content-Range", f"bytes {start}-{len(payload)-1}/{len(payload)}")
+        self.end_headers()
+        self.wfile.write(payload[start:])
+
+    def log_message(self, *_):
+        pass
+
+server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+thread = threading.Thread(target=server.serve_forever, daemon=True)
+thread.start()
+try:
+    output = Path(sys.argv[1])
+    manifest = acquire_source.acquire(
+        f"http://127.0.0.1:{server.server_port}/linux.tar",
+        output,
+        {"max_files": 100, "max_expanded_bytes": 10000, "max_download_bytes": 100000},
+        3,
+    )
+    assert Handler.requests >= 2
+    assert manifest["input_kind"] == "https-archive"
+    assert manifest["archive_format"] == "tar"
+    assert (output / "source/linux/Kbuild").exists()
+finally:
+    server.shutdown()
+    thread.join()
+PY
+
 "$project_root/.lake/build/bin/skbuild" --json \
   "$project_root/tests/busybox/Makfiles_only/busybox_orig" \
   > "$tmp_dir/busybox.json" 2>/dev/null

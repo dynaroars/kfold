@@ -165,20 +165,34 @@ def extract_zip(archive, destination, limits):
 
 
 def download(url, destination, max_bytes, retries):
+    partial = destination.with_name(destination.name + ".part")
     error = None
     for _ in range(retries):
         try:
-            with urllib.request.urlopen(url, timeout=30) as response, destination.open("wb") as output:
-                total = 0
-                while chunk := response.read(1024 * 1024):
-                    total += len(chunk)
-                    if total > max_bytes:
-                        raise AcquireError("download exceeds maximum size")
-                    output.write(chunk)
+            offset = partial.stat().st_size if partial.exists() else 0
+            request = urllib.request.Request(url)
+            if offset:
+                request.add_header("Range", f"bytes={offset}-")
+            with urllib.request.urlopen(request, timeout=30) as response:
+                resumed = offset > 0 and getattr(response, "status", None) == 206
+                if not resumed:
+                    offset = 0
+                total = offset
+                mode = "ab" if resumed else "wb"
+                content_length = response.headers.get("Content-Length")
+                expected = offset + int(content_length) if content_length is not None else None
+                with partial.open(mode) as output:
+                    while chunk := response.read(1024 * 1024):
+                        total += len(chunk)
+                        if total > max_bytes:
+                            raise AcquireError("download exceeds maximum size")
+                        output.write(chunk)
+                if expected is not None and total != expected:
+                    raise AcquireError(f"incomplete download: received {total} of {expected} bytes")
+            partial.replace(destination)
             return
         except (OSError, urllib.error.URLError, AcquireError) as caught:
             error = caught
-            destination.unlink(missing_ok=True)
     raise AcquireError(f"download failed after {retries} attempts: {error}")
 
 

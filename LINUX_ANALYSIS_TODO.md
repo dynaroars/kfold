@@ -35,7 +35,8 @@ local trees and tar/zip archives, performs bounded safe extraction with link
 checks, computes input/source digests, and commits a manifest-backed workspace
 atomically. HTTPS download support is implemented in the script but still needs
 local-server retry/resume tests and CLI pipeline integration before P1 can be
-marked complete.
+marked complete. The e2e suite now exercises an interrupted response followed
+by a ranged retry; persistent cross-run download recovery remains pending.
 
 ## 1. Product goal and definition of done
 
