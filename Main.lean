@@ -1,8 +1,8 @@
 import Skbuild
 
-def usage : String := "skbuild: Lean Kbuild analyzer\nusage: skbuild [--tristate] [--json] [--parse-only|--batch-check] [--no-recursive] [--config=PATH] [--build-dir=PATH] [--src-dir=PATH] [--cache=PATH] <Makefile|Kbuild|ast.json>..."
+def usage : String := "skbuild: Lean Kbuild analyzer\nusage: skbuild [--tristate] [--json] [--strict] [--parse-only|--batch-check] [--no-recursive] [--config=PATH] [--build-dir=PATH] [--src-dir=PATH] [--cache=PATH] <Makefile|Kbuild|ast.json>..."
 
-private def parseOnlyFiles (paths : List String) (jsonOutput : Bool) : IO UInt32 := do
+private def parseOnlyFiles (paths : List String) (jsonOutput strict : Bool) : IO UInt32 := do
   if paths.isEmpty then
     IO.eprintln usage
     return 2
@@ -30,15 +30,17 @@ private def parseOnlyFiles (paths : List String) (jsonOutput : Bool) : IO UInt32
           ]
         else
           IO.println s!"{path}: parsed {makefile.statements.size} statements, {diagnostics.size} diagnostics"
+        if strict && diagnostics.any (·.makesIncomplete) then return 1
   return 0
 
 private def batchCheckFiles
     (paths : List String)
-    (forceTristate jsonOutput : Bool) : IO UInt32 := do
+    (forceTristate jsonOutput strict : Bool) : IO UInt32 := do
   if paths.isEmpty then
     IO.eprintln usage
     return 2
   let mut snapshots : List (String × List String) := []
+  let mut hadIncomplete := false
   for path in paths do
     if path.endsWith ".json" then
       IO.eprintln s!"{path}: --batch-check expects Makefile/Kbuild source"
@@ -74,6 +76,7 @@ private def batchCheckFiles
         return 2
     | .ok execution =>
         let files := Skbuild.extractFiles settings execution
+        hadIncomplete := hadIncomplete || execution.diagnostics.any (·.makesIncomplete)
         if jsonOutput then
           IO.println <| Lean.Json.compress <| .mkObj [
             ("source", path),
@@ -86,11 +89,12 @@ private def batchCheckFiles
           ]
         else
           IO.println s!"{path}: analyzed {files.size} files, {execution.diagnostics.size} diagnostics"
-  return 0
+  return if strict && hadIncomplete then 1 else 0
 
 def main (args : List String) : IO UInt32 := do
   let forceTristate := args.contains "--tristate"
   let jsonOutput := args.contains "--json"
+  let strict := args.contains "--strict"
   let parseOnly := args.contains "--parse-only"
   let batchCheck := args.contains "--batch-check"
   let noRecursive := args.contains "--no-recursive"
@@ -103,15 +107,16 @@ def main (args : List String) : IO UInt32 := do
   let cachePath := args.find? (fun arg => arg.startsWith "--cache=") |>.map fun arg =>
     (arg.drop 8).toString
   let remaining := args.filter fun arg =>
-    arg != "--tristate" && arg != "--json" && arg != "--parse-only" && arg != "--batch-check" &&
+    arg != "--tristate" && arg != "--json" && arg != "--strict" &&
+      arg != "--parse-only" && arg != "--batch-check" &&
       arg != "--no-recursive" &&
       !arg.startsWith "--config="
       && !arg.startsWith "--build-dir=" && !arg.startsWith "--src-dir=" &&
       !arg.startsWith "--cache="
   if parseOnly then
-    return ← parseOnlyFiles remaining jsonOutput
+    return ← parseOnlyFiles remaining jsonOutput strict
   if batchCheck then
-    return ← batchCheckFiles remaining forceTristate jsonOutput
+    return ← batchCheckFiles remaining forceTristate jsonOutput strict
   match remaining with
   | [path] =>
       let inputPath := System.FilePath.mk path
@@ -205,7 +210,7 @@ def main (args : List String) : IO UInt32 := do
                 IO.println <| Skbuild.renderReport files
               for diagnostic in diagnostics do
                 IO.eprintln s!"{diagnostic.code}: {diagnostic.message}"
-              return 0
+              return if strict && diagnostics.any (·.makesIncomplete) then 1 else 0
   | _ =>
       IO.eprintln usage
       return 2

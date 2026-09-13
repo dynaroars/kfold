@@ -25,6 +25,11 @@ raw report, stderr, and dirty patch for each run. A complete pinned Linux
 release baseline has not yet been archived; the existing Linux/BusyBox fixture
 measurements remain preliminary.
 
+The CLI now accepts `--strict`: it still emits an incomplete JSON report, but
+returns status 1 when any diagnostic makes the analysis incomplete. Full
+distinction among command failure, resource exhaustion, and interruption is
+still pending.
+
 ## 1. Product goal and definition of done
 
 A user supplies a Linux source archive URL and runs one command. skbuild resolves

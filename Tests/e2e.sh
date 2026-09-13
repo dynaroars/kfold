@@ -169,6 +169,21 @@ assert report["coverage"]["unsupported_semantics"] is True
 assert {item["code"] for item in report["diagnostics"]} <= {"SKB1003", "SKB1004"}
 PY
 
+set +e
+"$project_root/.lake/build/bin/skbuild" --strict --json \
+  "$project_root/tests/busybox/Makfiles_only/busybox_orig" \
+  > "$tmp_dir/busybox.strict.json" 2>/dev/null
+strict_rc=$?
+set -e
+test "$strict_rc" -eq 1
+python3 - "$tmp_dir/busybox.strict.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as stream:
+    assert json.load(stream)["complete"] is False
+PY
+
 "$project_root/.lake/build/bin/skbuild" --tristate --json \
   "$project_root/tests/linux/linux_orig" \
   > "$tmp_dir/linux.json" 2>/dev/null
