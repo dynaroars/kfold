@@ -2,6 +2,7 @@
 """Resume a prepared skbuild analysis workspace without reacquiring sources."""
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -13,6 +14,10 @@ def write_json(path, value):
     temporary = path.with_name(path.name + ".tmp")
     temporary.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
     temporary.replace(path)
+
+
+def sha256_bytes(value):
+    return hashlib.sha256(value).hexdigest()
 
 
 def main():
@@ -42,16 +47,32 @@ def main():
     analyzed = subprocess.run(command, cwd=Path(__file__).resolve().parent.parent,
                               text=True, capture_output=True)
     (run_dir / "resume.stderr").write_text(analyzed.stderr, encoding="utf-8")
+    report = None
     if analyzed.stdout.strip():
-        (run_dir / "report.json.tmp").write_text(analyzed.stdout, encoding="utf-8")
-        (run_dir / "report.json.tmp").replace(run_dir / "report.json")
+        try:
+            report = json.loads(analyzed.stdout)
+        except json.JSONDecodeError:
+            report = None
+        if report is not None:
+            (run_dir / "report.json.tmp").write_text(analyzed.stdout, encoding="utf-8")
+            (run_dir / "report.json.tmp").replace(run_dir / "report.json")
+    complete = report is not None and report.get("complete") is True
     resume = {
         "started_unix_seconds": started,
         "elapsed_seconds": time.time() - started,
         "exit_code": analyzed.returncode,
-        "status": "success" if analyzed.returncode == 0 else "analyzer-failed-or-incomplete",
+        "status": "complete" if analyzed.returncode == 0 and complete
+            else "analyzer-failed-or-incomplete",
+        "report_sha256": sha256_bytes(analyzed.stdout.encode("utf-8"))
+            if report is not None else None,
+        "stderr_sha256": sha256_bytes(analyzed.stderr.encode("utf-8")),
     }
     manifest["last_resume"] = resume
+    manifest["analyzer_exit_code"] = analyzed.returncode
+    manifest["complete"] = complete
+    if report is not None:
+        manifest["coverage"] = report.get("coverage")
+    manifest["status"] = resume["status"]
     write_json(run_dir / "manifest.json", manifest)
     sys.stdout.write(analyzed.stdout)
     sys.stderr.write(analyzed.stderr)

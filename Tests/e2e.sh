@@ -292,7 +292,11 @@ resumed = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
 original = json.loads((root / "report.json").read_text(encoding="utf-8"))
 manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
 assert resumed == original
-assert manifest["last_resume"]["status"] == "success"
+assert manifest["last_resume"]["status"] == "complete"
+assert manifest["status"] == "complete"
+assert manifest["complete"] is True
+assert len(manifest["last_resume"]["report_sha256"]) == 64
+assert len(manifest["last_resume"]["stderr_sha256"]) == 64
 PY
 
 "$project_root/.lake/build/bin/skbuild" query \
