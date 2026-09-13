@@ -41,7 +41,9 @@ remains pending. `tools/skbuild_analyze.py` provides an external orchestration
 bridge that acquires input and invokes the native analyzer, but the stable
 `skbuild analyze` command now dispatches to that bridge when run from the
 repository; packaging-independent helper discovery, `linux:latest` resolution,
-resume/query subcommands, and broader pipeline integration remain pending.
+`resume`/`query` now reuse the recorded run directory and report, while
+streaming/indexed storage, `linux:latest` resolution, packaging-independent
+helper discovery, and broader pipeline integration remain pending.
 
 ## 1. Product goal and definition of done
 

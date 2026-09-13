@@ -241,6 +241,35 @@ assert report["complete"] is True
 assert json.loads((root / "manifest.json").read_text(encoding="utf-8"))["complete"] is True
 PY
 
+"$project_root/.lake/build/bin/skbuild" resume \
+  "$tmp_dir/native-analyze" > "$tmp_dir/resumed.json"
+python3 - "$tmp_dir/native-analyze" "$tmp_dir/resumed.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+resumed = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+original = json.loads((root / "report.json").read_text(encoding="utf-8"))
+manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+assert resumed == original
+assert manifest["last_resume"]["status"] == "success"
+PY
+
+"$project_root/.lake/build/bin/skbuild" query \
+  "$tmp_dir/native-analyze" --file=child/child.o > "$tmp_dir/query-file.json"
+"$project_root/.lake/build/bin/skbuild" query \
+  "$tmp_dir/native-analyze" --option=CONFIG_CHILD > "$tmp_dir/query-option.json"
+python3 - "$tmp_dir/query-file.json" "$tmp_dir/query-option.json" <<'PY'
+import json
+import sys
+
+file_rows = json.load(open(sys.argv[1], encoding="utf-8"))
+option_rows = json.load(open(sys.argv[2], encoding="utf-8"))
+assert len(file_rows) == 1 and file_rows[0]["path"] == "child/child.o"
+assert any(row["path"] == "child/child.o" for row in option_rows)
+PY
+
 python3 - "$tmp_dir/http-workspace" "$project_root" <<'PY'
 import io
 import importlib.util

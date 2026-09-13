@@ -38,6 +38,18 @@ The command requires `--output=DIR`; it writes the acquired source workspace,
 acquisition/run manifests, and JSON report there. Use the legacy forms below
 when the source is already prepared locally and no acquisition stage is needed.
 
+Completed run directories can be reused and queried:
+
+```sh
+.lake/build/bin/skbuild resume results/linux
+.lake/build/bin/skbuild query results/linux --file=drivers/usb/core/usb.o
+.lake/build/bin/skbuild query results/linux --option=CONFIG_USB
+```
+
+`resume` reuses the recorded source and analyzer command. Query results are
+currently loaded from the JSON report; streaming/indexed storage is planned for
+large complete Linux runs.
+
 Analyze one Kbuild file or a directory whose entry point is `Kbuild` (preferred)
 or `Makefile`:
 

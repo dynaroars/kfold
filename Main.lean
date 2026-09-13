@@ -1,6 +1,6 @@
 import Skbuild
 
-def usage : String := "skbuild: Lean Kbuild analyzer\nusage: skbuild [--tristate] [--json] [--strict] [--parse-only|--batch-check] [--no-recursive] [--config=PATH] [--build-dir=PATH] [--src-dir=PATH] [--cache=PATH] <Makefile|Kbuild|ast.json>..."
+def usage : String := "skbuild: Lean Kbuild analyzer\nusage: skbuild [--tristate] [--json] [--strict] [--parse-only|--batch-check] [--no-recursive] [--config=PATH] [--build-dir=PATH] [--src-dir=PATH] [--cache=PATH] <Makefile|Kbuild|ast.json>...\n       skbuild analyze INPUT --output=DIR\n       skbuild resume RUN_DIR\n       skbuild query RUN_DIR (--file=PATH|--option=SYMBOL)"
 
 private def analyzeCommand (args : List String) : IO UInt32 := do
   match args with
@@ -30,6 +30,20 @@ private def analyzeCommand (args : List String) : IO UInt32 := do
       IO.eprintln "skbuild analyze: an input is required"
       IO.eprintln usage
       return 2
+
+private def helperCommand (name : String) (args : List String) : IO UInt32 := do
+  let helper := System.FilePath.mk s!"tools/skbuild_{name}.py"
+  if !(← helper.pathExists) then
+    IO.eprintln s!"skbuild {name}: helper not found: {helper}"
+    return 2
+  let helper ← IO.FS.realPath helper
+  let process ← IO.Process.output {
+    cmd := "python3"
+    args := #[helper.toString] ++ args.toArray
+  }
+  if !process.stderr.isEmpty then IO.eprint process.stderr
+  if !process.stdout.isEmpty then IO.print process.stdout
+  return process.exitCode
 
 private def parseOnlyFiles (paths : List String) (jsonOutput strict : Bool) : IO UInt32 := do
   if paths.isEmpty then
@@ -123,6 +137,10 @@ private def batchCheckFiles
 def main (args : List String) : IO UInt32 := do
   if args.head? == some "analyze" then
     return ← analyzeCommand args.tail
+  if args.head? == some "resume" then
+    return ← helperCommand "resume" args.tail
+  if args.head? == some "query" then
+    return ← helperCommand "query" args.tail
   let forceTristate := args.contains "--tristate"
   let jsonOutput := args.contains "--json"
   let strict := args.contains "--strict"
