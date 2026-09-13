@@ -240,6 +240,26 @@ def main : IO UInt32 := do
     | .error message => throw <| IO.userError message
   assertTrue "bare export declarations do not make presence analysis incomplete" <|
     !(validateMakefile exportAst).any (·.makesIncomplete)
+  let reportContext := ReportContext.fromDiagnostics .singleMakefile true true #[]
+  assertTrue "report context records selected scope and requested validation" <|
+    reportContext.selectedScope == .singleMakefile &&
+      reportContext.inputCoverage == .complete &&
+      reportContext.kconfigValidity == .concreteFilter &&
+      reportContext.validation == .requested &&
+      reportContext.qualification == .exactWithinModeledScope
+  let missingIncludeDiagnostic : Diagnostic := {
+    code := "SKB2003"
+    severity := .warning
+    message := "missing include"
+    span := SourceSpan.unknown "report-context-test"
+    makesIncomplete := true
+  }
+  let incompleteContext := ReportContext.fromDiagnostics .recursiveTree false false
+    #[missingIncludeDiagnostic]
+  assertTrue "report context distinguishes missing inputs from unsupported semantics" <|
+    incompleteContext.inputCoverage == .incomplete &&
+      !incompleteContext.unsupportedSemantics &&
+      incompleteContext.qualification == .unknown
   let reductionAst ← match Parser.parse
       "UNUSED := $(CONFIG_NOISE)\nHELPER := selected.o\nobj-y += $(HELPER)\n" "reduction-test" with
     | .ok value => pure value

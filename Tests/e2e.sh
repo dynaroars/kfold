@@ -119,7 +119,7 @@ with open(sys.argv[1], encoding="utf-8") as stream:
 assert report["schema"] == 1
 assert report["complete"] is True
 assert report["coverage"] == {
-    "selected_scope": "configured-makefiles",
+    "selected_scope": "recursive-tree",
     "input_coverage": "complete",
     "unsupported_semantics": False,
     "kconfig_validity": "not-checked",
@@ -167,6 +167,7 @@ assert "drivers/base/core.o" in paths
 assert len(report["files"]) > 40000
 assert report["complete"] is False
 assert report["coverage"]["qualification"] == "unknown"
+assert report["coverage"]["selected_scope"] == "recursive-tree"
 PY
 
 "$project_root/.lake/build/bin/skbuild" --json \

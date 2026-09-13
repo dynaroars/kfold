@@ -193,8 +193,14 @@ def main (args : List String) : IO UInt32 := do
                         IO.eprintln message
                         return 2
                     | .ok coverage => pure <| diagnostics ++ coverage
+              let scope : Skbuild.AnalysisScope :=
+                if path.endsWith ".json" then .jsonAst
+                else if noRecursive then .singleMakefile
+                else .recursiveTree
+              let context := Skbuild.ReportContext.fromDiagnostics scope configPath.isSome
+                (buildPath.isSome || sourcePath.isSome) diagnostics
               if jsonOutput then
-                IO.println <| Skbuild.renderJsonReport files diagnostics
+                IO.println <| Skbuild.renderJsonReport files diagnostics context
               else
                 IO.println <| Skbuild.renderReport files
               for diagnostic in diagnostics do

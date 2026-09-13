@@ -47,42 +47,129 @@ def filePresenceJson (file : FilePresence) : Json := Json.mkObj [
   ("condition_text", file.condition.render)
 ]
 
+inductive AnalysisScope
+  | unspecified
+  | singleMakefile
+  | recursiveTree
+  | jsonAst
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+def AnalysisScope.render : AnalysisScope → String
+  | .unspecified => "unspecified"
+  | .singleMakefile => "single-makefile"
+  | .recursiveTree => "recursive-tree"
+  | .jsonAst => "json-ast"
+
+inductive InputCoverage
+  | complete
+  | incomplete
+  | unknown
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+def InputCoverage.render : InputCoverage → String
+  | .complete => "complete"
+  | .incomplete => "incomplete"
+  | .unknown => "unknown"
+
+inductive KconfigValidity
+  | notChecked
+  | concreteFilter
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+def KconfigValidity.render : KconfigValidity → String
+  | .notChecked => "not-checked"
+  | .concreteFilter => "concrete-filter-only"
+
+inductive ValidationStatus
+  | notRequested
+  | requested
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+def ValidationStatus.render : ValidationStatus → String
+  | .notRequested => "not-requested"
+  | .requested => "requested"
+
+inductive Qualification
+  | exactWithinModeledScope
+  | overapproximation
+  | underapproximation
+  | unknown
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+def Qualification.render : Qualification → String
+  | .exactWithinModeledScope => "exact-within-modeled-scope"
+  | .overapproximation => "overapproximation"
+  | .underapproximation => "underapproximation"
+  | .unknown => "unknown"
+
+structure ReportContext where
+  selectedScope : AnalysisScope := .unspecified
+  inputCoverage : InputCoverage := .unknown
+  unsupportedSemantics : Bool := false
+  kconfigValidity : KconfigValidity := .notChecked
+  validation : ValidationStatus := .notRequested
+  qualification : Qualification := .unknown
+  deriving Repr, BEq, Inhabited
+
+private def missingInputDiagnostic (diagnostic : Diagnostic) : Bool :=
+  diagnostic.makesIncomplete &&
+    (diagnostic.code == "SKB2001" || diagnostic.code == "SKB2003" ||
+      diagnostic.code == "SKB2004")
+
+private def unsupportedDiagnostic (diagnostic : Diagnostic) : Bool :=
+  diagnostic.makesIncomplete &&
+    (diagnostic.code == "SKB1003" || diagnostic.code == "SKB1004")
+
+def ReportContext.fromDiagnostics
+    (scope : AnalysisScope)
+    (hasConcreteConfig : Bool)
+    (hasValidation : Bool)
+    (diagnostics : Array Diagnostic) : ReportContext :=
+  let incomplete := diagnostics.any (·.makesIncomplete)
+  {
+    selectedScope := scope
+    inputCoverage := if diagnostics.any missingInputDiagnostic then .incomplete
+      else if incomplete then .unknown else .complete
+    unsupportedSemantics := diagnostics.any unsupportedDiagnostic
+    kconfigValidity := if hasConcreteConfig then .concreteFilter else .notChecked
+    validation := if hasValidation then .requested else .notRequested
+    qualification := if incomplete then .unknown else .exactWithinModeledScope
+  }
+
 /-
   These fields deliberately describe what the analyzer can establish from the
   current invocation.  In particular, an incomplete run is `unknown`, rather
   than an over- or under-approximation: the direction of an error depends on
   the unsupported Make/Kbuild feature.
 -/
-def reportCoverageJson (diagnostics : Array Diagnostic) : Json :=
-  let incomplete := diagnostics.any (·.makesIncomplete)
-  let unsupported := diagnostics.any fun diagnostic =>
-    diagnostic.makesIncomplete &&
-      (diagnostic.code.startsWith "SKB1" || diagnostic.code.startsWith "SKB2")
-  let missingInput := diagnostics.any fun diagnostic =>
-    diagnostic.makesIncomplete &&
-      (diagnostic.code == "SKB2001" || diagnostic.code == "SKB2003" ||
-        diagnostic.code == "SKB2004")
+def reportCoverageJson (context : ReportContext) : Json :=
   Json.mkObj [
-    ("selected_scope", "configured-makefiles"),
-    ("input_coverage", if missingInput then "incomplete" else if incomplete then "unknown" else "complete"),
-    ("unsupported_semantics", unsupported),
-    ("kconfig_validity", "not-checked"),
-    ("build_validation", "not-requested"),
-    ("qualification", if incomplete then "unknown" else "exact-within-modeled-scope")
+    ("selected_scope", context.selectedScope.render),
+    ("input_coverage", context.inputCoverage.render),
+    ("unsupported_semantics", context.unsupportedSemantics),
+    ("kconfig_validity", context.kconfigValidity.render),
+    ("build_validation", context.validation.render),
+    ("qualification", context.qualification.render)
   ]
 
-def reportJson (files : Array FilePresence) (diagnostics : Array Diagnostic) : Json :=
+def reportJson
+    (files : Array FilePresence)
+    (diagnostics : Array Diagnostic)
+    (context : ReportContext := {}) : Json :=
   let incomplete := diagnostics.any (·.makesIncomplete)
   Json.mkObj [
     ("schema", toJson (1 : Nat)),
     ("complete", !incomplete),
-    ("coverage", reportCoverageJson diagnostics),
+    ("coverage", reportCoverageJson context),
     ("files", Json.arr <| (sortFiles files).map filePresenceJson),
     ("diagnostics", Json.arr <| diagnostics.map diagnosticJson)
   ]
 
-def renderJsonReport (files : Array FilePresence) (diagnostics : Array Diagnostic) : String :=
-  (reportJson files diagnostics).pretty
+def renderJsonReport
+    (files : Array FilePresence)
+    (diagnostics : Array Diagnostic)
+    (context : ReportContext := {}) : String :=
+  (reportJson files diagnostics context).pretty
 
 private def reportField (json : Json) (name : String) : Except String Json :=
   json.getObjVal? name |>.mapError fun error => s!"report field '{name}': {error}"
