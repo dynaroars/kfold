@@ -379,6 +379,19 @@ try:
     assert manifest["input_kind"] == "https-archive"
     assert manifest["archive_format"] == "tar"
     assert (output / "source/linux/Kbuild").exists()
+    second_output = output.parent / "http-workspace-second"
+    second = acquire_source.acquire(
+        url,
+        second_output,
+        {"max_files": 100, "max_expanded_bytes": 10000, "max_download_bytes": 100000},
+        1,
+        cache,
+    )
+    assert Handler.requests == 2
+    assert second["input_sha256"] == manifest["input_sha256"]
+    assert second["source_sha256"] == manifest["source_sha256"]
+    assert (second_output / "source/linux/Kbuild").read_bytes() == \
+        (output / "source/linux/Kbuild").read_bytes()
 finally:
     server.shutdown()
     thread.join()
