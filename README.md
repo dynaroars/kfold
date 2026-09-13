@@ -106,6 +106,17 @@ available with `--sha256` or `--checksum-url`, and the manifest records its
 result. Cryptographic signature verification and automatic analyzer-CLI
 integration are not yet implemented.
 
+The explicit orchestration bridge combines both stages and writes a report plus
+separate acquisition/run manifests:
+
+```sh
+tools/skbuild_analyze.py ./linux.tar.xz --tristate --output results/linux
+```
+
+It selects the extracted directory containing the archive's Kbuild entry point
+and invokes the native Lean analyzer there. The standalone Lean binary remains
+Python-free; this bridge is the current external orchestration interface.
+
 Compare configured predictions with a build directory and find source files
 not accounted for by the predicted objects:
 

@@ -33,14 +33,13 @@ still pending.
 `tools/acquire_source.py` is the first P1 orchestration component. It supports
 local trees and tar/zip archives, performs bounded safe extraction with link
 checks, computes input/source digests, and commits a manifest-backed workspace
-atomically. HTTPS download support is implemented in the script but still needs
-local-server retry/resume tests and CLI pipeline integration before P1 can be
-marked complete. The e2e suite now exercises an interrupted response followed
-by a ranged retry, including recovery from a partial saved by a failed prior
-run. Checksum/signature verification against publisher metadata and CLI
-publisher metadata is now supported through an explicit digest or checksum
+atomically. The e2e suite exercises an interrupted response followed by a
+ranged retry, including recovery from a partial saved by a failed prior run.
+Checksum verification is supported through an explicit digest or checksum
 sidecar URL and recorded in the manifest; cryptographic signature verification
-and CLI pipeline integration remain pending.
+remains pending. `tools/skbuild_analyze.py` provides an external orchestration
+bridge that acquires input and invokes the native analyzer, but the stable
+`skbuild analyze` command and broader pipeline integration remain pending.
 
 ## 1. Product goal and definition of done
 

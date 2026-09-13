@@ -207,6 +207,26 @@ test "$acquire_rc" -eq 2
 test ! -e "$tmp_dir/unsafe-output"
 grep -q "escapes extraction root" "$tmp_dir/unsafe.err"
 
+"$project_root/tools/skbuild_analyze.py" \
+  "$project_root/Tests/Fixtures/tree" \
+  --output "$tmp_dir/analyze-pipeline" > "$tmp_dir/analyze-pipeline.json"
+python3 - "$tmp_dir/analyze-pipeline" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+report = json.loads((root / "report.json").read_text(encoding="utf-8"))
+run = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+acquisition = json.loads((root / "workspace/manifest.json").read_text(encoding="utf-8"))
+assert report["complete"] is True
+assert run["analysis_root"] == "workspace/source"
+assert acquisition["input_kind"] == "local-tree"
+assert (root / "command.json").exists()
+assert (root / "acquire.stderr").exists()
+assert (root / "analyzer.stderr").exists()
+PY
+
 python3 - "$tmp_dir/http-workspace" "$project_root" <<'PY'
 import io
 import importlib.util
