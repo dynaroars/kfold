@@ -129,6 +129,25 @@ assert report["coverage"] == {
 assert [item["path"] for item in report["files"]] == ["child/child.o", "root.o"]
 PY
 
+"$project_root/tools/record_baseline.py" \
+  --output-dir "$tmp_dir/baseline" "$project_root/Tests/Fixtures/tree"
+python3 - "$tmp_dir/baseline" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+report = json.loads((root / "report.json").read_text(encoding="utf-8"))
+assert manifest["schema"] == 1
+assert manifest["revision"]
+assert manifest["input_sha256"]
+assert manifest["result"]["file_count"] == 2
+assert report["complete"] is True
+assert (root / "dirty.diff").exists()
+assert (root / "stderr.txt").exists()
+PY
+
 "$project_root/.lake/build/bin/skbuild" --json \
   "$project_root/tests/busybox/Makfiles_only/busybox_orig" \
   > "$tmp_dir/busybox.json" 2>/dev/null

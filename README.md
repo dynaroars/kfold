@@ -81,6 +81,15 @@ JSON reports retain the `complete` field for compatibility and also include a
 `qualification: "unknown"` must not be interpreted as evidence that an object
 is dead.
 
+For reproducible measurements, record a run rather than copying console output:
+
+```sh
+tools/record_baseline.py --output-dir results/baselines/tree Tests/Fixtures/tree
+```
+
+The artifact contains the pinned revision, dirty diff, command, machine and
+Lean toolchain, input digest, timing/RSS, result counts, raw JSON, and stderr.
+
 Compare configured predictions with a build directory and find source files
 not accounted for by the predicted objects:
 

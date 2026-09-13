@@ -19,6 +19,12 @@ the P3 contract: nested eval, generated rule semantics, guarded termination,
 command execution, and effect provenance remain unsupported and must not be
 treated as complete.
 
+The typed report context is committed as `2912242`. The baseline recorder in
+`tools/record_baseline.py` is now covered by the e2e suite and writes a manifest,
+raw report, stderr, and dirty patch for each run. A complete pinned Linux
+release baseline has not yet been archived; the existing Linux/BusyBox fixture
+measurements remain preliminary.
+
 ## 1. Product goal and definition of done
 
 A user supplies a Linux source archive URL and runs one command. skbuild resolves
