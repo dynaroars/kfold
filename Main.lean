@@ -2,6 +2,35 @@ import Skbuild
 
 def usage : String := "skbuild: Lean Kbuild analyzer\nusage: skbuild [--tristate] [--json] [--strict] [--parse-only|--batch-check] [--no-recursive] [--config=PATH] [--build-dir=PATH] [--src-dir=PATH] [--cache=PATH] <Makefile|Kbuild|ast.json>..."
 
+private def analyzeCommand (args : List String) : IO UInt32 := do
+  match args with
+  | input :: rest =>
+      let some outputArgument := rest.find? (·.startsWith "--output=")
+        | IO.eprintln "skbuild analyze: --output=DIR is required"
+          IO.eprintln usage
+          return 2
+      let output := (outputArgument.drop 9).toString
+      if output.isEmpty then
+        IO.eprintln "skbuild analyze: --output=DIR must not be empty"
+        return 2
+      let helper := System.FilePath.mk "tools/skbuild_analyze.py"
+      if !(← helper.pathExists) then
+        IO.eprintln s!"skbuild analyze: orchestration helper not found: {helper}"
+        return 2
+      let helper ← IO.FS.realPath helper
+      let passthrough := rest.filter (not ∘ (·.startsWith "--output="))
+      let process ← IO.Process.output {
+        cmd := "python3"
+        args := #[(helper.toString), input, "--output", output] ++ passthrough.toArray
+      }
+      if !process.stderr.isEmpty then IO.eprint process.stderr
+      if !process.stdout.isEmpty then IO.print process.stdout
+      return process.exitCode
+  | [] =>
+      IO.eprintln "skbuild analyze: an input is required"
+      IO.eprintln usage
+      return 2
+
 private def parseOnlyFiles (paths : List String) (jsonOutput strict : Bool) : IO UInt32 := do
   if paths.isEmpty then
     IO.eprintln usage
@@ -92,6 +121,8 @@ private def batchCheckFiles
   return if strict && hadIncomplete then 1 else 0
 
 def main (args : List String) : IO UInt32 := do
+  if args.head? == some "analyze" then
+    return ← analyzeCommand args.tail
   let forceTristate := args.contains "--tristate"
   let jsonOutput := args.contains "--json"
   let strict := args.contains "--strict"

@@ -227,6 +227,20 @@ assert (root / "acquire.stderr").exists()
 assert (root / "analyzer.stderr").exists()
 PY
 
+"$project_root/.lake/build/bin/skbuild" analyze \
+  "$project_root/Tests/Fixtures/tree" \
+  --output="$tmp_dir/native-analyze" > "$tmp_dir/native-analyze.json"
+python3 - "$tmp_dir/native-analyze" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+report = json.loads((root / "report.json").read_text(encoding="utf-8"))
+assert report["complete"] is True
+assert json.loads((root / "manifest.json").read_text(encoding="utf-8"))["complete"] is True
+PY
+
 python3 - "$tmp_dir/http-workspace" "$project_root" <<'PY'
 import io
 import importlib.util

@@ -5,8 +5,10 @@ parses Makefile/Kbuild input, symbolically follows configuration-dependent
 assignments and conditionals, recursively visits selected subdirectories, and
 reports the condition under which each object participates in the build.
 
-The `dev` branch is canonical. The production CLI is native Lean: it does not
-invoke Python, `pymake3`, Z3, Make, recipes, or shell commands. The archived
+The `dev` branch is canonical. The ordinary analyzer CLI is native Lean and
+does not invoke Python, `pymake3`, Z3, Make, recipes, or shell commands. The
+explicit `skbuild analyze` acquisition workflow invokes the checked-in Python
+orchestration helper, then runs the same native Lean analyzer; the archived
 Python implementation remains a migration oracle while parity work continues.
 
 ## Build and test
@@ -25,6 +27,16 @@ includes and traversal, and parses all 2,158 checked-in Makefile/Kbuild corpus
 files with the native parser.
 
 ## Examples
+
+Acquire and analyze a local tree or archive in one reproducible workspace:
+
+```sh
+.lake/build/bin/skbuild analyze ./linux.tar.xz --tristate --output=results/linux
+```
+
+The command requires `--output=DIR`; it writes the acquired source workspace,
+acquisition/run manifests, and JSON report there. Use the legacy forms below
+when the source is already prepared locally and no acquisition stage is needed.
 
 Analyze one Kbuild file or a directory whose entry point is `Kbuild` (preferred)
 or `Makefile`:

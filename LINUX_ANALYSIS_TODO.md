@@ -39,7 +39,9 @@ Checksum verification is supported through an explicit digest or checksum
 sidecar URL and recorded in the manifest; cryptographic signature verification
 remains pending. `tools/skbuild_analyze.py` provides an external orchestration
 bridge that acquires input and invokes the native analyzer, but the stable
-`skbuild analyze` command and broader pipeline integration remain pending.
+`skbuild analyze` command now dispatches to that bridge when run from the
+repository; packaging-independent helper discovery, `linux:latest` resolution,
+resume/query subcommands, and broader pipeline integration remain pending.
 
 ## 1. Product goal and definition of done
 
