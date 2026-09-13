@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "kind": "fixture-baseline-summary",
+  "revision": "9c4c8780088415600a971e891c46effb67800402",
+  "dirty": false,
+  "lean_toolchain": "leanprover/lean4:v4.32.2",
+  "machine": {
+    "system": "Linux",
+    "release": "7.1.8+deb14.1-amd64",
+    "architecture": "x86_64",
+    "python": "3.14.7"
+  },
+  "runs": [
+    {
+      "name": "linux-fixture",
+      "input": "tests/linux/linux_orig",
+      "input_sha256": "87cb8f0d4714ea21ef45ce39a551c8297409a4c49daca270e9ae59df3e472f5f",
+      "input_file_count": 2060,
+      "command": [".lake/build/bin/skbuild", "--json", "--tristate", "tests/linux/linux_orig"],
+      "elapsed_seconds": 7.833149796992075,
+      "peak_rss_kib": 483948,
+      "complete": false,
+      "file_count": 41209,
+      "unique_condition_count": 21959,
+      "diagnostic_count": 55,
+      "diagnostic_codes": ["SKB1003", "SKB1004", "SKB2003", "SKB3001"],
+      "raw_report_sha256": "250a035999518cf0ea7c04ad0660c29fe9917070ffdf9b7d9708bd331bcc1301",
+      "raw_stderr_sha256": "bcfdb155b6ccef3f3de61b21afdd8dd0ffdf90298299538bfbc36cf5929cede0"
+    },
+    {
+      "name": "busybox-fixture",
+      "input": "tests/busybox/Makfiles_only/busybox_orig",
+      "input_sha256": "9a20dbf3117d33c808c5c0fda308eea1839ffdfac200f2e0060891df2b0ba02e",
+      "input_file_count": 42,
+      "command": [".lake/build/bin/skbuild", "--json", "--tristate", "tests/busybox/Makfiles_only/busybox_orig"],
+      "elapsed_seconds": 0.10058655799366534,
+      "peak_rss_kib": 70400,
+      "complete": false,
+      "file_count": 588,
+      "unique_condition_count": 429,
+      "diagnostic_count": 7,
+      "diagnostic_codes": ["SKB1003", "SKB1004"],
+      "raw_report_sha256": "ab8249cd7b7cd68a80b6fd9d85be9bc4420bec886f5af8d335c539f82e12c0b8",
+      "raw_stderr_sha256": "0b8a119fe896b661b7f33790b8010aa5f86d1403c5fa07cb7137870840be8497"
+    }
+  ]
+}

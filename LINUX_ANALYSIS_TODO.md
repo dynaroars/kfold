@@ -522,7 +522,7 @@ snippets and output extracts from these fixtures to prevent documentation drift.
 
 ## First implementation sprint
 
-- [ ] P0: archive baseline and define report qualification/context types.
+- [x] P0: archive baseline and define report qualification/context types.
 - [ ] E02/E05/E06/E09/E13: write minimal fixtures and independent oracle assertions.
 - [ ] P3: implement stateful expansion, ordered `eval`, and guarded termination.
 - [ ] P1: implement explicit archive URL acquisition and immutable workspace manifest.
