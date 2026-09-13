@@ -130,8 +130,7 @@ and publishes the source directory only after successful extraction. Failed
 HTTP downloads retain a URL-keyed partial in the persistent cache and resume
 with a ranged request on a later run. Publisher checksum verification is
 available with `--sha256` or `--checksum-url`, and the manifest records its
-result. Cryptographic signature verification and automatic analyzer-CLI
-integration are not yet implemented.
+result. Cryptographic signature verification remains pending.
 
 The explicit orchestration bridge combines both stages and writes a report plus
 separate acquisition/run manifests:
@@ -142,7 +141,9 @@ tools/skbuild_analyze.py ./linux.tar.xz --tristate --output results/linux
 
 It selects the extracted directory containing the archive's Kbuild entry point
 and invokes the native Lean analyzer there. The standalone Lean binary remains
-Python-free; this bridge is the current external orchestration interface.
+Python-free; this bridge is the current external orchestration interface. Use
+`--project=linux` or `--project=busybox` to override conservative metadata
+detection when the source tree does not identify itself.
 
 Compare configured predictions with a build directory and find source files
 not accounted for by the predicted objects:
