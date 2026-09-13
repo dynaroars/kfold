@@ -42,10 +42,12 @@ sidecar URL and recorded in the manifest; cryptographic signature verification
 remains pending. `tools/skbuild_analyze.py` provides an external orchestration
 bridge that acquires input and invokes the native analyzer, but the stable
 `skbuild analyze` command now dispatches to that bridge when run from the
-repository; packaging-independent helper discovery, `linux:latest` resolution,
-`resume`/`query` now reuse the recorded run directory and report, while
-streaming/indexed storage, packaging-independent helper discovery, and broader
-pipeline integration remain pending. `linux:latest` now resolves kernel.org's
+repository; it records separate source/generated/build/temp/report locations,
+conservative project detection or an explicit project override, command policy,
+and structured acquisition/analyzer stage outcomes. `resume`/`query` reuse the
+recorded run directory and report, while streaming/indexed storage,
+packaging-independent helper discovery, and broader pipeline integration remain
+pending. `linux:latest` now resolves kernel.org's
 `latest_stable` release entry and records the resolved version/source/PGP URL;
 signature verification and live-metadata integration tests remain pending.
 

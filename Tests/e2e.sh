@@ -254,6 +254,12 @@ assert acquisition["input_kind"] == "local-tree"
 assert (root / "command.json").exists()
 assert (root / "acquire.stderr").exists()
 assert (root / "analyzer.stderr").exists()
+assert run["project"] == {"requested": "auto", "detected": "unknown", "selected": "unknown"}
+assert run["stages"]["acquire"]["status"] == "success"
+assert run["stages"]["analyze"]["status"] == "success"
+assert run["command_policy"] == {"recipes_executed": False, "shell_commands_executed": False}
+for directory in ("generated", "build", "temporary", "report"):
+    assert (root / run["directories"][directory]).is_dir()
 PY
 
 "$project_root/.lake/build/bin/skbuild" analyze \
