@@ -42,8 +42,10 @@ bridge that acquires input and invokes the native analyzer, but the stable
 `skbuild analyze` command now dispatches to that bridge when run from the
 repository; packaging-independent helper discovery, `linux:latest` resolution,
 `resume`/`query` now reuse the recorded run directory and report, while
-streaming/indexed storage, `linux:latest` resolution, packaging-independent
-helper discovery, and broader pipeline integration remain pending.
+streaming/indexed storage, packaging-independent helper discovery, and broader
+pipeline integration remain pending. `linux:latest` now resolves kernel.org's
+`latest_stable` release entry and records the resolved version/source/PGP URL;
+signature verification and live-metadata integration tests remain pending.
 
 ## 1. Product goal and definition of done
 

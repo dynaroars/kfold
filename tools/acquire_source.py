@@ -197,7 +197,7 @@ def download(url, destination, max_bytes, retries):
     raise AcquireError(f"download failed after {retries} attempts: {error}")
 
 
-def fetch_checksum(url, retries):
+def fetch_text(url, retries):
     error = None
     for _ in range(retries):
         try:
@@ -222,6 +222,28 @@ def checksum_from_sidecar(text, input_value):
     return candidates[0][0]
 
 
+def resolve_latest_metadata(text):
+    try:
+        metadata = json.loads(text)
+        version = metadata["latest_stable"]["version"]
+        release = next(
+            item for item in metadata["releases"]
+            if item.get("moniker") == "stable" and item.get("version") == version
+        )
+        source = release["source"]
+        if not source:
+            raise KeyError("source")
+    except (KeyError, TypeError, StopIteration, json.JSONDecodeError) as error:
+        raise AcquireError(f"invalid kernel release metadata: {error}") from error
+    return source, {
+        "metadata_url": "https://www.kernel.org/releases.json",
+        "version": version,
+        "released": release.get("released"),
+        "source": source,
+        "pgp": release.get("pgp"),
+    }
+
+
 def acquire(
     input_value,
     output_dir,
@@ -231,6 +253,11 @@ def acquire(
     expected_sha256=None,
     checksum_url=None,
 ):
+    requested_input = input_value
+    resolution = None
+    if input_value == "linux:latest":
+        metadata_text = fetch_text("https://www.kernel.org/releases.json", retries)
+        input_value, resolution = resolve_latest_metadata(metadata_text)
     if output_dir.exists():
         raise AcquireError(f"output directory already exists: {output_dir}")
     output_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -245,7 +272,7 @@ def acquire(
         if checksum_url is not None:
             if not input_value.startswith(("https://", "http://")):
                 raise AcquireError("checksum sidecar URLs require an HTTP(S) archive input")
-            expected_sha256 = checksum_from_sidecar(fetch_checksum(checksum_url, retries), input_value)
+            expected_sha256 = checksum_from_sidecar(fetch_text(checksum_url, retries), input_value)
         if expected_sha256 is not None:
             expected_sha256 = expected_sha256.lower()
             if not re.fullmatch(r"[0-9a-f]{64}", expected_sha256):
@@ -317,7 +344,9 @@ def acquire(
             )
         manifest = {
             "schema": 1,
-            "input": input_value,
+            "input": requested_input,
+            "resolved_input": input_value,
+            "resolution": resolution,
             "input_kind": input_kind,
             "input_sha256": input_digest,
             "archive_format": archive_format,

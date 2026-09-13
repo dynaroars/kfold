@@ -207,6 +207,31 @@ test "$acquire_rc" -eq 2
 test ! -e "$tmp_dir/unsafe-output"
 grep -q "escapes extraction root" "$tmp_dir/unsafe.err"
 
+python3 - "$project_root" <<'PY'
+import importlib.util
+import json
+import sys
+from pathlib import Path
+
+module_path = Path(sys.argv[1]) / "tools/acquire_source.py"
+spec = importlib.util.spec_from_file_location("acquire_source", module_path)
+acquire_source = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(acquire_source)
+source, resolution = acquire_source.resolve_latest_metadata(json.dumps({
+    "latest_stable": {"version": "6.12.9"},
+    "releases": [{
+        "moniker": "stable",
+        "version": "6.12.9",
+        "source": "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.9.tar.xz",
+        "released": {"isodate": "2025-01-01"},
+        "pgp": "https://cdn.kernel.org/linux.sign",
+    }],
+}))
+assert source.endswith("linux-6.12.9.tar.xz")
+assert resolution["version"] == "6.12.9"
+assert resolution["pgp"].endswith("linux.sign")
+PY
+
 "$project_root/tools/skbuild_analyze.py" \
   "$project_root/Tests/Fixtures/tree" \
   --output "$tmp_dir/analyze-pipeline" > "$tmp_dir/analyze-pipeline.json"

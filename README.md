@@ -32,11 +32,14 @@ Acquire and analyze a local tree or archive in one reproducible workspace:
 
 ```sh
 .lake/build/bin/skbuild analyze ./linux.tar.xz --tristate --output=results/linux
+.lake/build/bin/skbuild analyze linux:latest --tristate --output=results/latest
 ```
 
 The command requires `--output=DIR`; it writes the acquired source workspace,
 acquisition/run manifests, and JSON report there. Use the legacy forms below
 when the source is already prepared locally and no acquisition stage is needed.
+`linux:latest` resolves the current stable release from kernel.org metadata and
+records the pinned version and URL in the acquisition manifest.
 
 Completed run directories can be reused and queried:
 
