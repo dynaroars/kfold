@@ -87,7 +87,17 @@ def analyzeTree (settings : Settings) (root : System.FilePath) : IO (Except Stri
     let sourceName := if sourceRelative.isEmpty then "." else (sourceRelative.dropEnd 1).toString
     let environment := automaticEnvironment sourceRoot sourceName
     match ← analyzeFile settings item.path canonicalCondition (some environment) (some sourceRoot) with
-    | .error message => return .error s!"{item.path}: {message}"
+    | .error message =>
+        -- A single unsupported or malformed child Makefile must not discard
+        -- the valid portion of a recursive report. Preserve the analyzed
+        -- prefix and make the skipped input explicit in the report.
+        result := { result with diagnostics := result.diagnostics.push {
+          code := "SKB2005"
+          severity := .warning
+          message := s!"cannot analyze {item.path}: {message}"
+          span := SourceSpan.unknown item.path.toString
+          makesIncomplete := true
+        } }
     | .ok execution =>
         let localFiles := prefixFiles (relativeDirectory rootBase base) <|
           extractFiles settings execution

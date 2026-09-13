@@ -74,6 +74,18 @@ assert by_path["if.o"]["condition_text"] == "CONFIG_EXTRA=y"
 assert report["coverage"]["qualification"] == "exact-within-modeled-scope"
 PY
 
+"$project_root/.lake/build/bin/skbuild" --json \
+  "$project_root/Tests/Fixtures/parse-error" > "$tmp_dir/parse-error.json" 2>/dev/null
+python3 - "$tmp_dir/parse-error.json" <<'PY'
+import json
+import sys
+
+report = json.load(open(sys.argv[1], encoding="utf-8"))
+assert report["complete"] is False
+assert any(item["code"] == "SKB2005" for item in report["diagnostics"])
+assert report["coverage"]["input_coverage"] == "incomplete"
+PY
+
 cp -R "$project_root/Tests/Fixtures/wildcard" "$tmp_dir/wildcard-cache"
 "$project_root/.lake/build/bin/skbuild" --json \
   --cache="$tmp_dir/wildcard.cache.json" "$tmp_dir/wildcard-cache" \

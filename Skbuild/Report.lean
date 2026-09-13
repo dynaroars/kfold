@@ -112,9 +112,9 @@ structure ReportContext where
   deriving Repr, BEq, Inhabited
 
 private def missingInputDiagnostic (diagnostic : Diagnostic) : Bool :=
-  diagnostic.makesIncomplete &&
+    diagnostic.makesIncomplete &&
     (diagnostic.code == "SKB2001" || diagnostic.code == "SKB2003" ||
-      diagnostic.code == "SKB2004")
+      diagnostic.code == "SKB2004" || diagnostic.code == "SKB2005")
 
 private def unsupportedDiagnostic (diagnostic : Diagnostic) : Bool :=
   diagnostic.makesIncomplete &&
