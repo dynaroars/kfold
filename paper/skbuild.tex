@@ -123,6 +123,18 @@ In practice, Kbuild Makefiles contain dense sequences of conditional statements.
 
 To overcome this fundamental limitation, \tool adopts and adapts the \textbf{Single-State Eager-Merge} architecture pioneered by Cybolic~\cite{cybolic}. Instead of maintaining multiple paths, \tool maintains exactly \emph{one} symbolic state per Kbuild file. Each variable's value is represented as a set of \emph{guarded words} $\langle \text{word}, \phi \rangle$, where $\phi$ is the Z3 Boolean formula under which $\text{word}$ is present in the variable. When encountering a conditional block, \tool clones the state, executes both branches independently, and \emph{immediately merges} the resulting states back into a single unified state. Contributions from the then-branch are conjoined with the branch guard $\psi$, while contributions from the else-branch are conjoined with $\neg \psi$. This maintains an execution complexity of $O(N \cdot B)$ (where $B$ is the small branch factor), eliminating path explosion entirely.
 
+\subsection{Relationship to \textsc{Kmax} and Foundational Work}
+\label{sec:intro:kmax}
+
+The vision of extracting complete static build configurations from Kbuild was pioneered by Gazzillo's landmark work on \textsc{Kmax}~\cite{kmax,gazzillo2018localizing}. \textsc{Kmax} demonstrated that analyzing all configurations of Kbuild Makefiles simultaneously is vital for understanding software product line variability, localizing compilation errors, and checking build constraints. Subsequent tools in the \textsc{Kmax} ecosystem---including \textsc{Kclause}~\cite{oh2021kclause} and \textsc{Kismet}~\cite{yildiran2021kismet}---leveraged these insights to extract propositional clauses and detect unmet configuration dependencies.
+
+\tool is heavily inspired by and builds upon the foundational insights of \textsc{Kmax}, while exploring a distinct formal and algorithmic foundation:
+\begin{itemize}
+\item \textbf{Formal Operational Semantics:} Whereas \textsc{Kmax} employs custom pattern-directed evaluation, \tool defines a rigorous Small-Step Structural Operational Semantics (SOS) for GNU Make under single-state eager merge, formalizing the exact interactions of dual flavor evaluation and scoped variable overwrites (\Cref{sec:semantics}).
+\item \textbf{First-Order SMT Backend:} \tool integrates directly with the Z3 SMT solver at the AST word-condition level, treating presence conditions as first-order Boolean/bit-vector logic. This enables native SMT optimization algorithms including greedy set-cover witness synthesis (\Cref{alg:set-cover}), release differential evolution via XOR SAT queries ($\Phi_1 \oplus \Phi_2$), and minimal bug-reproducing configuration synthesis via Z3 MaxSAT.
+\item \textbf{Cross-System \& Multi-Stage Generalization:} While \textsc{Kmax} focused on the Linux kernel, \tool is engineered and empirically validated across five distinct production ecosystems (Linux, Das U-Boot, Barebox, coreboot, BusyBox), providing first-class modeling for multi-stage firmware targets (\texttt{bootblock-y}, \texttt{romstage-y}, \texttt{pbl-y}, \texttt{spl-y}).
+\end{itemize}
+
 \subsection{Contributions}
 \label{sec:intro:contributions}
 
@@ -1084,14 +1096,28 @@ As detailed in \Cref{tab:clustering}, \tool partitions codebases into tightly co
 \section{Related Work}
 \label{sec:related}
 
-\subsection{Variability-Aware Analysis \& Software Product Lines}
+\subsection{Variability-Aware Static Analysis \& Preprocessor Modeling}
 Analyzing highly configurable software has received extensive attention in software engineering~\cite{berger2010variability,berger2013variability,dietrich2012variability,erwig2011choice,liebig2010analysis,tartler2011dead,ishimwe2021dynaplex,nadi2014where,passos2013coevolution,medeiros2016comparison}. Tools such as TypeChef~\cite{kenner2010typechef} and SuperC~\cite{gazzillo2012superc} parse C source code with conditional preprocessor directives (\texttt{\#ifdef}), extracting presence conditions over source ASTs. \tool complements preprocessor analysis by operating at the build system level, determining which translation units enter the compiler in the first place.
 
-\subsection{Build System Analysis \& Condition Extraction}
-Dietrich et al.~\cite{dietrich2012variability} and Berger et al.~\cite{berger2010variability,berger2013variability} studied the variability models of Kconfig and the Linux kernel. kmax~\cite{kmax} parses Kbuild files using custom grammar patterns to extract constraints. \tool differs fundamentally by executing GNU Make semantics via symbolic interpretation with exact flavor expansion, guarded overwrites, and SMT solving. Cybolic~\cite{cybolic} recently introduced eager-merge symbolic execution for CMake build systems; \tool adapts and formalizes this architecture for Kbuild's distinct flavor semantics, recursive Make structures, and stage target vocabularies.
+\subsection{Comparative Analysis: \tool vs.\ \textsc{Kmax} and Build Analyzers}
+\label{sec:related:kmax-comparison}
 
-\subsection{Symbolic Execution in Software Engineering}
-Symbolic execution~\cite{king1976symbolic,cadar2008klee,godefroid2005dart} is widely used for test generation and bug finding. While traditional symbolic executors fork paths at conditional branches, recent work on state merging and variational execution~\cite{kuznetsov2012efficient,nguyen2014using,nguyen2020kbuild} folds paths into disjunctive summaries. \tool applies eager merging directly to the domain of configuration-driven build systems.
+\paragraph{The \textsc{Kmax} Lineage \& Kbuild Semantics.}
+Gazzillo's pioneering work on \textsc{Kmax}~\cite{kmax,gazzillo2018localizing} established the foundation for whole-system static analysis of Kbuild by demonstrating that presence conditions for compilation units could be extracted statically across the entire Linux kernel. Subsequent research extended this framework with \textsc{Kclause}~\cite{oh2021kclause} (translating Kconfig specifications into SMT-LIB constraints) and \textsc{Kismet}~\cite{yildiran2021kismet} (detecting unmet dependency defects in configuration files).
+
+\tool builds directly upon the problem formulation and insights established by \textsc{Kmax}, while differing in its formal language foundation and algorithmic architecture:
+\begin{enumerate}
+\item \textbf{Single-State Eager Merge vs.\ Variability-Aware Path Tracking:} \textsc{Kmax} evaluates Makefiles using a custom variability-preserving evaluator that tracks reaching configuration conditions along branches. In contrast, \tool formalizes a Small-Step Structural Operational Semantics (SOS) where conditional branch variations are eagerly folded into word-condition mappings $\mathcal{M}(w)$ within a \emph{single global state} $\sigma$. This guarantees $O(1)$ live states at every \texttt{endif}, eliminating path explosion across dense conditional cascades without requiring branch-depth approximations.
+\item \textbf{Dual Flavor Expansion \& Scoped Overwrites:} GNU Make semantics heavily rely on the distinction between simply expanded (\texttt{:=}) and recursively expanded (\texttt{=}, \texttt{?=}) variables, as well as conditionally-named variable assignments (\texttt{obj-\$(CONFIG\_X) := target.o}). \tool formalizes the domain-difference algebraic operator $\setminus_\psi$ (\Cref{sec:semantics:algebra}), ensuring that prior variable bindings are preserved under negated guards ($\neg \psi$) and preventing unsound variable clobbering during dynamic overwrites.
+\item \textbf{First-Order SMT Solver Integration:} Whereas \textsc{Kmax} emits textual boolean constraints, \tool deeply embeds Z3 SMT solving at the core evaluation layer. This integration unlocks first-order automated optimization algorithms: (a) computing minimal-size CI test suites via greedy set-cover (\Cref{alg:set-cover}); (b) synthesizing minimal-weight bug-reproducing configurations via Z3 MaxSAT (\Cref{sec:eval:apps}); (c) proving dead targets unsatisfiable ($\Phi(o) \equiv \text{False}$); and (d) characterizing release-to-release evolution via differential SMT XOR queries ($\text{SAT}(\Phi_{\text{v1}} \oplus \Phi_{\text{v2}})$).
+\item \textbf{Cross-Corpus \& Multi-Stage Firmware Modeling:} While \textsc{Kmax} was evaluated primarily on the Linux kernel, \tool is engineered and validated across five major production ecosystems (Linux, Das U-Boot, Barebox, coreboot, BusyBox), providing built-in support for heterogeneous multi-stage firmware target families (\texttt{bootblock-y}, \texttt{romstage-y}, \texttt{ramstage-y}, \texttt{smm-y}, \texttt{pbl-y}, \texttt{spl-y}, \texttt{tpl-y}).
+\end{enumerate}
+
+\paragraph{Other Build-System Analyzers.}
+Dietrich et al.~\cite{dietrich2012variability} and Tartler et al.~\cite{tartler2011dead} developed \textsc{Undertaker} and \textsc{GOAL}, which extract build conditions from Kbuild and C code using heuristic pattern matchers. Tamrawi et al.~\cite{tamrawi2012symake} built \textsc{SyMake}, using symbolic execution over Makefiles for dependency graph reconstruction and refactoring. Adams et al.~\cite{adams2007makao} developed \textsc{MAKAO} to reverse-engineer Make build dependencies. Cybolic~\cite{cybolic} recently introduced eager-merge symbolic execution for the CMake domain; \tool adapts and formalizes this architecture for Kbuild's distinct flavor semantics, recursive Make structures, and stage target vocabularies.
+
+\subsection{Symbolic Execution \& State Merging}
+Symbolic execution~\cite{king1976symbolic,cadar2008klee,godefroid2005dart} is widely used for automated test generation and program verification. While classical symbolic executors fork paths at conditional branches, state merging and variational execution~\cite{kuznetsov2012efficient,nguyen2014using,nguyen2020kbuild} fold paths into disjunctive formulas. \tool applies eager merging directly to the domain of configuration-driven build systems.
 
 \section{Conclusion}
 \label{sec:conclusion}
