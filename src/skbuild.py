@@ -35,10 +35,6 @@ if __name__ == '__main__':
        action="store_true",
        help="lots of debug detail")
 
-    ag("--nomp", "-nomp",
-       action="store_true",
-       help="don't use multiprocessing")
-
     # Analysis Option
     ag("--build_dir", "-build_dir",
        type=str,
@@ -55,7 +51,6 @@ if __name__ == '__main__':
     args = aparser.parse_args()
 
     import settings
-    settings.do_mp = not args.nomp
     settings.detail = args.detail
 
     if (args.log_level != settings.logger_level and

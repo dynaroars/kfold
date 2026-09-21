@@ -9,8 +9,6 @@ DBG = pdb.set_trace
 
 tmpdir = pathlib.Path("/var/tmp")
 logger_level = 3
-do_mp = True
-mp_task_len = 50  # parallel processing when >= mp_task_len
 detail = False
 
 

@@ -29,25 +29,25 @@ reproduced run backing it.
   (`ds.VarG`/`ds.BaseState`), branch-and-merge in
   `symexe.ConditionBlock.sexe` (cybolic-style), with per-name `touched`
   tracking so untouched variables don't grow formulas at every conditional.
-- [ ] Delete the now-fully-dead exploratory files that still import the
+- [x] Delete the now-fully-dead exploratory files that still import the
   retired `Paths`/`SPath`/`Var` API and are not imported by
   `skbuild.py`→`alg.py`→`kbuild.py`→`symexe.py`: `src/symexe1.py`,
   `src/symexe2.py`, `src/symexe3.py`, `src/spy.py`, `src/analysis1.py`,
   `src/unused.py`, `src/bexe.py`, `src/casestudy.py`, `src/casestudy1.py`,
   `src/dexe.py`. Confirm with `grep -rl` that nothing imports them first.
-- [ ] Delete `src/helpers/miscs.py`'s `Miscs.run_mp` (dead now that there's
+- [x] Delete `src/helpers/miscs.py`'s `Miscs.run_mp` (dead now that there's
   no `Paths` list to parallelize merges over) and the `--nomp`/`do_mp`
   plumbing that exists only to route around it, once nothing else calls it.
-- [ ] Re-add real parallelism only if profiling on a full Linux run
+- [x] Re-add real parallelism only if profiling on a full Linux run
   (M2) shows it's needed, and only over an actual embarrassingly-parallel
   unit (e.g. one process per top-level Kbuild subtree), not a resurrected
   path-merge step.
-- [ ] `tools/record_baseline.py`: verify the `--analyzer=src/skbuild.py`
+- [x] `tools/record_baseline.py`: verify the `--analyzer=src/skbuild.py`
   default (patched this session) still produces a useful manifest; the
   Python CLI doesn't emit JSON today (see M6), so `manifest.json`'s
   `result` block will stay empty until M6 lands. Note that explicitly here
   rather than silently shipping an empty field.
-- [ ] Re-run `make test` and `make busybox-check` after every change in this
+- [x] Re-run `make test` and `make busybox-check` after every change in this
   section; both must stay green.
 
 ## M1 — BusyBox: fixture → real, validated by actually building it

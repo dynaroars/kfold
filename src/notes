@@ -1,1 +1,0 @@
-BFS: allows path splitting and merging after each statement, significantly reduce the search space.  Moreover, we want to explore *all* paths space instead of just finding some path leading to an assertion violation.  Finally, we know it's doable, i.e., can explore all paths.
