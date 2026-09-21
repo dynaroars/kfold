@@ -168,56 +168,56 @@ obj-y += driver_$(TARGET_WIDTH).o
 Let us trace how skbuild's single-state representation evolves across these statements:
 
 \begin{itemize}
-\item \textbf{Line 1 (\texttt{obj-\$(CONFIG\_NET) += net\_core.o}):} The expression \texttt{\$(CONFIG\_NET)} expands symbolically to value \texttt{y} under condition $\texttt{CONFIG\_NET}=\texttt{y}$. Thus, the variable \texttt{obj-y} receives \texttt{net\_core.o} with guard $\phi_1 = (\texttt{CONFIG\_NET}=\texttt{y})$.
-\item \textbf{Line 2 (\texttt{obj-\$(CONFIG\_OPTIMIZED) := fast\_net.o}):} This statement uses the simple overwrite operator \texttt{:=}. When $\texttt{CONFIG\_OPTIMIZED}=\texttt{y}$, it assigns to \texttt{obj-y}. However, it must \emph{not} discard the previous value of \texttt{obj-y} under configurations where $\texttt{CONFIG\_OPTIMIZED}\neq\texttt{y}$. skbuild updates \texttt{obj-y} such that:
+\item \textbf{Line 1 (\texttt{obj-\$(CONFIG\_NET) += net\_core.o}):} The expression \texttt{\$(CONFIG\_NET)} expands symbolically to value \texttt{y} under condition $\texttt{CONFIG\_NET}=\texttt{y}$. Thus, \texttt{obj-y} receives \texttt{net\_core.o} with guard $\phi_1 = (\texttt{CONFIG\_NET}=\texttt{y})$.
+\item \textbf{Line 2 (\texttt{obj-\$(CONFIG\_OPTIMIZED) := fast\_net.o}):} This statement uses simple overwrite \texttt{:=}. When $\texttt{CONFIG\_OPT}=\texttt{y}$, it assigns to \texttt{obj-y}. However, it must preserve the previous value of \texttt{obj-y} when $\texttt{CONFIG\_OPT}\neq\texttt{y}$:
 \begin{align*}
-\phi(\mathtt{fast\_net.o}) &= (\texttt{CONFIG\_OPTIMIZED}=\texttt{y}) \\
-\phi(\mathtt{net\_core.o}) &= \phi_1 \wedge \neg(\texttt{CONFIG\_OPTIMIZED}=\texttt{y}) = (\texttt{CONFIG\_NET}=\texttt{y}) \wedge (\texttt{CONFIG\_OPTIMIZED}\neq\texttt{y})
+\phi(\mathtt{fast\_net.o}) &= (\texttt{CONFIG\_OPT}=\texttt{y}) \\
+\phi(\mathtt{net\_core.o}) &= \phi_1 \wedge \neg(\texttt{CONFIG\_OPT}=\texttt{y}) \\
+&= (\texttt{CONFIG\_NET}=\texttt{y}) \wedge (\texttt{CONFIG\_OPT}\neq\texttt{y})
 \end{align*}
-\item \textbf{Line 3 (\texttt{obj-\$(CONFIG\_OPTIMIZED) += net\_accel.o} and \texttt{obj-\$(CONFIG\_SECURITY) += firewall.o}):} Appending adds \texttt{net\_accel.o} under $(\texttt{CONFIG\_OPTIMIZED}=\texttt{y})$ and \texttt{firewall.o} under $(\texttt{CONFIG\_SECURITY}=\texttt{y})$.
-\item \textbf{Line 4 (Conditional Block \texttt{ifeq}):} skbuild evaluates the branch condition $\psi = (\texttt{CONFIG\_ARCH\_64}=\texttt{y})$.
+\item \textbf{Line 3 (\texttt{obj-\$(CONFIG\_OPTIMIZED) += net\_accel.o}):} Appending adds \texttt{net\_accel.o} under $(\texttt{CONFIG\_OPT}=\texttt{y})$ and \texttt{firewall.o} under $(\texttt{CONFIG\_SEC}=\texttt{y})$.
+\item \textbf{Line 4 (Conditional Block \texttt{ifeq}):} skbuild evaluates branch condition $\psi = (\texttt{CONFIG\_64}=\texttt{y})$.
   \begin{itemize}
   \item In the \emph{then}-branch, a cloned state assigns $\mathtt{TARGET\_WIDTH} \gets \langle \mathtt{64}, \text{True} \rangle$.
   \item In the \emph{else}-branch, a cloned state assigns $\mathtt{TARGET\_WIDTH} \gets \langle \mathtt{32}, \text{True} \rangle$.
-  \item At the \texttt{endif}, skbuild merges the two branches into the parent state. $\mathtt{TARGET\_WIDTH}$ becomes:
-  $$\{ \langle \mathtt{64}, \texttt{CONFIG\_ARCH\_64}=\texttt{y} \rangle, \; \langle \mathtt{32}, \texttt{CONFIG\_ARCH\_64}\neq\texttt{y} \rangle \}$$
+  \item At \texttt{endif}, skbuild merges the two branches:
+  $$\{ \langle \mathtt{64}, \texttt{CONFIG\_64}=\texttt{y} \rangle, \; \langle \mathtt{32}, \texttt{CONFIG\_64}\neq\texttt{y} \rangle \}$$
   \end{itemize}
-\item \textbf{Line 5 (\texttt{obj-y += driver\_\$(TARGET\_WIDTH).o}):} Evaluating the target value expands $\mathtt{TARGET\_WIDTH}$ over its guarded cases, appending:
+\item \textbf{Line 5 (\texttt{obj-y += driver\_\$(TARGET\_WIDTH).o}):} Expanding $\mathtt{TARGET\_WIDTH}$ yields:
   \begin{align*}
-  \mathtt{driver\_64.o} &\text{ with guard } (\texttt{CONFIG\_ARCH\_64}=\texttt{y}) \\
-  \mathtt{driver\_32.o} &\text{ with guard } (\texttt{CONFIG\_ARCH\_64}\neq\texttt{y})
+  \mathtt{driver\_64.o} &\text{ with guard } (\texttt{CONFIG\_64}=\texttt{y}) \\
+  \mathtt{driver\_32.o} &\text{ with guard } (\texttt{CONFIG\_64}\neq\texttt{y})
   \end{align*}
 \end{itemize}
 
 \begin{table}[t]
 \centering
 \footnotesize
-\caption{Step-by-Step Evolution of the Single Symbolic State $\sigma$ for \Cref{lst:example}.}
+\setlength{\tabcolsep}{4pt}
+\caption{Evolution of the Single Symbolic State $\sigma$ for \Cref{lst:example}.}
 \label{tab:example-trace}
 \begin{tabular}{cll}
 \toprule
-\textbf{Step} & \textbf{Variable} & \textbf{Guarded Words Map $\mathcal{M}$} \\
+\textbf{Step} & \textbf{Var} & \textbf{Guarded Words Map $\mathcal{M}$} \\
 \midrule
-After Line 1 & \texttt{obj-y} & $\{ \langle \mathtt{net\_core.o}, \; \texttt{CONFIG\_NET}=\mathtt{"y"} \rangle \}$ \\
+After L1 & \texttt{obj-y} & $\{ \langle \mathtt{net\_core.o}, \; \texttt{NET}=\mathtt{"y"} \rangle \}$ \\
 \midrule
-\multirow{2}{*}{After Line 2} & \multirow{2}{*}{\texttt{obj-y}} & $\{ \langle \mathtt{fast\_net.o}, \; \texttt{CONFIG\_OPT}=\mathtt{"y"} \rangle, $ \\
-& & $\; \langle \mathtt{net\_core.o}, \; \texttt{CONFIG\_NET}=\mathtt{"y"} \wedge \texttt{CONFIG\_OPT}\neq\mathtt{"y"} \rangle \}$ \\
+\multirow{2}{*}{After L2} & \multirow{2}{*}{\texttt{obj-y}} & $\{ \langle \mathtt{fast\_net.o}, \; \texttt{OPT}=\mathtt{"y"} \rangle, $ \\
+& & $\; \langle \mathtt{net\_core.o}, \; \texttt{NET}=\mathtt{"y"} \wedge \texttt{OPT}\neq\mathtt{"y"} \rangle \}$ \\
 \midrule
-\multirow{3}{*}{After Line 3} & \multirow{3}{*}{\texttt{obj-y}} & $\{ \langle \mathtt{fast\_net.o}, \; \texttt{CONFIG\_OPT}=\mathtt{"y"} \rangle, $ \\
-& & $\; \langle \mathtt{net\_accel.o}, \; \texttt{CONFIG\_OPT}=\mathtt{"y"} \rangle, $ \\
-& & $\; \langle \mathtt{firewall.o}, \; \texttt{CONFIG\_SEC}=\mathtt{"y"} \rangle, $ \\
-& & $\; \langle \mathtt{net\_core.o}, \; \texttt{CONFIG\_NET}=\mathtt{"y"} \wedge \texttt{CONFIG\_OPT}\neq\mathtt{"y"} \rangle \}$ \\
+\multirow{3}{*}{After L3} & \multirow{3}{*}{\texttt{obj-y}} & $\{ \langle \mathtt{fast\_net.o}, \; \texttt{OPT}=\mathtt{"y"} \rangle, \; \langle \mathtt{net\_accel.o}, \; \texttt{OPT}=\mathtt{"y"} \rangle, $ \\
+& & $\; \langle \mathtt{firewall.o}, \; \texttt{SEC}=\mathtt{"y"} \rangle, $ \\
+& & $\; \langle \mathtt{net\_core.o}, \; \texttt{NET}=\mathtt{"y"} \wedge \texttt{OPT}\neq\mathtt{"y"} \rangle \}$ \\
 \midrule
-After Line 4 & \texttt{TARGET\_WIDTH} & $\{ \langle \mathtt{64}, \; \texttt{CONFIG\_64}=\mathtt{"y"} \rangle, \; \langle \mathtt{32}, \; \texttt{CONFIG\_64}\neq\mathtt{"y"} \rangle \}$ \\
+After L4 & \texttt{WIDTH} & $\{ \langle \mathtt{64}, \; \texttt{64}=\mathtt{"y"} \rangle, \; \langle \mathtt{32}, \; \texttt{64}\neq\mathtt{"y"} \rangle \}$ \\
 \midrule
-\multirow{3}{*}{After Line 5} & \multirow{3}{*}{\texttt{obj-y}} & (Prior targets preserved) $\; \cup $ \\
-& & $\{ \langle \mathtt{driver\_64.o}, \; \texttt{CONFIG\_64}=\mathtt{"y"} \rangle, $ \\
-& & $\; \langle \mathtt{driver\_32.o}, \; \texttt{CONFIG\_64}\neq\mathtt{"y"} \rangle \}$ \\
+\multirow{2}{*}{After L5} & \multirow{2}{*}{\texttt{obj-y}} & (Prior targets preserved) $\; \cup \; \{ \langle \mathtt{driver\_64.o}, \; \texttt{64}=\mathtt{"y"} \rangle, $ \\
+& & $\; \langle \mathtt{driver\_32.o}, \; \texttt{64}\neq\mathtt{"y"} \rangle \}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\Cref{tab:example-trace} summarizes the exact symbolic state evolution. Notice how \texttt{net\_core.o} correctly captures the interaction between \texttt{CONFIG\_NET} and the overwrite caused by \texttt{CONFIG\_OPT}. Under a fork-per-branch design, this 5-statement snippet would spawn 8 path states; under skbuild, it executes as a single linear pass with 0 state divergence.
+\Cref{tab:example-trace} summarizes the exact symbolic state evolution. Under a fork-per-branch design, this 5-statement snippet would spawn 8 path states; under skbuild, it executes as a single linear pass with 0 state divergence.
 
 \subsection{Fork-per-Branch State Explosion vs.\ Eager Merge}
 \label{sec:overview:fork-vs-merge}
@@ -247,9 +247,12 @@ ipv6-$(CONFIG_INET6_ESP) += esp6.o
 \end{lstlisting}
 Here, \texttt{ipv6.o} is a composite target whose component sub-objects are defined in the helper variable \texttt{ipv6-objs} and dynamically appended via \texttt{ipv6-\$(CONFIG\_INET6\_AH)}. 
 
-When extracting presence conditions, skbuild resolves composite dependencies by expanding the component lists under the composite target's condition. If $\Phi(\mathtt{ipv6.o}) = (\texttt{CONFIG\_IPV6} = \mathtt{"y"})$, and $\phi_{\text{sub}}(\mathtt{ah6.o}) = (\texttt{CONFIG\_INET6\_AH} = \mathtt{"y"})$, the effective presence condition for sub-object \texttt{ah6.o} is computed as:
-$$\Phi(\mathtt{ah6.o}) = \Phi(\mathtt{ipv6.o}) \wedge \phi_{\text{sub}}(\mathtt{ah6.o}) = (\texttt{CONFIG\_IPV6} = \mathtt{"y"}) \wedge (\texttt{CONFIG\_INET6\_AH} = \mathtt{"y"})$$
-skbuild automatically resolves composite mappings across all Kbuild prefix conventions (\texttt{<target>-objs}, \texttt{<target>-y}, \texttt{<target>-m}).
+When extracting presence conditions, skbuild resolves composite dependencies by expanding the component lists under the composite target's condition. If $\Phi(\mathtt{ipv6.o}) = (\texttt{CONFIG\_IPV6} = \mathtt{"y"})$ and $\phi_{\text{sub}}(\mathtt{ah6.o}) = (\texttt{CONFIG\_INET6\_AH} = \mathtt{"y"})$, the presence condition for sub-object \texttt{ah6.o} is:
+\begin{align*}
+\Phi(\mathtt{ah6.o}) &= \Phi(\mathtt{ipv6.o}) \wedge \phi_{\text{sub}}(\mathtt{ah6.o}) \\
+&= (\texttt{CONFIG\_IPV6} = \mathtt{"y"}) \wedge (\texttt{CONFIG\_INET6\_AH} = \mathtt{"y"})
+\end{align*}
+skbuild automatically resolves composite mappings across standard Kbuild prefix conventions (\texttt{target-objs}, \texttt{target-y}, and \texttt{target-m}).
 
 \subsection{Why Kbuild Is Not a Generic Symbolic-Execution Target}
 \label{sec:overview:why-different}
@@ -438,7 +441,7 @@ Having defined intra-file symbolic execution, we now describe how skbuild traver
 \subsection{Subdirectory Discovery and Recursive Exploration}
 \label{sec:traversal:subdirs}
 
-In Kbuild, directory recursion is declared through target variables containing directory paths (e.g., \texttt{obj-y += drivers/}, \texttt{obj-\$(CONFIG\_FS) += fs/}). During symbolic execution of a Makefile $M$ at path $P$, skbuild identifies all words $w \in \mathcal{M}(x)$ for target variables $x \in \{ \mathtt{obj-y}, \mathtt{obj-m}, \mathtt{lib-y}, \mathtt{core-y}, \mathtt{drivers-y}, \ldots \}$ that correspond to directory paths.
+In Kbuild, directory recursion is declared through target variables containing directory paths (e.g., \texttt{obj-y += drivers/}, \texttt{obj-\$(CONFIG\_FS) += fs/}). During symbolic execution of a Makefile $M$ at path $P$, skbuild identifies all words $w \in \mathcal{M}(x)$ for target variables $x$ (such as \texttt{obj-y}, \texttt{obj-m}, \texttt{lib-y}, \texttt{core-y}) that correspond to directory paths.
 
 Let $\phi_{\text{sub}}$ be the condition associated with directory path $D$ in Makefile $M$. If $M$ was reached under directory condition $\Phi_M$, then subdirectory $D$ is entered under the inherited directory presence condition:
 $$\Phi_D = \Phi_M \wedge \phi_{\text{sub}}$$
@@ -455,7 +458,7 @@ Different configurable systems organize compilation into distinct target variabl
 \item \textbf{Das U-Boot:} \texttt{obj-}, \texttt{lib-}, \texttt{spl-}, \texttt{tpl-}, \texttt{vpl-}.
 \end{itemize}
 
-When analysis completes across all directories, skbuild collects all target files $o \in \{ \text{words ending in } \mathtt{.o}, \mathtt{.a} \}$. For each object file $o$ in directory $D$ with local condition $\phi_{\text{local}}(o)$, the global presence condition is:
+When analysis completes across all directories, skbuild collects all target object files $o$ (words ending in \texttt{.o} or \texttt{.a}). For each object file $o$ in directory $D$ with local condition $\phi_{\text{local}}(o)$, the global presence condition is:
 $$\Phi(o) = \Phi_D \wedge \phi_{\text{local}}(o)$$
 
 \begin{algorithm}[t]
@@ -600,13 +603,13 @@ We evaluated skbuild across five independent, real-world configurable software s
 \label{tab:rq1}
 \begin{tabular}{llrrrrr}
 \toprule
-\textbf{Corpus} & \textbf{Domain} & \textbf{Version / Snapshot} & \textbf{Total C/H LOC} & \textbf{Makefiles} & \textbf{Extracted Objects} & \textbf{Kconfig Symbols} \\
+\textbf{Corpus} & \textbf{Domain} & \textbf{Version} & \textbf{LOC} & \textbf{Makefiles} & \textbf{Objects} & \textbf{Symbols} \\
 \midrule
 BusyBox & System Utilities & 1.36.1 & 432\,K & 37 & 609 & 1,081 \\
 coreboot & System Firmware & 4.22.01 & 1.8\,M & 29 & 246 & 1,982 \\
 Barebox & Bootloader & 2024.01.0 & 1.4\,M & 148 & 1,343 & 1,982 \\
 Das U-Boot & Embedded Bootloader & 2024.01 & 3.2\,M & 271 & 3,050 & 7,590 \\
-Linux Kernel & Operating System & 6.x Snapshot & 20.1\,M & 1,565 & 12,882 & 10,979 \\
+Linux Kernel & Operating System & 6.x & 20.1\,M & 1,565 & 12,882 & 10,979 \\
 \midrule
 \textbf{Total} & & & \textbf{26.9\,M} & \textbf{2,050} & \textbf{18,130} & \textbf{23,614} \\
 \bottomrule
@@ -623,19 +626,19 @@ To quantify the necessity of single-state eager merge, we implemented a baseline
 \begin{table}[t]
 \centering
 \footnotesize
-\setlength{\tabcolsep}{5pt}
+\setlength{\tabcolsep}{4pt}
 \caption{State Growth and Resource Consumption: Fork-per-Branch vs.\ Eager Merge.}
 \label{tab:rq0}
 \begin{tabular}{lrrrrr}
 \toprule
-\multirow{2}{*}{\textbf{Benchmark / Target}} & \multicolumn{2}{c}{\textbf{Fork-per-Branch Execution}} & \multicolumn{2}{c}{\textbf{Single-State Eager Merge}} & \multirow{2}{*}{\textbf{Speedup / Outcome}} \\
+\multirow{2}{*}{\textbf{Benchmark}} & \multicolumn{2}{c}{\textbf{Fork-per-Branch}} & \multicolumn{2}{c}{\textbf{Eager Merge (skbuild)}} & \multirow{2}{*}{\textbf{Outcome / Speedup}} \\
 \cmidrule(lr){2-3} \cmidrule(lr){4-5}
-& \textbf{Peak Active States} & \textbf{Wall Time} & \textbf{Peak Active States} & \textbf{Wall Time} & \\
+& \textbf{States} & \textbf{Time} & \textbf{States} & \textbf{Time} & \\
 \midrule
-Synthetic 7-Branch Fixture & 32 paths & 0.18\,s & \textbf{1 state} & \textbf{0.01\,s} & $18.0\times$ speedup \\
-Synthetic 15-Branch Fixture & 32,768 paths & 142.60\,s & \textbf{1 state} & \textbf{0.02\,s} & $7{,}130\times$ speedup \\
-BusyBox (Top-Level Tree) & $>10{,}000$ paths & OOM ($>4$\,GB) & \textbf{1 state} & \textbf{0.69\,s} & Eager merge succeeds \\
-coreboot (\texttt{Makefile.inc}) & $>25{,}000$ paths & OOM ($>4$\,GB) & \textbf{1 state} & \textbf{0.67\,s} & Eager merge succeeds \\
+Synth 7-Branch & 32 paths & 0.18\,s & \textbf{1 state} & \textbf{0.01\,s} & $18.0\times$ speedup \\
+Synth 15-Branch & 32,768 paths & 142.60\,s & \textbf{1 state} & \textbf{0.02\,s} & $7{,}130\times$ speedup \\
+BusyBox Tree & $>10{,}000$ paths & OOM ($>4$\,GB) & \textbf{1 state} & \textbf{0.69\,s} & Succeeded in 0.69\,s \\
+coreboot Tree & $>25{,}000$ paths & OOM ($>4$\,GB) & \textbf{1 state} & \textbf{0.67\,s} & Succeeded in 0.67\,s \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -650,11 +653,12 @@ To evaluate how skbuild scales across target architectures, we conducted a multi
 \begin{table}[t]
 \centering
 \footnotesize
+\setlength{\tabcolsep}{5pt}
 \caption{Multi-Architecture Sweep on the Linux Kernel Tree.}
 \label{tab:arch-sweep}
 \begin{tabular}{lrrrr}
 \toprule
-\textbf{Target Architecture} & \textbf{Analyzed Makefiles} & \textbf{Extracted Target Objects} & \textbf{Unique Kconfig Symbols} & \textbf{Analysis Time (s)} \\
+\textbf{Architecture} & \textbf{Makefiles} & \textbf{Objects} & \textbf{Symbols} & \textbf{Time (s)} \\
 \midrule
 $\mathtt{ARCH=x86}$ (x86\_64) & 1,565 & 12,882 & 10,979 & 22.11 \\
 $\mathtt{ARCH=arm64}$ & 1,542 & 11,940 & 10,215 & 20.85 \\
@@ -678,32 +682,32 @@ We instrumented skbuild's parser and evaluator to record every syntactic constru
 \begin{table}[t]
 \centering
 \footnotesize
-\setlength{\tabcolsep}{3.5pt}
-\caption{Construct-Coverage Census Across 59,345 Observed Syntactic Construct Occurrences.}
+\setlength{\tabcolsep}{3pt}
+\caption{Construct Census Across 59,345 Observed Syntactic Construct Occurrences.}
 \label{tab:rq2}
 \begin{tabular}{llrrrrr}
 \toprule
-\textbf{Category} & \textbf{GNU Make Construct} & \textbf{BusyBox} & \textbf{coreboot} & \textbf{Barebox} & \textbf{U-Boot} & \textbf{Linux Kernel} \\
+\textbf{Category} & \textbf{Construct Kind} & \textbf{BusyBox} & \textbf{coreboot} & \textbf{Barebox} & \textbf{U-Boot} & \textbf{Linux} \\
 \midrule
 \textbf{Modeled} & Assignments (\texttt{+=}, \texttt{:=}, \texttt{=}, \texttt{?=}) & 825 & 746 & 1,742 & 4,120 & 16,351 \\
-& Conditionals (\texttt{ifeq}, \texttt{ifneq}, \texttt{ifdef}, \texttt{ifndef}) & 8 & 72 & 46 & 184 & 206 \\
+& Conditionals (\texttt{ifeq}, \texttt{ifdef}, etc.) & 8 & 72 & 46 & 184 & 206 \\
 & Variable References (\texttt{\$(VAR)}) & 1,339 & 580 & 1,985 & 5,590 & 24,838 \\
-& Built-in Functions (\texttt{filter}, \texttt{subst}, \texttt{patsubst}, etc.) & 0 & 4 & 8 & 21 & 54 \\
-& Macro / Iteration (\texttt{call}, \texttt{foreach}, \texttt{wildcard}, etc.) & 0 & 33 & 5 & 31 & 35 \\
-& Traversal / Inclusions (\texttt{Include}) & 0 & 0 & 0 & 2 & 11 \\
-& Host-Probing Shell (\texttt{\$(shell ...)}) & 0 & 3 & 3 & 9 & 10 \\
+& Built-in Functions (\texttt{filter}, \texttt{subst}, etc.) & 0 & 4 & 8 & 21 & 54 \\
+& Macro / Loops (\texttt{call}, \texttt{foreach}, etc.) & 0 & 33 & 5 & 31 & 35 \\
+& Inclusions (\texttt{Include}) & 0 & 0 & 0 & 2 & 11 \\
+& Host Probing (\texttt{\$(shell ...)}) & 0 & 3 & 3 & 9 & 10 \\
 \cmidrule(lr){2-7}
 & \emph{Subtotal Modeled} & \textbf{2,172} & \textbf{1,438} & \textbf{3,789} & \textbf{9,957} & \textbf{41,505} \\
 & \emph{Modeled \%} & \textbf{99.5\%} & \textbf{91.0\%} & \textbf{98.9\%} & \textbf{99.4\%} & \textbf{99.5\%} \\
 \midrule
-\textbf{Out of Scope} & Target Rules (\texttt{Rule}, \texttt{StaticPatternRule}) & 8 & 38 & 12 & 24 & 112 \\
-& Recipe Commands (\texttt{Command}) & 3 & 72 & 19 & 32 & 109 \\
+\textbf{Out of Scope} & Target Rules (\texttt{Rule}, pattern) & 8 & 38 & 12 & 24 & 112 \\
+& Recipe Commands & 3 & 72 & 19 & 32 & 109 \\
 & Empty Directives & 0 & 25 & 10 & 2 & 4 \\
 \cmidrule(lr){2-7}
 & \emph{Subtotal Out of Scope} & \textbf{11 (0.5\%)} & \textbf{135 (8.5\%)} & \textbf{41 (1.1\%)} & \textbf{58 (0.6\%)} & \textbf{225 (0.5\%)} \\
 \midrule
-\textbf{Unsupported} & Dynamic Recipe Registration (\texttt{\$(eval ...)}) & 0 & 8 & 1 & 3 & 0 \\
-& Substitution References (\texttt{\$(VAR:s=d)}) & 0 & 0 & 0 & 0 & 2 \\
+\textbf{Unsupported} & Dynamic Registration (\texttt{\$(eval)}) & 0 & 8 & 1 & 3 & 0 \\
+& Subst References (\texttt{\$(VAR:s=d)}) & 0 & 0 & 0 & 0 & 2 \\
 \cmidrule(lr){2-7}
 & \emph{Subtotal Unsupported} & \textbf{0 (0.0\%)} & \textbf{8 (0.5\%)} & \textbf{1 (<0.1\%)} & \textbf{3 (<0.1\%)} & \textbf{2 (<0.01\%)} \\
 \midrule
@@ -727,13 +731,13 @@ We measured wall-clock execution time, peak resident set size (RSS), variable mu
 \label{tab:rq3}
 \begin{tabular}{lrrrrr}
 \toprule
-\textbf{Project} & \textbf{Wall Time (s)} & \textbf{Peak RSS (MB)} & \textbf{Variable Updates} & \textbf{Z3 Checks (\texttt{is\_sat})} & \textbf{Time / File (ms)} \\
+\textbf{Project} & \textbf{Wall Time} & \textbf{Peak RSS} & \textbf{Var Updates} & \textbf{Z3 Queries} & \textbf{Time / File} \\
 \midrule
-BusyBox 1.36.1 & 0.69 & 65.2 & 3,047 & 1,616 & 23.0 \\
-coreboot 4.22.01 & 0.67 & 67.0 & 1,770 & 1,353 & 23.1 \\
-Barebox 2024.01.0 & 1.73 & 74.5 & 5,148 & 4,668 & 11.2 \\
-Das U-Boot 2024.01 & 6.26 & 88.3 & 11,876 & 11,371 & 23.1 \\
-Linux Kernel (Full Tree) & 22.11 & 104.2 & 77,566 & 71,589 & 14.1 \\
+BusyBox 1.36.1 & 0.69\,s & 65.2\,MB & 3,047 & 1,616 & 23.0\,ms \\
+coreboot 4.22.01 & 0.67\,s & 67.0\,MB & 1,770 & 1,353 & 23.1\,ms \\
+Barebox 2024.01.0 & 1.73\,s & 74.5\,MB & 5,148 & 4,668 & 11.2\,ms \\
+Das U-Boot 2024.01 & 6.26\,s & 88.3\,MB & 11,876 & 11,371 & 23.1\,ms \\
+Linux Kernel (Full Tree) & 22.11\,s & 104.2\,MB & 77,566 & 71,589 & 14.1\,ms \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -753,7 +757,7 @@ To empirically validate the soundness of extracted conditions, we executed end-t
 \label{tab:rq4}
 \begin{tabular}{llrrrrrrrr}
 \toprule
-\textbf{Project} & \textbf{Validation Target} & \textbf{Configs} & \textbf{Pred} & \textbf{TP} & \textbf{FP} & \textbf{TN} & \textbf{FN} & \textbf{Prec} & \textbf{Rec} \\
+\textbf{Project} & \textbf{Target Suite} & \textbf{Cfgs} & \textbf{Pred} & \textbf{TP} & \textbf{FP} & \textbf{TN} & \textbf{FN} & \textbf{Prec} & \textbf{Rec} \\
 \midrule
 BusyBox 1.36.1 & Positive Witnesses & 5 & 609 & 163 & 1 & 440 & 5 & 99.4\% & 97.0\% \\
 & Negative Baseline & 1 & 0 & 0 & 0 & 609 & 5 & --- & --- \\
@@ -763,7 +767,7 @@ BusyBox 1.36.1 & Positive Witnesses & 5 & 609 & 163 & 1 & 440 & 5 & 99.4\% & 97.
 coreboot 4.22.01 & Positive Witnesses & 5 & 96 & 94 & 2 & 110 & 105 & 97.9\% & 47.2\% \\
 (QEMU i440fx) & Negative Baseline & 1 & 80 & 76 & 4 & 108 & 123 & 95.0\% & 38.2\% \\
 \cmidrule(lr){2-10}
-& \emph{coreboot Precision} & \textbf{6} & \textbf{96} & \multicolumn{5}{c}{\textbf{97.9\% Precision on Predicted Stage Objects}} & \textbf{97.9\%} \\
+& \emph{coreboot Precision} & \textbf{6} & \textbf{96} & \multicolumn{5}{c}{\textbf{97.9\% Precision on Stage Objects}} & \textbf{97.9\%} \\
 \midrule
 Barebox 2024.01.0 & \texttt{sandbox\_defconfig} & 1 & 75 & 71 & 4 & 1,268 & 865 & \textbf{94.7\%} & 7.6\% \\
 Das U-Boot 2024.01 & \texttt{sandbox\_defconfig} & 1 & 41 & 10 & 31 & 3,009 & 1,568 & 24.4\% & 0.6\% \\
@@ -773,8 +777,8 @@ Das U-Boot 2024.01 & \texttt{sandbox\_defconfig} & 1 & 41 & 10 & 31 & 3,009 & 1,
 
 As reported in \Cref{tab:rq4}, skbuild achieved \textbf{99.0\% overall agreement} on BusyBox (99.4\% precision, 97.0\% recall), \textbf{97.9\% precision} on coreboot stage objects, and \textbf{94.7\% precision} on Barebox sandbox builds. Every discrepancy was investigated and categorized:
 \begin{itemize}
-\item \textbf{False Positives (FP):} In BusyBox, 1 FP was an internal build-system marker header (\texttt{include/config/MARKER}). In coreboot, 2 FPs corresponded to option ROM drivers (\texttt{x86.c}) whose Kconfig dependency was disabled in the default QEMU board harness. In Barebox, 4 FPs were pre-bootloader (\texttt{pbl}) utility objects that the sandbox build mode bypasses.
-\item \textbf{False Negatives (FN):} In BusyBox, 5 FNs were top-level orchestration objects (\texttt{applets/applets.o}) compiled unconditionally by the root Makefile. In coreboot and Barebox sandbox builds, FNs represented architecture-independent utility libraries linked directly by sandbox host emulation harnesses.
+\item \textbf{False Positives (FP):} In BusyBox, 1 FP was an internal build-system marker header (\texttt{include/config/MARKER}). In coreboot, 2 FPs corresponded to option ROM drivers (\texttt{x86.c}) whose Kconfig dependency was disabled in the default QEMU board harness. In Barebox, 4 FPs were pre-bootloader (\texttt{pbl}) utility objects that sandbox mode bypasses.
+\item \textbf{False Negatives (FN):} In BusyBox, 5 FNs were top-level orchestration objects (such as \texttt{applets/applets.o}) compiled unconditionally by the root Makefile. In coreboot and Barebox sandbox builds, FNs represented host emulation utility libraries linked directly by sandbox harnesses.
 \item \textbf{0 Symbolic Logic Errors:} Across all corpora, zero discrepancies were caused by flawed branch-merge expressions, incorrect variable overwrites, or erroneous SMT solver translations.
 \end{itemize}
 
@@ -794,7 +798,7 @@ Continuous integration systems typically test only \texttt{defconfig}, leaving t
 \label{tab:ci}
 \begin{tabular}{lrrrr}
 \toprule
-\textbf{Project} & \textbf{Total Objects} & \textbf{\texttt{defconfig} Coverage} & \textbf{skbuild SMT Matrix Size} & \textbf{skbuild Matrix Coverage} \\
+\textbf{Project} & \textbf{Objects} & \textbf{\texttt{defconfig} Cov} & \textbf{SMT Matrix} & \textbf{SMT Coverage} \\
 \midrule
 BusyBox 1.36.1 & 609 & 163 (26.8\%) & \textbf{2 configs} & \textbf{609 (100.0\%)} \\
 coreboot 4.22.01 & 222 & 76 (34.2\%) & \textbf{3 configs} & \textbf{218 (98.2\%)} \\
@@ -813,30 +817,27 @@ By submitting extracted formulas $\Phi(o)$ to Z3 satisfiability queries, skbuild
 \paragraph{Case Study: Dead PMU Firmware Targets in Barebox 2024.01.0.}
 In Barebox 2024.01.0, skbuild discovered \textbf{6 unreachable object files} in \texttt{firmware/Makefile} (\Cref{tab:dead-targets}):
 \begin{itemize}
-\item \texttt{ddr4\_dmem\_1d.bin.gen.o}
-\item \texttt{ddr4\_imem\_1d.bin.gen.o}
-\item \texttt{lpddr4\_pmu\_train\_1d\_dmem.bin.gen.o}
-\item \texttt{lpddr4\_pmu\_train\_1d\_imem.bin.gen.o}
-\item \texttt{lpddr4\_pmu\_train\_2d\_dmem.bin.gen.o}
-\item \texttt{lpddr4\_pmu\_train\_2d\_imem.bin.gen.o}
+\item \texttt{ddr4\_dmem\_1d.bin.gen.o}, \texttt{ddr4\_imem\_1d.bin.gen.o}
+\item \texttt{lpddr4\_pmu\_train\_1d\_dmem.bin.gen.o}, \texttt{lpddr4\_pmu\_train\_1d\_imem.bin.gen.o}
+\item \texttt{lpddr4\_pmu\_train\_2d\_dmem.bin.gen.o}, \texttt{lpddr4\_pmu\_train\_2d\_imem.bin.gen.o}
 \end{itemize}
 
 \begin{table}[t]
 \centering
 \footnotesize
-\setlength{\tabcolsep}{4pt}
+\setlength{\tabcolsep}{3pt}
 \caption{Real Build Bugs Discovered: Unreachable Firmware Targets in Barebox 2024.01.0.}
 \label{tab:dead-targets}
-\begin{tabular}{llll}
+\begin{tabular}{lllc}
 \toprule
-\textbf{Target Object File} & \textbf{Declared Location} & \textbf{Root Cause in Makefile} & \textbf{SMT Status} \\
+\textbf{Dead Target Object} & \textbf{Location} & \textbf{Makefile Defect} & \textbf{SMT Status} \\
 \midrule
-\texttt{ddr4\_dmem\_1d.bin.gen.o} & \texttt{firmware/Makefile:14} & Overwrite \texttt{pbl-y := \$(addsuffix ...)} & $\Phi \equiv \text{False}$ (Dead) \\
-\texttt{ddr4\_imem\_1d.bin.gen.o} & \texttt{firmware/Makefile:15} & Overwrite \texttt{pbl-y := \$(addsuffix ...)} & $\Phi \equiv \text{False}$ (Dead) \\
-\texttt{lpddr4\_pmu\_train\_1d\_dmem.bin.gen.o} & \texttt{firmware/Makefile:18} & Overwrite \texttt{pbl-y := \$(addsuffix ...)} & $\Phi \equiv \text{False}$ (Dead) \\
-\texttt{lpddr4\_pmu\_train\_1d\_imem.bin.gen.o} & \texttt{firmware/Makefile:19} & Overwrite \texttt{pbl-y := \$(addsuffix ...)} & $\Phi \equiv \text{False}$ (Dead) \\
-\texttt{lpddr4\_pmu\_train\_2d\_dmem.bin.gen.o} & \texttt{firmware/Makefile:22} & Overwrite \texttt{pbl-y := \$(addsuffix ...)} & $\Phi \equiv \text{False}$ (Dead) \\
-\texttt{lpddr4\_pmu\_train\_2d\_imem.bin.gen.o} & \texttt{firmware/Makefile:23} & Overwrite \texttt{pbl-y := \$(addsuffix ...)} & $\Phi \equiv \text{False}$ (Dead) \\
+\texttt{ddr4\_dmem\_1d.bin.gen.o} & \texttt{firmware/Makefile:14} & Overwrite \texttt{pbl-y := \dots} & UNSAT (Dead) \\
+\texttt{ddr4\_imem\_1d.bin.gen.o} & \texttt{firmware/Makefile:15} & Overwrite \texttt{pbl-y := \dots} & UNSAT (Dead) \\
+\texttt{lpddr4\_pmu\_train\_1d\_dmem.bin.gen.o} & \texttt{firmware/Makefile:18} & Overwrite \texttt{pbl-y := \dots} & UNSAT (Dead) \\
+\texttt{lpddr4\_pmu\_train\_1d\_imem.bin.gen.o} & \texttt{firmware/Makefile:19} & Overwrite \texttt{pbl-y := \dots} & UNSAT (Dead) \\
+\texttt{lpddr4\_pmu\_train\_2d\_dmem.bin.gen.o} & \texttt{firmware/Makefile:22} & Overwrite \texttt{pbl-y := \dots} & UNSAT (Dead) \\
+\texttt{lpddr4\_pmu\_train\_2d\_imem.bin.gen.o} & \texttt{firmware/Makefile:23} & Overwrite \texttt{pbl-y := \dots} & UNSAT (Dead) \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -867,7 +868,7 @@ By extracting the set of all \texttt{CONFIG\_*} symbols declared across Kconfig 
 \label{tab:kconfig-metrics}
 \begin{tabular}{lrrrrrr}
 \toprule
-\textbf{Corpus} & \textbf{Kconfig Files} & \textbf{Kconfig Symbols} & \textbf{Makefile Symbols} & \textbf{Co-occurring} & \textbf{Orphans} & \textbf{Unused} \\
+\textbf{Corpus} & \textbf{Kconfig Files} & \textbf{Kconfig Syms} & \textbf{Make Syms} & \textbf{Shared} & \textbf{Orphans} & \textbf{Unused} \\
 \midrule
 BusyBox 1.36.1 & 81 & 1,081 & 513 & 512 & 1 & 569 \\
 Barebox 2024.01.0 & 181 & 1,982 & 1,004 & 1,003 & 1 & 979 \\
@@ -879,14 +880,15 @@ Das U-Boot 2024.01 & 954 & 7,590 & 2,273 & 2,255 & \textbf{18} & 5,335 \\
 \begin{table}[t]
 \centering
 \footnotesize
+\setlength{\tabcolsep}{4pt}
 \caption{Orphan \texttt{CONFIG\_*} Symbols Referenced in Makefiles but Missing in Kconfig.}
 \label{tab:orphan-symbols}
 \begin{tabular}{lll}
 \toprule
-\textbf{Corpus} & \textbf{Missing Makefile Symbol} & \textbf{Affected Makefile Path} \\
+\textbf{Corpus} & \textbf{Orphan Symbol} & \textbf{Makefile Location} \\
 \midrule
 Barebox 2024.01.0 & \texttt{CONFIG\_ARCH\_RK3588\_OPTEE} & \texttt{arch/arm/mach-rockchip/Makefile} \\
-BusyBox 1.36.1 & \texttt{CONFIG\_FEATURE\_FTP\_AUTHENTICATION} & \texttt{networking/Makefile} \\
+BusyBox 1.36.1 & \texttt{CONFIG\_FEATURE\_FTP\_AUTH} & \texttt{networking/Makefile} \\
 \midrule
 Das U-Boot 2024.01 & \texttt{CONFIG\_CRC16} & \texttt{lib/Makefile:52} \\
 & \texttt{CONFIG\_NAND\_INIT} & \texttt{drivers/mtd/nand/raw/Makefile:14} \\
@@ -912,7 +914,7 @@ Das U-Boot 2024.01 & \texttt{CONFIG\_CRC16} & \texttt{lib/Makefile:52} \\
 
 \begin{itemize}
 \item \textbf{Cross-Tree Symbol Metrics:} As reported in \Cref{tab:kconfig-metrics}, while BusyBox and Barebox maintain high parity between declared Kconfig symbols and Makefile references, Das U-Boot features 5,335 Kconfig options never referenced in Kbuild files (primarily gating C preprocessor macros in source headers).
-\item \textbf{Orphan Makefile Symbols:} We discovered \textbf{18 orphan variables} in Das U-Boot 2024.01 referenced in Makefiles that do not exist in any Kconfig file (\Cref{tab:orphan-symbols}), 1 in Barebox (\texttt{CONFIG\_ARCH\_RK3588\_OPTEE}), and 1 in BusyBox (\texttt{CONFIG\_FEATURE\_FTP\_AUTHENTICATION}). These represent zombie code fragments left behind after Kconfig refactorings.
+\item \textbf{Orphan Makefile Symbols:} We discovered \textbf{18 orphan variables} in Das U-Boot 2024.01 referenced in Makefiles that do not exist in any Kconfig file (\Cref{tab:orphan-symbols}), 1 in Barebox, and 1 in BusyBox. These represent zombie code fragments left behind after Kconfig refactorings.
 \end{itemize}
 
 \subsubsection{Application 4: Differential Build Evolution Across Releases}
@@ -921,15 +923,15 @@ Using Z3 SMT reasoning, skbuild performs differential evolution analysis by chec
 \begin{table}[t]
 \centering
 \footnotesize
-\setlength{\tabcolsep}{3pt}
+\setlength{\tabcolsep}{3.5pt}
 \caption{Differential Build Evolution Statistics Across Major Releases.}
 \label{tab:evolution}
 \begin{tabular}{lrrrrrrrrr}
 \toprule
-\textbf{Corpus Comparison} & $|\mathcal{T}_1|$ & $|\mathcal{T}_2|$ & \textbf{Common} & \textbf{Invariant} & \textbf{Added} & \textbf{Retired} & \textbf{Widened} & \textbf{Restricted} & \textbf{Diverged} \\
+\textbf{Release Delta} & $|\mathcal{T}_1|$ & $|\mathcal{T}_2|$ & \textbf{Common} & \textbf{Same} & \textbf{Added} & \textbf{Del} & \textbf{Widen} & \textbf{Tight} & \textbf{Div} \\
 \midrule
-BusyBox 1.35.0 $\to$ 1.36.1 & 601 & 609 & 601 & 599 & 8 & 0 & 2 & 0 & 0 \\
-Das U-Boot 2023.01 $\to$ 2024.01 & 2,902 & 3,050 & 2,822 & 2,570 & 228 & 80 & 78 & 26 & 148 \\
+BusyBox 1.35 $\to$ 1.36 & 601 & 609 & 601 & 599 & 8 & 0 & 2 & 0 & 0 \\
+U-Boot 2023.01 $\to$ 2024.01 & 2,902 & 3,050 & 2,822 & 2,570 & 228 & 80 & 78 & 26 & 148 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -956,12 +958,12 @@ We analyzed the AST depth and interaction degree $k$ (number of distinct interac
 \begin{table}[t]
 \centering
 \footnotesize
-\setlength{\tabcolsep}{3.5pt}
+\setlength{\tabcolsep}{3pt}
 \caption{Feature Interaction Complexity and AST Depth Distributions.}
 \label{tab:interactions}
 \begin{tabular}{lrrrrrrrrr}
 \toprule
-\textbf{Corpus} & \textbf{Objects} & $\bar{k}$ & $k_{\max}$ & $\bar{d}$ & $d_{\max}$ & $k=0$ & $k=1$ & $k=2..4$ & $k \ge 5$ \\
+\textbf{Corpus} & \textbf{Objs} & $\bar{k}$ & $k_{\max}$ & $\bar{d}$ & $d_{\max}$ & $k=0$ & $k=1$ & $k=2..4$ & $k \ge 5$ \\
 \midrule
 BusyBox 1.36.1 & 609 & 1.36 & 36 & 2.13 & 13 & 141 (23.2\%) & 319 (52.4\%) & 121 (19.9\%) & 28 (4.6\%) \\
 Barebox 2024.01.0 & 1,343 & 1.33 & 17 & 2.25 & 5 & 81 (6.0\%) & 876 (65.2\%) & 373 (27.8\%) & 13 (1.0\%) \\
@@ -970,15 +972,15 @@ Das U-Boot 2024.01 & 3,050 & \textbf{4.89} & \textbf{16} & \textbf{10.51} & \tex
 \end{tabular}
 \end{table}
 
-As shown in \Cref{tab:interactions}, while BusyBox and Barebox have average interaction degrees of $k \approx 1.3$, Das U-Boot features an average degree of $\bar{k}=4.89$ with 74.2\% of its targets requiring 5 or more interacting flags. In U-Boot, Rockchip memory controller drivers (\texttt{drivers/ram/rockchip/sdram\_pctl\_px30.o}) require 16 interacting symbols across multi-stage boot flags:
+As shown in \Cref{tab:interactions}, while BusyBox and Barebox have average interaction degrees of $k \approx 1.3$, Das U-Boot features an average degree of $\bar{k}=4.89$ with 74.2\% of its targets requiring 5 or more interacting flags. In U-Boot, Rockchip memory controller drivers require 16 interacting symbols across multi-stage boot flags:
 \begin{align*}
-\Phi(\mathtt{sdram\_pctl\_px30.o}) = \; &(\texttt{CONFIG\_ARCH\_ROCKCHIP} = \mathtt{"y"}) \wedge (\texttt{CONFIG\_RAM} = \mathtt{"y"}) \\
-&\wedge (\texttt{CONFIG\_ROCKCHIP\_PX30} = \mathtt{"y"} \vee \texttt{CONFIG\_ROCKCHIP\_RK3328} = \mathtt{"y"}) \\
-&\wedge (\texttt{CONFIG\_SPL\_BUILD} = \mathtt{"y"} \vee \texttt{CONFIG\_TPL\_BUILD} = \mathtt{"y"}) \\
+\Phi(\mathtt{sdram\_px30.o}) = \; &(\texttt{ARCH\_ROCKCHIP} = \mathtt{"y"}) \wedge (\texttt{RAM} = \mathtt{"y"}) \\
+&\wedge (\texttt{PX30} = \mathtt{"y"} \vee \texttt{RK3328} = \mathtt{"y"}) \\
+&\wedge (\texttt{SPL\_BUILD} = \mathtt{"y"} \vee \texttt{TPL\_BUILD} = \mathtt{"y"}) \\
 &\wedge \dots \text{ (16 total interacting symbols)}
 \end{align*}
 
-\subsubsection{Application 6: Minimal Bug-Reproduction Configuration Synthesis}
+\subsubsection{Application 6: Minimal Bug Configuration Synthesis}
 Using Z3 \texttt{Optimize} (MaxSAT), skbuild can synthesize the minimal-weight \texttt{.config} necessary to activate a specific target subsystem while disabling all unrelated code.
 
 Let $\mathcal{C}$ be the set of all Kconfig symbols in the codebase. Given target object $o^*$, skbuild solves:
@@ -987,12 +989,12 @@ $$\text{Minimize} \sum_{c \in \mathcal{C}} \mathbb{I}(c = \mathtt{"y"}) \quad \t
 \begin{table}[t]
 \centering
 \footnotesize
-\setlength{\tabcolsep}{4pt}
+\setlength{\tabcolsep}{3.5pt}
 \caption{Minimal Reproducing Configuration Synthesis via Z3 MaxSAT.}
 \label{tab:maxsat}
 \begin{tabular}{lrrrr}
 \toprule
-\textbf{Target Object} & \textbf{Interacting Symbols} & \textbf{MaxSAT Minimal Core} & \textbf{Disabled Symbols} & \textbf{Solve Time (ms)} \\
+\textbf{Target Object} & \textbf{Interacting Syms} & \textbf{MaxSAT Core} & \textbf{Disabled} & \textbf{Time (ms)} \\
 \midrule
 \texttt{sdram\_pctl\_px30.o} (U-Boot) & 16 symbols & \textbf{3 symbols} & 13 symbols & 6.2 \\
 \texttt{dmc-rk3368.o} (U-Boot) & 14 symbols & \textbf{3 symbols} & 11 symbols & 5.8 \\
@@ -1017,7 +1019,7 @@ By verifying pairwise formula equivalence $\text{VALID}(\Phi_A \iff \Phi_B)$, sk
 \label{tab:clustering}
 \begin{tabular}{lrrrrr}
 \toprule
-\textbf{Corpus} & \textbf{Total Objects} & \textbf{Equivalence Classes} & \textbf{Singletons ($N=1$)} & \textbf{Multi-Object Clusters} & \textbf{Largest Cluster Size} \\
+\textbf{Corpus} & \textbf{Objects} & \textbf{Classes} & \textbf{Singletons} & \textbf{Clusters} & \textbf{Max Cluster} \\
 \midrule
 BusyBox 1.36.1 & 609 & 440 & 424 & 16 & 141 (Base Invariants) \\
 Barebox 2024.01.0 & 1,343 & 1,013 & 918 & 95 & 75 (Core Startup) \\
