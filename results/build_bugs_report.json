@@ -1,0 +1,240 @@
+[
+  {
+    "corpus": "BusyBox",
+    "total_targets": 609,
+    "dead_targets_count": 0,
+    "dead_targets": [],
+    "tautological_targets_count": 141,
+    "tautological_targets_sample": [
+      "applets/applets.o",
+      "libbb/auto_string.o",
+      "libbb/bb_cat.o",
+      "libbb/bb_getgroups.o",
+      "libbb/bb_getsockname.o",
+      "libbb/common_bufsiz.o",
+      "libbb/endofname.o",
+      "libbb/get_shell_name.o",
+      "libbb/getopt32.o",
+      "libbb/getopt_allopts.o"
+    ],
+    "same_dir_collision_hazards_count": 0,
+    "collision_hazards": [],
+    "unique_kconfig_symbols_referenced": 513,
+    "top_referenced_symbols": [
+      [
+        "CONFIG_FEATURE_LAST_FANCY",
+        28
+      ],
+      [
+        "CONFIG_DPKG",
+        10
+      ],
+      [
+        "CONFIG_DPKG_DEB",
+        10
+      ],
+      [
+        "CONFIG_MODPROBE_SMALL",
+        10
+      ],
+      [
+        "CONFIG_IP",
+        10
+      ],
+      [
+        "CONFIG_TLS",
+        10
+      ],
+      [
+        "CONFIG_FEATURE_IP_LINK",
+        9
+      ],
+      [
+        "CONFIG_FEATURE_IP_ADDRESS",
+        8
+      ],
+      [
+        "CONFIG_UDHCPC6",
+        7
+      ],
+      [
+        "CONFIG_UDHCPD",
+        7
+      ]
+    ],
+    "elapsed_seconds": 0.86
+  },
+  {
+    "corpus": "coreboot",
+    "total_targets": 1,
+    "dead_targets_count": 0,
+    "dead_targets": [],
+    "tautological_targets_count": 0,
+    "tautological_targets_sample": [],
+    "same_dir_collision_hazards_count": 0,
+    "collision_hazards": [],
+    "unique_kconfig_symbols_referenced": 1,
+    "top_referenced_symbols": [
+      [
+        "CONFIG_RAMSTAGE_ADA",
+        1
+      ]
+    ],
+    "elapsed_seconds": 0.68
+  },
+  {
+    "corpus": "Barebox",
+    "total_targets": 1343,
+    "dead_targets_count": 6,
+    "dead_targets": [
+      [
+        "firmware/ddr4_imem_1d.bin.gen.o",
+        "False"
+      ],
+      [
+        "firmware/ddr4_dmem_2d.bin.gen.o",
+        "False"
+      ],
+      [
+        "firmware/ddr4_imem_2d.bin.gen.o",
+        "False"
+      ],
+      [
+        "firmware/lpddr4_pmu_train_2d_dmem.bin.gen.o",
+        "False"
+      ],
+      [
+        "firmware/lpddr4_pmu_train_1d_imem.bin.gen.o",
+        "False"
+      ],
+      [
+        "firmware/lpddr4_pmu_train_1d_dmem.bin.gen.o",
+        "False"
+      ]
+    ],
+    "tautological_targets_count": 75,
+    "tautological_targets_sample": [
+      "common/memory.o",
+      "common/clock.o",
+      "common/console_common.o",
+      "common/startup.o",
+      "common/misc.o",
+      "common/resource.o",
+      "common/restart.o",
+      "common/poweroff.o",
+      "common/slice.o",
+      "common/workqueue.o"
+    ],
+    "same_dir_collision_hazards_count": 0,
+    "collision_hazards": [],
+    "unique_kconfig_symbols_referenced": 998,
+    "top_referenced_symbols": [
+      [
+        "CONFIG_VIDEO",
+        43
+      ],
+      [
+        "CONFIG_ARCH_IMX",
+        35
+      ],
+      [
+        "CONFIG_NAND",
+        34
+      ],
+      [
+        "CONFIG_COMMON_CLK_AT91",
+        28
+      ],
+      [
+        "CONFIG_COMMON_CLK",
+        22
+      ],
+      [
+        "CONFIG_PHYLIB",
+        22
+      ],
+      [
+        "CONFIG_OFTREE",
+        19
+      ],
+      [
+        "CONFIG_FS_SQUASHFS",
+        19
+      ],
+      [
+        "CONFIG_SPI",
+        18
+      ],
+      [
+        "CONFIG_USB_GADGET",
+        18
+      ]
+    ],
+    "elapsed_seconds": 1.95
+  },
+  {
+    "corpus": "Das U-Boot",
+    "total_targets": 3050,
+    "dead_targets_count": 0,
+    "dead_targets": [],
+    "tautological_targets_count": 41,
+    "tautological_targets_sample": [
+      "api/api_net.o",
+      "api/api_display.o",
+      "api/api.o",
+      "api/api_storage.o",
+      "boot/image-board.o",
+      "boot/image.o",
+      "cmd/nvedit.o",
+      "common/memsize.o",
+      "common/dlmalloc.o",
+      "common/stdio.o"
+    ],
+    "same_dir_collision_hazards_count": 0,
+    "collision_hazards": [],
+    "unique_kconfig_symbols_referenced": 2260,
+    "top_referenced_symbols": [
+      [
+        "CONFIG_SPL_BUILD",
+        2908
+      ],
+      [
+        "CONFIG_TPL_BUILD",
+        2117
+      ],
+      [
+        "CONFIG_VPL_BUILD",
+        1877
+      ],
+      [
+        "CONFIG_ETH",
+        198
+      ],
+      [
+        "CONFIG_SANDBOX",
+        191
+      ],
+      [
+        "CONFIG_CLK",
+        190
+      ],
+      [
+        "CONFIG_PCI",
+        173
+      ],
+      [
+        "CONFIG_TPM",
+        160
+      ],
+      [
+        "CONFIG_VIDEO",
+        132
+      ],
+      [
+        "CONFIG_USB_TTY",
+        122
+      ]
+    ],
+    "elapsed_seconds": 16.02
+  }
+]

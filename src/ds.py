@@ -79,6 +79,10 @@ class VarG:
 
         res = {}
         for d, cond in self.valconds.items():
+            if not isinstance(d, str):
+                continue
+            if d.startswith('-'):
+                continue
             if d.endswith('/') or self.name.startswith("subdirs-") or self.name == "subdirs":
                 subdir_path = (topdir / d).resolve()
                 if subdir_path in res:

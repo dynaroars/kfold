@@ -1,0 +1,28 @@
+[
+  {
+    "targets": [
+      "networking/udhcp/dhcpc.o"
+    ],
+    "all_interacting_symbols_count": 1,
+    "minimal_active_symbols_count": 1,
+    "minimal_config": {
+      "CONFIG_UDHCPC": "y"
+    },
+    "solve_time_seconds": 0.009256124496459961,
+    "corpus": "BusyBox"
+  },
+  {
+    "targets": [
+      "drivers/ram/rockchip/sdram_pctl_px30.o"
+    ],
+    "all_interacting_symbols_count": 16,
+    "minimal_active_symbols_count": 3,
+    "minimal_config": {
+      "CONFIG_ARCH_ROCKCHIP": "y",
+      "CONFIG_RAM": "y",
+      "CONFIG_ROCKCHIP_RK3328": "y"
+    },
+    "solve_time_seconds": 0.006069183349609375,
+    "corpus": "Das U-Boot"
+  }
+]

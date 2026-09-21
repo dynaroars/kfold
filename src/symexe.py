@@ -398,14 +398,24 @@ class ConditionBlock(Statement):
             ret_cond = eq_cond if cond.expected else zsolver.neg(eq_cond)
 
         elif isinstance(cond, parserdata.IfdefCondition):
-            assert isinstance(cond.exp, data.StringExpansion), cond.exp
+            if isinstance(cond.exp, data.StringExpansion):
+                varname_exps = [(cond.exp.s, zsolver.T)]
+            else:
+                varname_exps = myeval.do_expansion(cond.exp, state.states)
 
-            exp = "$({})".format(cond.exp.s)
-            exp = myeval.do_fake_expansion(exp, state.states)
+            undef_conds = []
+            for vname, vcond in varname_exps:
+                vname = vname.strip()
+                if not vname:
+                    undef_conds.append(vcond)
+                    continue
+                fake_str = "$({})".format(vname)
+                exp = myeval.do_fake_expansion(fake_str, state.states)
+                exp_undef = [(self.solver.undef_str, zsolver.T)]
+                eq = self.get_eq_cond(exp, exp_undef)
+                undef_conds.append(zsolver.conj(vcond, eq))
 
-            exp_undef = [(self.solver.undef_str, zsolver.T)]
-            undef_cond = self.get_eq_cond(exp, exp_undef)
-
+            undef_cond = zsolver.mdisj(undef_conds) if undef_conds else zsolver.T
             ret_cond = zsolver.neg(undef_cond) if cond.expected else undef_cond
 
         else:

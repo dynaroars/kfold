@@ -776,7 +776,12 @@ class ConditionBlock(Statement):
             prefix = 'else '
 
         if isinstance(statement, IfdefCondition):
-            s = statement.exp.s
+            if hasattr(statement.exp, 'to_source'):
+                s = statement.exp.to_source()
+            elif hasattr(statement.exp, 's'):
+                s = statement.exp.s
+            else:
+                s = str(statement.exp)
 
             if statement.expected:
                 return '%sifdef %s' % (prefix, s)

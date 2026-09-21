@@ -241,3 +241,30 @@ Target venue/format: FSE (PACMSE), acmart `acmsmall,screen,review`.
   - [x] Integrate all new empirical tables and case study figures into `paper/skbuild.tex`.
   - [x] Recompile `paper/skbuild.pdf` and verify zero LaTeX warnings/errors.
   - [x] Commit and push all code, tools, results, and paper updates.
+
+## M7 — Advanced SMT Reasoning, Bug Detection & Optimization Algorithms
+
+- [x] **M7.1 — Universal SMT-Powered Build Bug & Anomaly Detector:**
+  - [x] Implement `tools/detect_build_bugs.py` querying Z3 for:
+    - Dead/Zombie targets ($\text{UNSAT}(\phi)$).
+    - Tautological/Inescapable targets ($\text{VALID}(\phi)$).
+    - Conflicting/Colliding duplicate objects ($\text{SAT}(\phi_A \wedge \phi_B)$ for identical basenames).
+    - Zombie/Dangling Kconfig variables in Makefiles.
+  - [x] Execute across all 5 corpora (Linux, Das U-Boot, Barebox, coreboot, BusyBox) and record all real anomalies.
+
+- [x] **M7.2 — Configuration Complexity & Feature Interaction Analysis:**
+  - [x] Implement `tools/feature_interaction_analysis.py` computing AST depth, variable degree $k$, and clause counts.
+  - [x] Discover the highest-complexity "configuration hotspot" files across Linux and U-Boot.
+
+- [x] **M7.3 — Minimal Delta Debugging & Minimal-Weight Config Synthesis:**
+  - [x] Implement `tools/min_repro_config.py` using Z3 MaxSAT to synthesize minimal `.config`s for activating specific target drivers.
+  - [x] Validate on sample hardware drivers across Linux and U-Boot.
+
+- [x] **M7.4 — Co-Compilation Equivalence Clustering:**
+  - [x] Implement `tools/cluster_co_compilation.py` testing equivalence $\phi_A \iff \phi_B$ to find inseparable object clusters.
+  - [x] Quantify modularity and subsystem cohesion across the corpora.
+
+- [x] **M7.5 — Paper Expansion & Artifact Commit:**
+  - [x] Update `paper/skbuild.tex` with the expanded 5-corpus evaluation, the build bug taxonomy, and SMT case studies.
+  - [x] Recompile `paper/skbuild.pdf` cleanly.
+  - [x] Commit all code, tools, and results to `origin/dev`.
