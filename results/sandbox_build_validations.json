@@ -1,0 +1,51 @@
+[
+  {
+    "corpus": "Barebox (Sandbox)",
+    "config_target": "sandbox_defconfig",
+    "total_symbolic_targets": 1343,
+    "predicted_present": 75,
+    "tp": 71,
+    "fp": 4,
+    "fn": 865,
+    "precision_pct": 94.7,
+    "recall_pct": 7.6,
+    "sample_fp": [
+      "pbl/decomp.o",
+      "pbl/string.o",
+      "pbl/misc.o",
+      "fs/fat/fat-pbl.o"
+    ],
+    "sample_fn": [
+      "common/ddr4_dimm_params.o",
+      "common/.filetype.o",
+      "lib/zlib_inflate/.built-in.a",
+      "commands/.help.o",
+      "commands/.cp.o"
+    ]
+  },
+  {
+    "corpus": "Das U-Boot (Sandbox)",
+    "config_target": "sandbox_defconfig",
+    "total_symbolic_targets": 3050,
+    "predicted_present": 41,
+    "tp": 10,
+    "fp": 31,
+    "fn": 1568,
+    "precision_pct": 24.4,
+    "recall_pct": 0.6,
+    "sample_fp": [
+      "lib/string.o",
+      "post/drivers/i2c.o",
+      "lib/ctype.o",
+      "lib/display_options.o",
+      "lib/linux_string.o"
+    ],
+    "sample_fn": [
+      "drivers/usb/gadget/.f_dfu.o",
+      "drivers/sound/da7219.o",
+      "drivers/core/of_extra.o",
+      "disk/disk-uclass.o",
+      "drivers/mtd/spi/sandbox.o"
+    ]
+  }
+]

@@ -268,3 +268,24 @@ Target venue/format: FSE (PACMSE), acmart `acmsmall,screen,review`.
   - [x] Update `paper/skbuild.tex` with the expanded 5-corpus evaluation, the build bug taxonomy, and SMT case studies.
   - [x] Recompile `paper/skbuild.pdf` cleanly.
   - [x] Commit all code, tools, and results to `origin/dev`.
+
+## M8 — Differential Build Evolution, Real Sandbox Validations & Kconfig Consistency
+
+- [x] **M8.1 — Real Sandbox Build Validation on U-Boot & Barebox:**
+  - [x] Configure `tools/validate_all_builds.py` for Barebox `sandbox` and U-Boot `sandbox` target architectures.
+  - [x] Execute real compilation under Z3-derived witness configurations (Barebox sandbox achieved 94.7% precision on predicted targets).
+  - [x] Record True Positives, False Positives, False Negatives, Precision, Recall, and update RQ4 table in `paper/skbuild.tex`.
+
+- [x] **M8.2 — Automated Kconfig-Kbuild Consistency & Zombie Symbol Linter:**
+  - [x] Implement `tools/kconfig_consistency_linter.py` parsing Kconfig trees across all corpora.
+  - [x] Detect (a) orphan Kbuild `CONFIG_*` references not defined in Kconfig (18 in U-Boot, 1 in Barebox, 1 in BusyBox), and (b) unused Kconfig options (5,335 in U-Boot, 979 in Barebox, 569 in BusyBox).
+  - [x] Quantify configuration divergence across BusyBox, Barebox, and U-Boot in `results/kconfig_consistency_report.json`.
+
+- [x] **M8.3 — Differential Build Evolution Analysis Across Releases:**
+  - [x] Implement `tools/diff_build_evolution.py` comparing presence conditions between version releases via Z3 $\text{SAT}(\phi_{\text{v1}} \oplus \phi_{\text{v2}})$.
+  - [x] Analyzed BusyBox 1.35.0 $\to$ 1.36.1 (599 unchanged, 8 added, 2 generalized) and Das U-Boot 2023.01 $\to$ 2024.01 (2,570 unchanged, 228 added, 80 retired, 252 altered [148 diverged, 78 widened, 26 tightened]). Output recorded in `results/build_evolution_report.json`.
+
+- [x] **M8.4 — Paper Finalization & Clean Compilation:**
+  - [x] Update `paper/skbuild.tex` with the expanded 4-project real build validation table (Table 5), Kconfig consistency linter findings, and differential build evolution results.
+  - [x] Recompile `paper/skbuild.pdf` cleanly with `pdflatex` (11 pages, 0 errors).
+  - [x] Commit all code, tools, and results to `origin/dev`.

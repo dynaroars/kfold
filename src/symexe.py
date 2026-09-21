@@ -484,7 +484,7 @@ class SetVariable(Statement):
 
         token = self.stmt.token   # :=
         val = self.stmt.value.strip()
-        unexpanded = token == "="
+        unexpanded = token in ("=", "?=")
         if unexpanded:
             vals = [(val, zsolver.T)]
         else:
@@ -530,7 +530,7 @@ class SetVariable(Statement):
         token = self.stmt.token   # :=
         val = self.stmt.value.strip()
 
-        unexpanded = token == "="
+        unexpanded = token in ("=", "?=")
         if unexpanded:
             vals = [(val, zsolver.T)]
         else:

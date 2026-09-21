@@ -1,0 +1,235 @@
+[
+  {
+    "corpus": "BusyBox",
+    "v1": "1.35.0",
+    "v2": "1.36.1",
+    "v1_total_targets": 601,
+    "v2_total_targets": 609,
+    "common_targets_count": 601,
+    "unchanged_targets_count": 599,
+    "altered_targets_count": 2,
+    "added_targets_count": 8,
+    "retired_targets_count": 0,
+    "altered_targets_breakdown": {
+      "generalized (widened)": 2
+    },
+    "sample_added_targets": [
+      "coreutils/tsort.o",
+      "libbb/hash_md5_sha256_x86-32_shaNI.o",
+      "libbb/hash_md5_sha256_x86-64_shaNI.o",
+      "libbb/hash_md5_sha_x86-32_shaNI.o",
+      "libbb/hash_md5_sha_x86-64.o",
+      "libbb/hash_md5_sha_x86-64_shaNI.o",
+      "miscutils/seedrng.o",
+      "miscutils/tree.o"
+    ],
+    "sample_retired_targets": [],
+    "sample_altered_targets": [
+      {
+        "target": "coreutils/sleep.o",
+        "classification": "generalized (widened)",
+        "condition_v1": "CONFIG_SLEEP == y",
+        "condition_v2": "Or(CONFIG_SLEEP == y, CONFIG_ASH_SLEEP == y)",
+        "witness_diff_config": {
+          "CONFIG_ASH_SLEEP": false,
+          "CONFIG_SLEEP": false
+        }
+      },
+      {
+        "target": "libbb/xregcomp.o",
+        "classification": "generalized (widened)",
+        "condition_v1": "Or(CONFIG_EXPR == y,    CONFIG_LESS == y,    CONFIG_AWK == y,    CONFIG_SED == y,    CONFIG_GREP == y,    CONFIG_EGREP =",
+        "condition_v2": "Or(CONFIG_EXPR == y,    CONFIG_LESS == y,    CONFIG_AWK == y,    CONFIG_SED == y,    CONFIG_GREP == y,    CONFIG_EGREP =",
+        "witness_diff_config": {
+          "CONFIG_FEATURE_FIND_REGEX": false,
+          "CONFIG_EXPR": false,
+          "CONFIG_PGREP": false,
+          "CONFIG_SED": false,
+          "CONFIG_FGREP": false,
+          "CONFIG_PKILL": false,
+          "CONFIG_EGREP": false,
+          "CONFIG_AWK": false,
+          "CONFIG_LESS": false,
+          "CONFIG_MDEV": false,
+          "CONFIG_DEVFSD": false,
+          "CONFIG_FEATURE_CUT_REGEX": false,
+          "CONFIG_GREP": false
+        }
+      }
+    ],
+    "elapsed_seconds": 1.98
+  },
+  {
+    "corpus": "Das U-Boot",
+    "v1": "2023.01",
+    "v2": "2024.01",
+    "v1_total_targets": 2902,
+    "v2_total_targets": 3050,
+    "common_targets_count": 2822,
+    "unchanged_targets_count": 2570,
+    "altered_targets_count": 252,
+    "added_targets_count": 228,
+    "retired_targets_count": 80,
+    "altered_targets_breakdown": {
+      "diverged": 148,
+      "generalized (widened)": 78,
+      "restricted (tightened)": 26
+    },
+    "sample_added_targets": [
+      "boot/bootflow_menu.o",
+      "boot/bootmeth_cros.o",
+      "boot/bootmeth_extlinux.o",
+      "boot/bootmeth_qfw.o",
+      "boot/cedit.o",
+      "boot/expo.o",
+      "boot/expo_build.o",
+      "boot/fdt_simplefb.o",
+      "boot/fdt_support.o",
+      "boot/scene.o"
+    ],
+    "sample_retired_targets": [
+      "boot/bootmeth_distro.o",
+      "cmd/dataflash_mmc_mux.o",
+      "cmd/mac.o",
+      "cmd/mfsl.o",
+      "common/fdt_simplefb.o",
+      "common/fdt_support.o",
+      "drivers/bootcount/bootcount_i2c.o",
+      "drivers/gpio/adi_gpio2.o",
+      "drivers/gpio/kona_gpio.o",
+      "drivers/gpio/mpc83xx_gpio.o"
+    ],
+    "sample_altered_targets": [
+      {
+        "target": "boot/bootmeth_pxe.o",
+        "classification": "diverged",
+        "condition_v1": "Or(And(Not(CONFIG_SPL_BUILD == undef),        Or(And(CONFIG_BOOTSTD_FULL == undef,               CONFIG_BOOTMETH_DISTRO_",
+        "condition_v2": "Or(And(Not(CONFIG_SPL_BUILD == undef),        Or(And(Not(CONFIG_BOOTSTD_FULL == undef),               CONFIG_BOOTMETH_EX",
+        "witness_diff_config": {
+          "CONFIG_BOOTMETH_EXTLINUX_PXE": false,
+          "CONFIG_SPL_BUILD": false,
+          "CONFIG_BOOTSTD_FULL": false,
+          "CONFIG_BOOTMETH_DISTRO_PXE": false
+        }
+      },
+      {
+        "target": "boot/vbe_request.o",
+        "classification": "diverged",
+        "condition_v1": "CONFIG_BOOTMETH_VBE == y",
+        "condition_v2": "CONFIG_BOOTMETH_VBE_REQUEST == y",
+        "witness_diff_config": {
+          "CONFIG_BOOTMETH_VBE_REQUEST": false,
+          "CONFIG_BOOTMETH_VBE": false
+        }
+      },
+      {
+        "target": "cmd/font.o",
+        "classification": "diverged",
+        "condition_v1": "And(CONFIG_SPL_BUILD == undef,     Or(And(CONFIG_SPL_BUILD == undef,            Not(CONFIG_PCI == undef),            Or(",
+        "condition_v2": "And(CONFIG_SPL_BUILD == undef,     Or(And(CONFIG_SPL_BUILD == undef,            Not(CONFIG_PCI == undef),            Or(",
+        "witness_diff_config": {
+          "CONFIG_CMD_NAND": false,
+          "CONFIG_CMD_SF": false,
+          "CONFIG_PCI": false,
+          "CONFIG_CONSOLE_TRUETYPE": false,
+          "CONFIG_SPL_BUILD": false,
+          "CONFIG_CMD_SELECT_FONT": false
+        }
+      },
+      {
+        "target": "cmd/read.o",
+        "classification": "generalized (widened)",
+        "condition_v1": "And(CONFIG_SPL_BUILD == undef, CONFIG_CMD_READ == y)",
+        "condition_v2": "And(CONFIG_SPL_BUILD == undef,     Or(And(CONFIG_SPL_BUILD == undef, CONFIG_CMD_READ == y),        And(CONFIG_SPL_BUILD ",
+        "witness_diff_config": {
+          "CONFIG_CMD_READ": false,
+          "CONFIG_SPL_BUILD": false,
+          "CONFIG_CMD_WRITE": false
+        }
+      },
+      {
+        "target": "cmd/ti/ddr3.o",
+        "classification": "diverged",
+        "condition_v1": "And(CONFIG_SPL_BUILD == undef,     CONFIG_CMD_DDR3 == y,     CONFIG_TI_COMMON_CMD_OPTIONS == y)",
+        "condition_v2": "And(CONFIG_CMD_DDR3 == y,     Or(And(CONFIG_SPL_BUILD == undef, CONFIG_ARCH_K3 == y),        And(CONFIG_SPL_BUILD == und",
+        "witness_diff_config": {
+          "CONFIG_ARCH_KEYSTONE": false,
+          "CONFIG_TI_COMMON_CMD_OPTIONS": false,
+          "CONFIG_ARCH_K3": false,
+          "CONFIG_CMD_DDR3": false,
+          "CONFIG_SPL_BUILD": false,
+          "CONFIG_ARCH_OMAP2PLUS": false
+        }
+      },
+      {
+        "target": "cmd/ti/pd.o",
+        "classification": "diverged",
+        "condition_v1": "And(CONFIG_SPL_BUILD == undef,     CONFIG_CMD_PD == y,     CONFIG_TI_COMMON_CMD_OPTIONS == y)",
+        "condition_v2": "And(CONFIG_CMD_PD == y,     Or(And(CONFIG_SPL_BUILD == undef, CONFIG_ARCH_K3 == y),        And(CONFIG_SPL_BUILD == undef",
+        "witness_diff_config": {
+          "CONFIG_ARCH_KEYSTONE": false,
+          "CONFIG_TI_COMMON_CMD_OPTIONS": false,
+          "CONFIG_ARCH_K3": false,
+          "CONFIG_SPL_BUILD": false,
+          "CONFIG_ARCH_OMAP2PLUS": false,
+          "CONFIG_CMD_PD": false
+        }
+      },
+      {
+        "target": "common/splash.o",
+        "classification": "generalized (widened)",
+        "condition_v1": "Or(And(Not(CONFIG_CMD_EEPROM_LAYOUT == undef),        Or(And(Not(CONFIG_SYS_MALLOC_F == undef),               CONFIG_SPL",
+        "condition_v2": "Or(And(Not(CONFIG_CMD_EEPROM_LAYOUT == undef),        Or(And(Not(CONFIG_SPL_BUILD == undef),               Or(And(Not(CO",
+        "witness_diff_config": {
+          "CONFIG_CMD_EEPROM_LAYOUT": false,
+          "CONFIG_TPL_BUILD": false,
+          "CONFIG_SYS_MALLOC_F": false,
+          "CONFIG_SPL_BUILD": false,
+          "CONFIG_SPL_SPLASH_SCREEN": false
+        }
+      },
+      {
+        "target": "common/splash_source.o",
+        "classification": "generalized (widened)",
+        "condition_v1": "Or(And(Not(CONFIG_CMD_EEPROM_LAYOUT == undef),        Or(And(Not(CONFIG_SYS_MALLOC_F == undef),               CONFIG_SPL",
+        "condition_v2": "Or(And(Not(CONFIG_CMD_EEPROM_LAYOUT == undef),        Or(And(Not(CONFIG_SPL_BUILD == undef),               Or(And(Not(CO",
+        "witness_diff_config": {
+          "CONFIG_CMD_EEPROM_LAYOUT": false,
+          "CONFIG_TPL_BUILD": false,
+          "CONFIG_SPLASH_SOURCE": false,
+          "CONFIG_SPL_BUILD": false,
+          "CONFIG_SYS_MALLOC_F": false,
+          "CONFIG_SPL_SPLASH_SOURCE": false
+        }
+      },
+      {
+        "target": "common/usb_hub.o",
+        "classification": "restricted (tightened)",
+        "condition_v1": "Or(And(Not(CONFIG_CMD_EEPROM_LAYOUT == undef),        Or(And(Not(CONFIG_SYS_MALLOC_F == undef),               Or(And(Not",
+        "condition_v2": "Or(And(Not(CONFIG_CMD_EEPROM_LAYOUT == undef),        Or(And(Not(CONFIG_SPL_BUILD == undef),               Or(And(Not(CO",
+        "witness_diff_config": {
+          "CONFIG_CMD_EEPROM_LAYOUT": false,
+          "CONFIG_TPL_BUILD": false,
+          "CONFIG_SYS_MALLOC_F": false,
+          "CONFIG_SPL_BUILD": false,
+          "CONFIG_USB_HOST": false,
+          "CONFIG_SPL_USB_HOST": false,
+          "CONFIG_USB_GADGET": false
+        }
+      },
+      {
+        "target": "drivers/bios_emulator/$(X86DIR)/debug.o",
+        "classification": "generalized (widened)",
+        "condition_v1": "And(CONFIG_SPL_BUILD == undef,     CONFIG_TPL_BUILD == undef,     CONFIG_BIOSEMU == y)",
+        "condition_v2": "Or(And(Not(CONFIG_TPL_BUILD == undef),        Or(And(CONFIG_TPL_BUILD == undef,               Or(And(CONFIG_TPL_BUILD ==",
+        "witness_diff_config": {
+          "CONFIG_TPL_BUILD": false,
+          "CONFIG_BIOSEMU": false,
+          "CONFIG_VPL_BUILD": false,
+          "CONFIG_SPL_BUILD": false
+        }
+      }
+    ],
+    "elapsed_seconds": 79.43
+  }
+]

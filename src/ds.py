@@ -93,10 +93,11 @@ class VarG:
 
     @classmethod
     def get_flavor(cls, token):
-        if token in set([":=", "::="]) or token in set(["+="]):
+        if token in set([":=", "::=", "+="]):
             flavor = cls.SIMPLY
+        elif token in set(["=", "?="]):
+            flavor = cls.RECURSE
         else:
-            assert token == "=", token
             flavor = cls.RECURSE
 
         return flavor
@@ -175,23 +176,37 @@ class BaseState:
         old = self.states.get(name)
 
         if old is None or self.check_token(token):
-            # Overwrite ("=", ":="). ``cond`` is the condition under which
-            # *this particular* assignment fires (its name/value may itself
+            # Overwrite-like assignment (=, :=, ::=, ?=).
+            # When the assignment itself is gated by a condition (e.g.
+            # inside an `ifeq` block, or because the LHS variable name could
             # only resolve this way conditionally, e.g.
             # ``obj-$(CONFIG_A) := 1.o`` only assigns to the variable named
             # "obj-y" when CONFIG_A=y). Outside ``cond`` this statement did
             # not execute against this variable at all, so any prior value
             # must survive there -- a blind replace would incorrectly erase
             # contributions made under other configurations.
-            not_cond = zsolver.neg(cond)
-            new_valconds = {w: cond for w in words}
-            if old is not None:
-                for w, c in old.valconds.items():
-                    carried = zsolver.conj(c, not_cond)
-                    if w in new_valconds:
-                        new_valconds[w] = zsolver.disj(new_valconds[w], carried)
-                    else:
-                        new_valconds[w] = carried
+            if token == "?=":
+                if old is not None:
+                    old_active = zsolver.mdisj(list(old.valconds.values()))
+                    effective_cond = zsolver.conj(cond, zsolver.neg(old_active))
+                    new_valconds = dict(old.valconds)
+                    for w in words:
+                        if w in new_valconds:
+                            new_valconds[w] = zsolver.disj(new_valconds[w], effective_cond)
+                        else:
+                            new_valconds[w] = effective_cond
+                else:
+                    new_valconds = {w: cond for w in words}
+            else:
+                not_cond = zsolver.neg(cond)
+                new_valconds = {w: cond for w in words}
+                if old is not None:
+                    for w, c in old.valconds.items():
+                        carried = zsolver.conj(c, not_cond)
+                        if w in new_valconds:
+                            new_valconds[w] = zsolver.disj(new_valconds[w], carried)
+                        else:
+                            new_valconds[w] = carried
             flavor = VarG.get_flavor(token)
         else:
             new_valconds = dict(old.valconds)
