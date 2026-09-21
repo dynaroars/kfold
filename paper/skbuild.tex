@@ -790,7 +790,11 @@ As shown in \Cref{tab:rq3}:
 \subsection{RQ4: Agreement with Real Compiler Builds}
 \label{sec:eval:rq4}
 
-To empirically validate the soundness of extracted conditions, we executed end-to-end real build validations across four platforms: BusyBox 1.36.1, coreboot 4.22.01 (QEMU x86 i440fx target), Barebox 2024.01.0 (\texttt{sandbox\_defconfig}), and Das U-Boot 2024.01 (\texttt{sandbox\_defconfig}). For BusyBox and coreboot, we used Z3 to generate positive greedy set-cover witness configurations and all-disabled negative baseline configurations. For each configuration, we materialized a \texttt{.config} file, invoked \texttt{make olddefconfig \&\& make}, and reconciled actual compiled object files against \tool's predictions.
+A fundamental open question for static build analyzers is whether their extracted presence conditions accurately reflect reality. Prior static analyzers (such as \textsc{Kmax}~\cite{kmax}) terminated at static extraction, reporting file lists without running compiler builds to verify whether predicted configurations actually produce the expected object files. 
+
+In contrast, \tool closes the experimental feedback loop by performing \textbf{end-to-end ground-truth validation against real compiler executions}. Specifically, we ask: \emph{When we materialize a concrete \texttt{.config} file satisfying an extracted presence condition $\Phi(o)$ and invoke the native build system, does the compiler actually compile object file $o$?}
+
+We executed this empirical validation across four platforms: BusyBox 1.36.1, coreboot 4.22.01 (QEMU x86 i440fx target), Barebox 2024.01.0 (\texttt{sandbox\_defconfig}), and Das U-Boot 2024.01 (\texttt{sandbox\_defconfig}). For BusyBox and coreboot, we used Z3 to generate positive greedy set-cover witness configurations and all-disabled negative baseline configurations. For each configuration, we materialized a physical \texttt{.config} file on disk, invoked \texttt{make olddefconfig \&\& make}, scanned the file tree for produced \texttt{.o} binaries, and reconciled actual compiled object files against \tool's symbolic predictions.
 
 \begin{table}[t]
 \centering
