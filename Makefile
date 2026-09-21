@@ -1,4 +1,8 @@
-.PHONY: test busybox-check clean
+.PHONY: all check test busybox-check clean
+
+all: check
+
+check: test busybox-check
 
 test:
 	PYTHONPATH=src python3 src/skbuild.py tests/paper_example/Makefile --rmtmp
