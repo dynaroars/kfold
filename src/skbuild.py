@@ -5,6 +5,12 @@ from helpers.vcommon import getLogLevel, getLogger
 DBG = pdb.set_trace
 
 
+def is_analysis_mode(path):
+    return (path.is_dir() and
+            (any(f.is_file() and f.name == settings.RESULT_SINFO
+                 for f in path.iterdir())))
+
+
 if __name__ == '__main__':
 
     import argparse
@@ -49,7 +55,7 @@ if __name__ == '__main__':
     args = aparser.parse_args()
 
     import settings
-    settings.doMP = not args.nomp
+    settings.do_mp = not args.nomp
     settings.detail = args.detail
 
     if (args.log_level != settings.logger_level and
@@ -65,17 +71,15 @@ if __name__ == '__main__':
     path = pathlib.Path(args.path)
     assert path.is_file() or path.is_dir(), path
 
-    from alg import Run
-    tmpdir = Run.doit(path, args)
+    if is_analysis_mode(path):
+        from analysis import Analysis
+        cls = Analysis(path)
+        tmpdir = cls.go(args)
 
-    # mode = Run.check_path(path)
-    # if mode is None:
-    #     cls = Run(path)
-    #     tmpdir = cls.go(args)
-    # else:
-    #     from analysis import Analysis
-    #     cls = Analysis(path)
-    #     tmpdir = cls.go(args)
+    else:
+        from alg import Run
+        cls = Run(path)
+        tmpdir = cls.go()
 
     if tmpdir and tmpdir.is_dir():
         if args.rmtmp:

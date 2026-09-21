@@ -1,2 +1,0 @@
-- (don't do this, just get the object files): write a parser to parse make.log of bb, see ` /home/SHARED/LOCAL/EXP/benchmarks/busybox/compiles/defconfig/` and `/home/SHARED/LOCAL/EXP/benchmarks/busybox/compiles/defconfig/`
-- tree . shows all the .o generated,  looks like just getting these obj files should be enough.

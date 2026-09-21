@@ -1,6 +1,0 @@
-1.o	built-in	(CONFIG_1=y || (CONFIG_1=n && CONFIG_A=y))
-3.o	built-in	(CONFIG_A=y || (CONFIG_A=n && CONFIG_B=y))
-4.o	built-in	CONFIG_C=y
-probe.o	built-in	CONFIG_B=n
-probe32.o	built-in	CONFIG_A=y
-scan.o	built-in	true

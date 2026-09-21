@@ -41,6 +41,7 @@ def simplify(f):
     if f_ is not None:
         return f_
 
+    assert z3.is_expr(f), f
     t = z3.Tactic('ctx-solver-simplify')
     f_ = t(f).as_expr()
 
@@ -94,9 +95,27 @@ def mdisj(cs):
 
 class ZSolver:
     __config_vars__ = OrderedDict()
+    __instances__ = {}
+
+    def __new__(cls, mysettings):
+        # One ZSolver (and its z3 EnumSorts) per Settings object: creating a
+        # fresh z3.EnumSort with the same name for every analyzed Kbuild file
+        # (as used to happen, one ZSolver per Kbuild) raises
+        # "enumeration sort name is already declared" as soon as more than
+        # one directory is analyzed in the same process/z3 context.
+        key = id(mysettings)
+        inst = cls.__instances__.get(key)
+        if inst is None:
+            inst = super().__new__(cls)
+            inst._initialized = False
+            cls.__instances__[key] = inst
+        return inst
 
     def __init__(self, mysettings):
         assert isinstance(mysettings, settings.Settings), mysettings
+        if self._initialized:
+            return
+        self._initialized = True
 
         self.typs = {}
         zstate = mysettings.zstate  # tristate or twostate config options

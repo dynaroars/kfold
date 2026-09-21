@@ -1,12 +1,12 @@
-from collections import namedtuple, OrderedDict
+from collections import OrderedDict
 import itertools
 import pdb
 
+from pymake3 import parserdata
 import z3
 
 import settings
 import helpers.vcommon as CM
-from helpers.miscs import Miscs
 import helpers.zsolver as zsolver
 
 
@@ -14,42 +14,70 @@ mlog = CM.getLogger(__name__, settings.logger_level)
 
 DBG = pdb.set_trace
 
-BaseVar = namedtuple("BaseVar", "name vals flavor mysettings")
 
+class VarG:
+    """A Make variable whose value is a set of words, each tagged with the
+    Z3 condition under which it is a member. This replaces the old
+    per-Path-unconditional ``Var`` (a plain ``frozenset`` of words) --
+    conditioning used to come entirely from forking a separate ``Path``
+    object per branch (see git history / ds.py before this refactor), which
+    is exponential in the number of conditionals. Tagging each word with its
+    own condition lets a single ``State`` carry all branches at once.
+    """
 
-class MVar(BaseVar):
     RECURSE = "RECURSE"   # =, define
-    SIMPLY = "SIMPLY"  # := , ::=
+    SIMPLY = "SIMPLY"  # := , ::=, +=
 
-    def __init__(self, name, vals, flavor, mysettings):
+    __slots__ = ("name", "valconds", "flavor", "mysettings")
+
+    def __init__(self, name, valconds, flavor, mysettings):
         assert isinstance(name, str) and name, name
-        assert isinstance(vals, frozenset), vals
-        assert flavor in set([self.RECURSE, self.SIMPLY]), flavor
+        assert isinstance(valconds, dict), valconds
+        assert flavor in (self.RECURSE, self.SIMPLY), flavor
         assert isinstance(mysettings, settings.Settings), mysettings
 
-        super().__init__()
+        self.name = name
+        self.valconds = valconds
+        self.flavor = flavor
+        self.mysettings = mysettings
 
-    def __str__(self):
-        token = "=" if self.flavor == self.RECURSE else ":="
-        return "{}({} {} {})".format(
-            self.__class__.__name__,
-            self.name, token,
-            ' '.join(sorted(self.vals)))
+    @property
+    def vals(self):
+        return frozenset(self.valconds.keys())
+
+    @property
+    def vals_str(self):
+        return ' '.join(sorted(map(str, self.vals)))
 
     @property
     def is_recurse(self):
         return self.flavor == self.RECURSE
 
-    def fork_vals(self, vals):
-        assert isinstance(vals, frozenset), vals
-        return self.__class__(self.name, vals, self.flavor, self.mysettings)
+    def __str__(self):
+        token = "=" if self.flavor == self.RECURSE else ":="
+        items = ', '.join(
+            "{}[{}]".format(w, self.valconds[w]) for w in sorted(self.valconds))
+        return "{} {} {}".format(self.name, token, items)
 
-    @classmethod
-    def src_var(cls, topdir, mysettings):
+    @property
+    def ignorable(self):
+        return self.name in self.mysettings.ignore_vars
+
+    @property
+    def is_undef_target(self):  # obj-, lib-
+        return self.name in self.mysettings.target_vars
+
+    @property
+    def subdir_names(self):
+        assert not self.ignorable
+        return [d for d in self.valconds if d.endswith('/')]
+
+    def subdirs_with_cond(self, topdir):
         assert topdir.is_dir(), topdir
-        assert isinstance(mysettings, settings.Settings), mysettings
+        assert not self.ignorable
 
-        return cls("src", frozenset([topdir]), cls.RECURSE, mysettings)
+        return {topdir / d: cond for d, cond in self.valconds.items()
+                if d.endswith('/')}
 
     @classmethod
     def get_flavor(cls, token):
@@ -61,271 +89,181 @@ class MVar(BaseVar):
 
         return flavor
 
-    @property
-    def ignorable(self):
-        return self.name in self.mysettings.ignore_vars
-
-
-class DVar(MVar):
-    pass
-
-
-class SVar(MVar):
-
-    def issubset(self, name, values):
-        assert isinstance(values, frozenset), values
-        return self.name == name and values.issubset(self.values)
-
-    @property
-    def is_undef_target(self):  # obj-, lib-
-        return self.name in self.mysettings.target_vars
-
-    @property
-    def subdir_names(self):
-        assert not self.ignorable
-        return [d for d in self.vals if d.endswith('/')]
-
-    def subdirs(self, topdir):
+    @classmethod
+    def src_var(cls, topdir, mysettings):
         assert topdir.is_dir(), topdir
-        assert not self.ignorable
+        assert isinstance(mysettings, settings.Settings), mysettings
 
-        return [topdir / d for d in self.subdir_names]
+        return cls("src", {topdir: zsolver.T}, cls.RECURSE, mysettings)
 
 
-class Path:
-    __ct__ = 0
+# Backward-compatible alias: some helper/analysis code refers to the
+# variable class as ``Var``.
+Var = VarG
 
-    def __init__(self, cond, states, mysettings):
-        assert z3.is_expr(cond), cond
+
+class BaseState:
+    """A single symbolic state (one ``VarG`` per variable name), replacing
+    the old ``Paths`` list of mutually exclusive, fully-concrete ``Path``
+    objects. Branching (``ConditionBlock``) clones this state for each
+    branch, executes each branch against its clone, and merges the two
+    clones back into one state (see ``symexe.ConditionBlock.sexe``) instead
+    of keeping every branch combination alive as a separate object.
+    """
+
+    def __init__(self, states, mysettings):
         assert isinstance(states, dict), states
         assert isinstance(mysettings, settings.Settings), mysettings
 
-        self.cond = cond
         self.states = states
         self.mysettings = mysettings
-
-        self.__ct__ += 1
-
-    def __del__(self):
-        self.__ct__ -= 1
+        # Names actually (re)assigned since this state was created/cloned.
+        # A branch clone starts this empty so a ConditionBlock merge only
+        # has to rebuild (and re-gate by the branch guard) variables that
+        # branch actually touched -- variables neither branch touched are
+        # left completely alone, which is what keeps condition sizes from
+        # growing at every conditional in the file regardless of relevance.
+        self.touched = set()
 
     def __str__(self):
-
         ss = (v for v in self.states.values() if not v.ignorable)
-        ss = '; '.join(map(str, ss))
-        if ss:
-            ss = "{} => {}".format(self.cond, ss)
-        return ss
+        return '; '.join(map(str, ss))
 
-    def fork(self, new_cond, ignore_targets=False):
-        """
-        Create a new path with newcond
-        """
-        assert z3.is_expr(new_cond), new_cond
+    def clone(self):
+        new_states = OrderedDict(
+            (name, VarG(v.name, dict(v.valconds), v.flavor, v.mysettings))
+            for name, v in self.states.items())
+        return self.__class__(new_states, self.mysettings)
 
+    def restrict(self, extra_cond, solver):
+        """Return a new state with ``extra_cond`` conjoined onto every
+        value's condition, dropping words that become unsatisfiable.
+        Replaces the old ``Path.fork(new_cond)``/``Kbuild.fork``."""
         new_states = OrderedDict()
         for name, v in self.states.items():
-            if ignore_targets and self.mysettings.is_target(name):
-                continue
-            new_states[name] = v
-        return self.__class__(new_cond, new_states, self.mysettings)
+            new_valconds = {}
+            for word, cond in v.valconds.items():
+                c = zsolver.conj(cond, extra_cond)
+                if solver.is_sat(c):
+                    new_valconds[word] = c
+            if new_valconds:
+                new_states[name] = VarG(
+                    v.name, new_valconds, v.flavor, v.mysettings)
+        return self.__class__(new_states, self.mysettings)
 
-    # def is_target(self, t):
-    #     return any(t.startswith(x) for x in self.mysettings.target_vars)
-
-    def subdirs(self, topdir):
-        subdirs_ = [self.states[v].subdirs(topdir)
-                    for v in self.states
-                    if not (self.states[v].ignorable
-                            or self.states[v].is_undef_target)]
-        return frozenset(itertools.chain(*subdirs_))
-
-    @classmethod
-    def get_default(cls, src_dir, mysettings):
-        assert isinstance(src_dir, MVar) or src_dir.is_dir(), src_dir
-        assert isinstance(mysettings, settings.Settings), mysettings
-
-        states = {'src': src_dir if isinstance(
-            src_dir, MVar) else MVar.src_var(src_dir, mysettings)}
-        return cls(zsolver.T, states, mysettings)
-
-    def is_default(self):
-        return len(self.states) == 1
-
-
-class SPath(Path):
-
-    def __init__(self, cond, states, mysettings):
-        super().__init__(cond, states, mysettings)
-
-    def split(self):
-        assert self.states
-
-        new_paths = []
-        for name in self.states:
-            if not self.mysettings.is_target(name):  # don't split
-                continue
-
-            myvar = self.states[name]
-            if not myvar.vals:
-                new_path = self.fork(self.cond, ignore_targets=True)
-                new_path.states[name] = myvar
-                new_paths.append(new_path)
-            else:
-                for v in myvar.vals:
-                    new_path = self.fork(self.cond, ignore_targets=True)
-                    new_path.states[name] = myvar.fork_vals(frozenset([v]))
-                    new_paths.append(new_path)
-
-        if not new_paths:
-            new_paths.append(self)  # keep path as is
-        return new_paths
-
-    def set_var(self, name, token, val):
+    def set_var(self, name, token, val, cond, solver):
         assert isinstance(name, str), name
         assert isinstance(token, str) and token, token
         assert isinstance(val, str), val
+        assert z3.is_expr(cond), cond
 
-        vals = frozenset(val.split())
+        words = frozenset(val.split())
+        old = self.states.get(name)
 
-        if name not in self.states or self.check_token(token):
-            new_var = SVar(name, vals, SVar.get_flavor(token), self.mysettings)
+        if old is None or self.check_token(token):
+            # Overwrite ("=", ":="). ``cond`` is the condition under which
+            # *this particular* assignment fires (its name/value may itself
+            # only resolve this way conditionally, e.g.
+            # ``obj-$(CONFIG_A) := 1.o`` only assigns to the variable named
+            # "obj-y" when CONFIG_A=y). Outside ``cond`` this statement did
+            # not execute against this variable at all, so any prior value
+            # must survive there -- a blind replace would incorrectly erase
+            # contributions made under other configurations.
+            not_cond = zsolver.neg(cond)
+            new_valconds = {w: cond for w in words}
+            if old is not None:
+                for w, c in old.valconds.items():
+                    carried = zsolver.conj(c, not_cond)
+                    if w in new_valconds:
+                        new_valconds[w] = zsolver.disj(new_valconds[w], carried)
+                    else:
+                        new_valconds[w] = carried
+            flavor = VarG.get_flavor(token)
         else:
-            myvar = self.states[name]
-            new_var = myvar.fork_vals(myvar.vals | vals)
+            new_valconds = dict(old.valconds)
+            for w in words:
+                if w in new_valconds:
+                    new_valconds[w] = zsolver.disj(new_valconds[w], cond)
+                else:
+                    new_valconds[w] = cond
+            flavor = old.flavor
 
-        self.states[name] = new_var
+        self.states[name] = VarG(name, new_valconds, flavor, self.mysettings)
+        self.touched.add(name)
 
-    @property
-    def state_vals(self):
-        vals = []
-        for symbol in self.states:
-            vals.extend(self.states[symbol].vals)
-        return frozenset(vals)
+    def is_target(self, t):
+        return any(t.startswith(x) for x in self.mysettings.target_vars)
 
-    @property
-    def state_hash(self):
-        fs = frozenset(sorted(self.states.items()))
-        return hash(fs)
+    def subdirs_with_cond(self, topdir):
+        result = {}
+        for name, v in self.states.items():
+            if v.ignorable or v.is_undef_target:
+                continue
+            for subdir, cond in v.subdirs_with_cond(topdir).items():
+                if subdir in result:
+                    result[subdir] = zsolver.disj(result[subdir], cond)
+                else:
+                    result[subdir] = cond
+        return result
 
     @property
     def target_files(self):
         return [self.states[name] for name in self.states
-                if self.mysettings.is_target(name)]
+                if self.is_target(name)]
 
     @property
     def vals_d(self):
-        return {self.states[name].name: self.states[name].vals
+        return {self.states[name].name: self.states[name].valconds
                 for name in self.states}
 
-    # def is_not_target(self, t):
-    #     return not self.mysettings.is_target(t)
+    def is_not_target(self, t):
+        return not self.is_target(t)
+
+    @classmethod
+    def get_default(cls, src_dir, mysettings):
+        assert isinstance(src_dir, VarG) or src_dir.is_dir(), src_dir
+        assert isinstance(mysettings, settings.Settings), mysettings
+
+        states = {'src': src_dir if isinstance(
+            src_dir, VarG) else VarG.src_var(src_dir, mysettings)}
+        return cls(states, mysettings)
+
+    def to_savable(self):
+        """Z3 ``ExprRef`` values are not directly picklable; serialize each
+        condition to an SMT2 string (see ``Kbuild.save``/``Kbuild.load``)."""
+        return OrderedDict(
+            (name, (v.flavor,
+                    {word: zsolver.to_smt2_str(cond)
+                     for word, cond in v.valconds.items()}))
+            for name, v in self.states.items())
+
+    @classmethod
+    def from_savable(cls, data, mysettings):
+        states = OrderedDict()
+        for name, (flavor, wordconds) in data.items():
+            valconds = {word: zsolver.from_smt2_str(s)
+                        for word, s in wordconds.items()}
+            states[name] = VarG(name, valconds, flavor, mysettings)
+        return cls(states, mysettings)
+
+
+class SState(BaseState):
+    """Symbolic-execution state (the live analysis state)."""
 
     @classmethod
     def check_token(cls, token):
         return token in set(["=", ":="])
 
 
-class Paths(list):
-    def __str__(self):
-        paths = [str(path) for path in self]
-        paths = [path for path in paths if path]
-        ss = ["{}. {}".format(i+1, path)
-              for i, path in enumerate(sorted(paths))]
+class DState(BaseState):
+    """Dependency-analysis state: a single unconditional pass (no branching
+    at all -- this was already effectively single-state before this
+    refactor) used to compute which variables are actually read by target
+    files, so irrelevant statements can be pruned before symbolic
+    execution."""
 
-        n_paths = len(self)
-        diff = n_paths - len(paths)
-        if diff:
-            ss.append("Paths: shown {}, hidden {}, total {}".format(
-                len(paths), diff, n_paths))
-        return '\n'.join(ss)
-
-    def split(self):
-        assert self, self
-
-        new_paths = Paths()
-        for path in self:
-            new_paths_ = path.split()
-            new_paths.extend(new_paths_)
-
-        assert new_paths
-        return new_paths
-
-    def merge(self):
-        assert self, self
-
-        groups = {}
-        for path in self:
-            groups.setdefault(path.state_hash, []).append(path)
-
-        if len(groups) == len(self):
-            return self
-
-        simplified_paths = []
-        other_paths = []
-        for gpaths in groups.values():
-            path = gpaths[0]
-            if len(gpaths) == 1:
-                simplified_paths.append(path)
-            else:
-                path.cond = zsolver.mdisj([p.cond for p in gpaths])
-                assert path.cond is not zsolver.F
-                if (path.cond is zsolver.T or
-                        path.cond.decl().kind() == z3.Z3_OP_EQ):
-                    simplified_paths.append(path)
-                else:
-                    scond = zsolver.get_from_simplify_cache(path.cond)
-                    if scond is not None:
-                        path.cond = scond
-                        simplified_paths.append(path)
-                    else:
-                        other_paths.append(path)
-
-        if other_paths:
-            def _simplify(i):
-                gcond = zsolver.simplify(other_paths[i].cond)
-                return zsolver.to_smt2_str(gcond)
-
-            def _f(tasks):
-                rs = [(i, _simplify(i)) for i in tasks]
-                return rs
-
-            wrs = Miscs.run_mp('merge', list(
-                range(len(other_paths))), _f, do_mp=settings.do_mp)
-            for i, cond_str in wrs:
-                cond = zsolver.from_smt2_str(cond_str)
-                if other_paths[i].cond not in zsolver.__simplify_cache__:
-                    zsolver.__simplify_cache__[
-                        other_paths[i].cond] = cond
-
-                other_paths[i].cond = cond
-
-        merge_paths = Paths(simplified_paths + other_paths)
-        return merge_paths
-
-    @staticmethod
-    def save_info(paths):
-        """
-        savable info
-        """
-        assert isinstance(paths, Paths), paths
-        paths_info = [(zsolver.to_smt_str(path.cond), path.states)
-                      for path in paths]
-        return paths_info
-
-    @staticmethod
-    def load_info(f):
-        assert f.is_file(), f
-
-        paths_info = CM.vload(f)
-        paths = [SPath(zsolver.from_smt_str(smt_str), states)
-                 for smt_str, states in paths_info]
-        return Paths(paths)
-
-
-class DPath(Path):
-    def __init__(self, cond, states, mysettings):
-        super().__init__(cond, states, mysettings)
+    def __init__(self, states, mysettings):
+        super().__init__(states, mysettings)
         self.ddb = DepDB()  # stmt_hash -> DepInfo
 
     @classmethod
@@ -333,42 +271,28 @@ class DPath(Path):
         return False
 
     def add_dep(self, stmt, lvals, ldeps, rvals, rdeps, xdeps):
-        assert isinstance(lvals, frozenset) and lvals, lvals
-        assert isinstance(rvals, frozenset), rvals
-        assert isinstance(stmt.sid, tuple) and \
-            stmt.sid not in self.ddb, stmt.sid
+        assert isinstance(
+            stmt.sid, tuple) and stmt.sid not in self.ddb, stmt.sid
+        self.ddb[stmt.sid] = DepInfo(stmt, lvals, ldeps, rvals, rdeps, xdeps)
 
-        self.ddb[stmt.sid] = DepInfo(lvals, ldeps, rvals, rdeps, xdeps)
+    def compute_used_vars(self):
+        self.ddb.compute_used_vars(self.mysettings.target_vars)
 
-    def set_var(self, name, token, vals):
-        assert isinstance(name, str), name
-        assert isinstance(token, str) and token, token
-        assert isinstance(vals, frozenset) and all(
-            isinstance(v, str) for v in vals), vals
 
-        if name not in self.states or self.check_token(token):
-            newvar = DVar(name, vals, DVar.get_flavor(token), self.mysettings)
-        else:
-            myvar = self.states[name]
-            myvals = myvar.vals
-            combs = itertools.product(*[myvals, vals])
-            newvals = frozenset(x + ' ' + y for x, y in combs)
-            newvar = myvar.fork_vals(newvals)
-
-        self.states[name] = newvar
+# Backward-compatible aliases used by a couple of call sites/docstrings.
+SPath = SState
+DPath = DState
 
 
 class DepInfo:
-    def __init__(self, lvals, ldeps, rvals, rdeps, xdeps):
+    def __init__(self, stmt, lvals, ldeps, rvals, rdeps, xdeps):
         assert isinstance(lvals, frozenset), lvals
         assert isinstance(ldeps, frozenset), ldeps
         assert isinstance(rvals, frozenset), rvals
         assert isinstance(rdeps, frozenset), rdeps
         assert isinstance(xdeps, frozenset), xdeps
 
-        lvals = frozenset(itertools.chain(*[v.split() for v in lvals]))
-        rvals = frozenset(itertools.chain(*[v.split() for v in rvals]))
-
+        self.stmt = stmt
         self.lvals = lvals
         self.ldeps = ldeps
         self.rvals = rvals
@@ -378,7 +302,8 @@ class DepInfo:
     def __str__(self):
         def _str(fs): return ' '.join(map(str, fs))
 
-        return "lv {}, ld {}; rv {}, rd {}; x {}".format(
+        return "{} -> {}, {}; {}, {}; {}".format(
+            self.stmt.stmt.to_source().strip(),
             _str(self.lvals), _str(self.ldeps),
             _str(self.rvals), _str(self.rdeps),
             _str(self.xdeps))
@@ -394,14 +319,17 @@ class DepDB(OrderedDict):
             return False
 
         di = self[sid]
+        assert isinstance(di.stmt.stmt, parserdata.SetVariable), \
+            di.stmt.stmt.to_source().strip()
+
         return all(name not in self.used_vars for name in di.lvals)
 
-    def set_preds(self, preds):
-        for sid in preds:
-            if sid not in self:
-                mlog.warn('{} in preds but not in self'.format(sid))
-            else:
-                self[sid].set_preds(preds[sid])
+    @property
+    def lvals(self):
+        lvals_ = set()
+        for di in self.values():
+            lvals_.update(di.lvals)
+        return lvals_
 
     def compute_used_vars(self, target_vars):
         # compute dependency for all files
@@ -421,7 +349,6 @@ class DepDB(OrderedDict):
             deps = set()
             self.find_deps(name, deps)
             dep_t[name] = deps
-        self.dep_t = dep_t
 
         # compute vars that are required by target files
         used_vars = [dep_t[name] for name in dep_t]
@@ -442,6 +369,8 @@ class DepDB(OrderedDict):
         for dname in self.dep_d[name]:
             if dname not in deps:
                 dep_names.add(dname)
+            #     mlog.warn('Potential dep cycle: {}'.format(dname))
+            # else:
 
         deps.update(dep_names)
         for dname in dep_names:

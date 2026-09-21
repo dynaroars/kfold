@@ -1,0 +1,517 @@
+% ============================================================================
+% AUTHOR NOTES -- not part of the compiled paper. Every open item lives here,
+% once, instead of scattered \todo markers through the prose. Cross-reference
+% is PLAN.md's milestones (M1-M5) in the skbuild repo.
+%
+% - Abstract + Conclusion: need the headline evaluation numbers (M1-M3
+%   acceptance + M4 instrumentation) before these can be written for real.
+% - RQ0-RQ4 (\Cref{sec:eval}): each needs its actual data (M4's before/after
+%   measurement, M1-M3's per-project runs, M4's oracle-suite coverage census,
+%   M4's profiling, M1-M3's predicted-vs-actual reconciliation).
+% - \cite{nguyen2020kbuild}: read the actual paper before submission and
+%   correct \Cref{sec:intro}/\Cref{sec:related}'s characterization of its
+%   execution strategy and scale -- currently inferred, not verified.
+% - \Cref{sec:related}: add kmax/variability-Kbuild literature (check
+%   run/README.org's "Existing works" note, in git history) once identified.
+% - \Cref{sec:design:traversal}: expand once PLAN.md M2's root-invocation-
+%   context work (ARCH/CROSS_COMPILE, real root-Makefile reachability) lands.
+% - Discussion (\Cref{sec:eval:threats}): update the shell/eval and Kconfig-
+%   validity sentences once PLAN.md M2's P3/P5 work lands.
+% - Artifact footnote/URL: fill in once a public repo or Zenodo archive
+%   (Dynaplex's approach) is decided.
+% ============================================================================
+
+\documentclass[acmsmall,screen,review]{acmart}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[capitalize]{cleveref}
+
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+
+\AtBeginDocument{%
+  \providecommand\BibTeX{{Bib\TeX}}}
+
+\setcopyright{acmlicensed}
+\copyrightyear{2027}
+\acmYear{2027}
+\acmDOI{10.1145/nnnnnnn.nnnnnnn}
+\acmJournal{PACMSE}
+\acmVolume{1}
+\acmNumber{FSE}
+\acmArticle{1}
+\acmMonth{7}
+
+\begin{document}
+
+\title{skbuild: Extracting Kbuild Build Conditions via Eager-Merge Symbolic Execution}
+
+\author{Anonymous Author(s)}
+\affiliation{%
+  \institution{Anonymous Institution}
+  \country{USA}
+}
+
+\begin{abstract}
+Large configurable systems such as the Linux kernel, BusyBox, and coreboot
+describe what gets compiled with Kbuild-style Makefiles: a per-directory
+\texttt{obj-\$(CONFIG\_X)}-shaped vocabulary layered on GNU Make, driven by a
+Kconfig-defined space of Boolean and tristate options. A single build under
+one \texttt{.config} answers only which files were selected for \emph{that}
+configuration; it does not say how the build varies as options change, which
+is what a developer needs to explain a crash under an unfamiliar
+configuration, to bound the effect of flipping one option, or to identify
+files a Kbuild refactor silently stopped building. We present skbuild, a
+symbolic-execution engine for the Kbuild-relevant subset of GNU Make that
+computes, for every object file, a Z3-checkable Boolean condition over
+Kconfig symbols describing exactly when that file participates in the
+build. Following a fork-per-branch design that forks a new execution path
+at every \texttt{ifeq}/\texttt{ifdef} makes real Kbuild trees intractable ---
+a 30-line synthetic fixture already produces dozens of forked paths, and a
+first attempt at the checked-in BusyBox snapshot exhausts the pattern
+entirely before finishing --- skbuild instead keeps a single symbolic state
+per Kbuild file, representing each Make variable as a set of
+\texttt{(word, condition)} pairs, and merges a conditional's two branches
+back into that one state immediately, gating each branch's contribution by
+its own guard. This design is directly adapted from Cybolic's eager-merge
+representation for CMake~\cite{cybolic}, applied here to a build-description
+language with a different, and in some ways simpler, variability model:
+Kbuild's symbolic inputs are Kconfig's small, explicitly finite Boolean and
+tristate domains rather than CMake's unbounded-string \texttt{option()}
+values. We evaluate skbuild on \todo{BusyBox / coreboot / Linux, N pinned
+releases, M reconciled object sets, K categorized mismatches}.
+\end{abstract}
+
+\begin{CCSXML}
+<ccs2012>
+<concept>
+<concept_id>10011007.10011074.10011099.10011692</concept_id>
+<concept_desc>Software and its engineering~Software verification</concept_desc>
+<concept_significance>500</concept_significance>
+</concept>
+<concept>
+<concept_id>10011007.10011074.10011099</concept_id>
+<concept_desc>Software and its engineering~Software testing and debugging</concept_desc>
+<concept_significance>300</concept_significance>
+</concept>
+</ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Software and its engineering~Software verification}
+\ccsdesc[300]{Software and its engineering~Software testing and debugging}
+
+\keywords{build systems, Kbuild, Linux kernel, symbolic execution, build conditions, SMT solving, variability}
+
+\maketitle
+
+\section{Introduction}
+\label{sec:intro}
+
+Large, configurable C codebases --- the Linux kernel, BusyBox, coreboot, and
+other projects that adopted the Kbuild convention --- do not compile a fixed
+set of source files. A per-directory \texttt{Makefile} or \texttt{Kbuild}
+file assigns object names to variables such as \texttt{obj-y}, \texttt{obj-m},
+and \texttt{lib-y} conditionally on Kconfig options
+(\texttt{obj-\$(CONFIG\_USB) += usb.o}), nests those assignments inside
+\texttt{ifeq}/\texttt{ifdef} blocks, and recurses into subdirectories whose
+membership is itself conditional. Kconfig, in turn, defines each
+\texttt{CONFIG\_*} symbol's domain: most commonly Boolean
+(\texttt{y}/not-set) or tristate (\texttt{y}/\texttt{m}/not-set), sometimes a
+small enumerated or numeric range. A single invocation of \texttt{make} with
+one \texttt{.config} answers a narrow question --- which files were selected
+for \emph{that} configuration --- but does not directly answer how the build
+varies across the configuration space the project actually ships.
+
+That broader question matters in practice. A crash report from a shipped
+kernel build names a source file, but that file may or may not have been
+compiled in depending on options the reporter never mentioned; knowing
+\emph{which} configurations could have produced the crashing binary narrows
+root-cause search before any other analysis starts. A patch that touches a
+file guarded behind \texttt{CONFIG\_DEBUG\_INFO} needs a build configuration
+under which the file is even reachable before static analysis of the patch
+can begin. A maintainer refactoring a Kbuild tree wants to know whether the
+refactor changed which files are selected under any configuration, not just
+under whichever one happens to be `make defconfig`. All three reduce to the
+same question this paper answers: \emph{given an object file, under what
+Boolean condition over Kconfig symbols is it selected by the build?}
+
+Nguyen and Nguyen~\cite{nguyen2020kbuild} showed that this question is
+answerable by symbolic execution of Kbuild Makefiles specifically, treating
+\texttt{CONFIG\_*} variables as finite-domain symbolic inputs and Z3 as the
+underlying solver. This paper's skbuild is a from-scratch, from-first-principles
+reimplementation of that direction: it keeps the CONFIG-symbols-as-symbolic-
+inputs framing and the Z3 backend, but replaces a fork-per-branch execution
+strategy --- which we found, empirically, explodes even on small synthetic
+fixtures and cannot complete on a real multi-directory tree at all --- with
+an eager branch-and-merge representation adapted from Cybolic, a recent
+system that solved the structurally identical problem (extract a per-file
+build condition via symbolic execution of a configuration-driven build
+description) for CMake~\cite{cybolic}. Kbuild's variability model is, in one
+concrete way, simpler than CMake's: Kconfig options are explicitly
+finite-domain by construction (Boolean or tristate, occasionally a small
+enumerated set), where CMake's \texttt{option()}/cache variables are
+unbounded strings that Cybolic must itself constrain to a finite domain
+before Z3 can reason about them. Kbuild's variability model is, in another
+way, its own challenge: recursive directory traversal is itself
+conditional, so the same eager-merge idea has to apply not just to
+variable values within one file but to \emph{which files get analyzed at
+all}.
+
+\emph{Contributions.} In summary, this paper makes the following
+contributions:
+
+\begin{itemize}
+\item We identify, with a concrete measurement on a small synthetic
+  fixture and a real-world corpus, that fork-per-branch symbolic execution
+  of Kbuild Makefiles is not viable at real-project scale (\Cref{sec:overview}).
+\item We adapt Cybolic's eager branch-and-merge symbolic-state
+  representation~\cite{cybolic} to Kbuild/GNU Make, including two
+  Kbuild-specific correctness subtleties --- conditionally-named
+  \texttt{:=} overwrites, and re-gating carried-forward (untouched) values
+  by branch guard at merge time --- that do not arise in CMake's simpler
+  assignment model (\Cref{sec:design}).
+\item We implement this design in skbuild, a pure-Python, Z3-backed
+  analyzer with no other runtime dependency (\Cref{sec:eval}).
+\item We evaluate skbuild on BusyBox, coreboot, and the Linux kernel,
+  reconciling predicted object sets against real, independently obtained
+  build output and categorizing every mismatch (\Cref{sec:eval}).
+\end{itemize}
+
+Tool and evaluation artifacts \todo{artifact URL}.
+
+\section{Overview}
+\label{sec:overview}
+
+\subsection{A Worked Example}
+\label{sec:overview:example}
+
+\Cref{fig:example} shows a small Makefile exercising the constructs this
+paper is about: Boolean-guarded object selection
+(\texttt{obj-\$(CONFIG\_1)}), an unconditional overwrite whose \emph{target
+variable name} is itself conditional (\texttt{obj-\$(CONFIG\_A) := 1.o}),
+and a variable (\texttt{BITS}) reassigned unconditionally by both arms of an
+\texttt{ifeq}/\texttt{else}.
+
+\begin{figure}
+\begin{verbatim}
+obj-$(CONFIG_1) += 1.o
+obj-$(CONFIG_A) := 1.o        # overwrites obj-y's value *when CONFIG_A=y*
+obj-$(CONFIG_A) += 3.o
+obj-$(CONFIG_B) += 3.o
+
+ifeq ($(CONFIG_A),y)
+  BITS := 32
+else
+  BITS := 64
+endif
+obj-y += probe$(BITS).o
+\end{verbatim}
+\caption{A worked example. \texttt{obj-y}'s final value for \texttt{1.o}
+is \texttt{CONFIG\_A=y OR (CONFIG\_1=y AND CONFIG\_A!=y)}: the first
+\texttt{+=} contributes \texttt{1.o} whenever \texttt{CONFIG\_1=y}, and the
+later \texttt{:=} only erases that contribution in the universe where it
+actually fires, i.e.\ \texttt{CONFIG\_A=y}. \texttt{BITS} ends with exactly
+two values, \texttt{32} under \texttt{CONFIG\_A=y} and \texttt{64}
+otherwise --- \texttt{0} does not survive as a spurious third case, even
+though it would if the merge at the \texttt{ifeq} naively unioned each
+branch's raw carried-forward state.}
+\label{fig:example}
+\end{figure}
+
+A fork-per-branch symbolic executor treats every \texttt{ifeq} as a point
+where execution splits into two independent copies of the current state,
+one per branch, carried forward until (if ever) they are recombined. Under
+this design, the seven statements in \Cref{fig:example} already fork
+32 distinct execution paths in our reimplementation of that strategy
+(\Cref{sec:eval:motivation}), and the checked-in BusyBox snapshot's
+top-level tree does not finish analysis at all under it.
+
+skbuild instead keeps exactly one symbolic state per Kbuild file throughout.
+Each Make variable's value is a map from word to the Z3 condition under
+which that word is currently a member (\Cref{sec:design:rep}). A conditional
+clones this one state per branch, runs each branch's statements against its
+own clone, and immediately folds both clones back into the original state
+before the next statement (\Cref{sec:design:merge}) --- so state size stays
+proportional to program size, not to the number of branches taken so far.
+
+\subsection{Design Summary}
+\label{sec:overview:design}
+
+skbuild has four pieces: a GNU Make parser (a Python 3 port of Mozilla's
+\texttt{pymake}), a symbolic evaluator over the guarded-value state
+described above, a Z3-backed condition solver, and a directory-traversal
+layer that recurses into subdirectories under their own guard, using the
+same eager-merge state to decide which subdirectories to visit at all.
+Recipes and rules are parsed but never executed; \texttt{shell} is
+disabled by default (\Cref{sec:eval:threats} discusses this limitation).
+The tool reports one record per selected object: a path, a
+target kind (built-in / module / library), and a Boolean condition over
+Kconfig symbols.
+
+\section{Design}
+\label{sec:design}
+
+\subsection{Representing Branch-Dependent Values}
+\label{sec:design:rep}
+
+A Make variable in skbuild (\texttt{ds.VarG}) is a name, a flavor
+(\texttt{RECURSE} for \texttt{=}/\texttt{define}, \texttt{SIMPLY} for
+\texttt{:=}/\texttt{::=}/\texttt{+=}), and a map from word to Z3 condition.
+A symbolic state (\texttt{ds.BaseState}) is a map from variable name to
+\texttt{VarG}. This is the direct Kbuild analogue of Cybolic's
+\texttt{Switch}/\texttt{Const}/\texttt{Concat} value representation for
+CMake strings and lists~\cite{cybolic}, specialized to the fact that a
+Kbuild variable's value is, in every construct this paper's supported
+subset covers, a whitespace-separated set of independently-conditioned
+words rather than an order-sensitive string.
+
+An assignment updates this state under an ambient guard --- the conjunction
+of every enclosing conditional's branch condition --- threaded as an
+explicit parameter through statement execution rather than stored per-path.
+A \texttt{+=} accumulates: each newly assigned word's condition is OR'd
+with the guard into its existing entry, or created fresh. A \texttt{:=} or
+\texttt{=} overwrites, but --- and this is the first of two correctness
+subtleties that do not arise in CMake's simpler \texttt{set()} --- only
+\emph{within} the guard under which this particular assignment's name and
+value actually resolved. Kbuild's \texttt{obj-\$(CONFIG\_A) := 1.o} example
+in \Cref{fig:example} resolves to the variable literally named
+\texttt{obj-y} only when \texttt{CONFIG\_A=y}; outside that condition, this
+statement assigns to \texttt{obj-undef} (a name nothing reports) and must
+leave \texttt{obj-y}'s prior value untouched. skbuild's overwrite therefore
+computes, per pre-existing word $w$ with condition $c$: $c \wedge
+\lnot\mathit{cond}$ carried forward (the assignment did not fire), unioned
+with $\mathit{cond}$ for each newly assigned word, where $\mathit{cond}$ is
+this specific assignment's fully-resolved condition (guard $\wedge$ name
+match $\wedge$ value match).
+
+\subsection{Branch Execution and Eager State Merging}
+\label{sec:design:merge}
+
+A \texttt{ConditionBlock} clones the current state twice, executes the
+\texttt{then} branch's statements against one clone under
+\texttt{guard} $\wedge$ \texttt{if\_cond}, the \texttt{else} branch's
+statements against the other under \texttt{guard} $\wedge \lnot$
+\texttt{if\_cond}, and merges. The second correctness subtlety --- again,
+one with no CMake analogue, because CMake's \texttt{if()}/\texttt{else()}
+does not have Kbuild's pattern of an unconditional-within-the-branch
+overwrite whose \emph{reachability} is what's conditional --- is that
+merging cannot simply union each branch's raw per-word conditions computed
+by \Cref{sec:design:rep}'s overwrite rule. Consider \Cref{fig:example}'s
+\texttt{BITS}: entering the \texttt{ifeq}, \texttt{BITS} has no prior value;
+each branch's \texttt{:=} computes a fresh, branch-guard-scoped condition
+for its own word (\texttt{32} under \texttt{CONFIG\_A=y}, \texttt{64} under
+its negation) --- unremarkable. But if \texttt{BITS} had already been set to
+\texttt{0} before this \texttt{ifeq} (as it is, from an earlier
+\texttt{ifeq (\$(CONFIG\_B),y) BITS := 0 endif}, in the fuller version of
+this fixture we use for testing), each branch's own overwrite rule computes
+a \emph{carry-forward} term for \texttt{0} of ``\texttt{CONFIG\_B=y} AND
+this branch's assignment did not fire'' --- and since the two branches'
+``did not fire'' conditions are exact complements of each other, naively
+OR-ing the two branches' raw \texttt{0} terms together reconstructs
+\texttt{CONFIG\_B=y} unconditionally, resurrecting a value that both
+branches, between them, always overwrite. The fix is to re-gate each
+branch's \emph{entire} per-word contribution by that branch's own guard at
+merge time, not just rely on the per-statement conditions computed inside
+the branch:
+\[
+\mathit{merged}(w) \;=\; \bigl(\mathit{guard}_{\mathit{then}} \wedge
+\mathit{then\_state}(w)\bigr) \;\vee\; \bigl(\mathit{guard}_{\mathit{else}}
+\wedge \mathit{else\_state}(w)\bigr)
+\]
+which is exactly what Cybolic's own \texttt{merge\_branches} does for CMake
+values~\cite{cybolic}; we did not initially replicate this and had to find
+the bug by hand-deriving \Cref{fig:example}'s expected conditions and
+comparing against skbuild's output (\Cref{sec:eval:motivation} discusses
+this as a methodology point, not just a bug-fix anecdote). Applying this
+re-gating to \emph{every} variable at every conditional, however, grows
+condition expressions unboundedly across a file regardless of relevance:
+an untouched variable's condition would be re-wrapped in
+$(\mathit{guard}_{\mathit{then}} \wedge \cdot) \vee
+(\mathit{guard}_{\mathit{else}} \wedge \cdot)$ at every subsequent
+conditional even though that expression is always tautologically equal to
+the untouched value. skbuild tracks, per state, the set of variable names
+actually reassigned since the state was cloned (\texttt{State.touched});
+merge only rebuilds names in the union of both branches' touched sets, and
+leaves everything else in the destination state exactly as it was ---
+mirroring Cybolic's own \texttt{changed\_vars} restriction to the same
+end~\cite{cybolic}.
+
+\subsection{Recursive Traversal}
+\label{sec:design:traversal}
+
+Kbuild's \texttt{obj-\$(CONFIG)} pattern applies to subdirectory names too
+(\texttt{obj-\$(CONFIG\_USB) += usb/}); skbuild's \texttt{BaseState}
+aggregates, across every non-target, non-ignored variable in the final
+state, a map from subdirectory to the Z3 condition under which it is
+reached, OR-ing conditions where more than one variable names the same
+subdirectory. Today this traversal is a straightforward per-directory
+recursion; it does not yet model \texttt{ARCH}/\texttt{CROSS\_COMPILE} or
+derive root-directory reachability from the real root Makefile rather than
+a curated top-directory list (\Cref{sec:eval:threats}).
+
+\section{Evaluation}
+\label{sec:eval}
+
+\subsection{RQ0 (Methodology): Fork-Per-Branch Does Not Scale}
+\label{sec:eval:motivation}
+
+\todo{This subsection reports the actual measurement instead of the
+anecdotal numbers used in \Cref{sec:overview}: re-run the retired
+fork-per-branch implementation (available in git history before this
+paper's rewrite) against \Cref{fig:example} and the BusyBox/Linux
+snapshots, and report path counts / wall time / where it fails outright,
+as a controlled before/after rather than a one-off observation.}
+
+\subsection{RQ1: Applicability}
+\label{sec:eval:rq1}
+
+\todo{Does skbuild run to completion on a pinned BusyBox release, a pinned
+coreboot release, and a pinned Linux kernel release, per PLAN.md's M1--M3
+acceptance criteria? Report per-project: source LOC, number of
+Makefile/Kbuild files, wall time, and completion status.}
+
+\subsection{RQ2: Coverage}
+\label{sec:eval:rq2}
+
+\todo{Per-construct usage census across BusyBox/coreboot/Linux (PLAN.md's
+M4), classified the way Cybolic's RQ2 classifies CMake commands: (i)
+\emph{modeled}, (ii) \emph{correctly out of scope} (affects recipes,
+linking, or installation, not which files are selected --- a no-op is
+provably harmless), or (iii) \emph{deliberately unsupported}, reported
+with real usage-frequency counts rather than a bare "N warnings" number,
+so a reader can see whether an unmodeled construct is a corner case or, as
+with Cybolic's \texttt{get\_filename\_component} finding, the single most
+frequently invoked construct across every project evaluated. \texttt{shell}
+probes of the host/toolchain are the leading candidate for that role in
+Kbuild; state plainly whether that turned out true.}
+
+\subsection{RQ3: Performance}
+\label{sec:eval:rq3}
+
+\todo{Wall time, peak RSS, and Z3 call counts across the three projects,
+per PLAN.md's M4 instrumentation. State explicitly whether skbuild's
+dominant cost is Z3 solver calls under deep conditional nesting or
+something else --- do not assume it mirrors Cybolic's string/list
+concatenation bottleneck without measuring.}
+
+\subsection{RQ4: Agreement with Real Builds}
+\label{sec:eval:rq4}
+
+This is the paper's central empirical result. For each project, we use Z3
+to extract, from skbuild's own reported conditions, a small set of concrete
+witness configurations that between them are predicted to cover every
+reported object (a greedy set cover over conditions, the same technique
+underlying Cybolic's sufficient-CI-matrix result~\cite{cybolic}), plus at
+least one negative witness per file where feasible. We materialize each
+witness as a real \texttt{.config}, run the project's actual build against
+it in a clean checkout, and compare the real build's object/module output
+against skbuild's prediction for that same witness. \todo{Report, per
+project: number of witnesses, and true/false positive/negative object
+counts, with every non-match causally categorized (missing generated file,
+unsupported construct, genuine skbuild bug, or a witness Kconfig itself
+would reject) per PLAN.md's M1.0 tool --- not a bare diff count.}
+
+\subsection{Discussion and Threats to Validity}
+\label{sec:eval:threats}
+
+skbuild does not execute \texttt{shell} or \texttt{eval} side effects by
+default (\Cref{sec:overview:design}); any file whose selection genuinely
+depends on such an effect is reported as an incomplete result, not silently
+omitted or silently assumed absent. This is a real completeness gap, not
+just a conservative default: a future opt-in effect boundary (a sandboxed
+command runner) is planned but not yet implemented, and every RQ2/RQ4
+number in this paper should be read against that gap. Kconfig validity ---
+distinguishing a condition that is merely Make-satisfiable from one a real
+\texttt{.config} could actually produce under Kconfig's own
+dependency/select/choice rules --- is not modeled at all today: skbuild
+reports the former, not the latter, so a reported condition can describe a
+configuration Kconfig itself would reject. Every evaluation number in this
+paper is tied to one pinned source
+revision per project; Kbuild conventions have historically drifted across
+kernel releases (see the retired \texttt{LINUX\_ANALYSIS\_TODO.md}'s own
+documented gaps between kernel versions in this project's history), so
+these numbers should not be read as claims about every release of these
+projects.
+
+\section{Related Work}
+\label{sec:related}
+
+\emph{Symbolic execution of build descriptions.} Nguyen and
+Nguyen~\cite{nguyen2020kbuild} first applied symbolic execution
+specifically to Linux Kbuild Makefiles, treating \texttt{CONFIG\_*}
+variables as finite-domain symbolic inputs solved with Z3; this paper is a
+from-scratch reimplementation of that direction under an eager
+branch-and-merge execution strategy (\Cref{sec:design}) rather than that
+system's own strategy.
+Tamrawi et al.'s SYMake~\cite{tamrawi2012symake} symbolically evaluates GNU
+Make itself (not specifically Kbuild) to analyze build code more generally.
+King's original symbolic execution~\cite{king1976symbolic} underlies both
+lines of work, applied here to a declarative build description rather than
+an imperative program.
+
+\emph{CMake.} Cybolic~\cite{cybolic} solves the structurally identical
+problem --- per-file build condition extraction via symbolic execution ---
+for CMake, and is the direct source of this paper's eager branch-and-merge
+representation (\Cref{sec:design}); \Cref{sec:intro} discusses where
+Kbuild's variability model is simpler (finite Kconfig domains) and where it
+is not (conditional recursive traversal). Nguyen, Nguyen, and
+Phan~\cite{nguyen2022analyzing} posed the CMake build-condition question
+that Cybolic answers, as a vision piece with neither implementation nor
+evaluation.
+
+\emph{Variability-aware analysis.} Erwig and Walkingshaw's choice
+calculus~\cite{erwig2011choice} provides a general representation for
+software variation that this paper's guarded-value state can be understood
+as a build-system-specific instance of.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented skbuild, a symbolic-execution engine that computes, for every
+object file in a Kbuild-style build, a Z3-checkable Boolean condition over
+Kconfig symbols describing when that file is selected. Its central design
+decision --- an eager branch-and-merge symbolic state, adapted from
+Cybolic's CMake analyzer, in place of a fork-per-branch design we found
+does not scale to real Kbuild trees --- required two Kbuild-specific
+correctness fixes with no CMake analogue: scoping a conditionally-named
+overwrite to the universe in which it actually fires, and re-gating
+carried-forward values by branch guard at merge time.
+\todo{headline evaluation result}
+
+\bibliographystyle{ACM-Reference-Format}
+\begin{thebibliography}{99}
+
+\bibitem{cybolic}
+Anonymous Author(s). 2027.
+Cybolic: Extracting CMake Build Conditions via Symbolic Execution.
+\emph{Proc. ACM Softw. Eng.}, FSE (2027).
+
+\bibitem{nguyen2022analyzing}
+ThanhVu Nguyen, KimHao Nguyen, and Anh Cuong Phan. 2022.
+Analyzing the CMake Build System.
+In \emph{Proceedings of the ACM/IEEE 44th International Conference on Software Engineering: Software Engineering in Practice (ICSE-SEIP '22)}.
+
+\bibitem{nguyen2020kbuild}
+KimHao Nguyen and ThanhVu Nguyen. 2020.
+Using Symbolic Execution to Analyze Linux KBuild Makefiles.
+In \emph{Proceedings of the IEEE International Conference on Software Maintenance and Evolution (ICSME '20)}.
+
+\bibitem{tamrawi2012symake}
+Ahmed Tamrawi, Hoan Anh Nguyen, Hung Viet Nguyen, and Tien N. Nguyen. 2012.
+Build Code Analysis with Symbolic Evaluation.
+In \emph{Proceedings of the 34th International Conference on Software Engineering (ICSE '12)}.
+
+\bibitem{king1976symbolic}
+James C. King. 1976.
+Symbolic Execution and Program Testing.
+\emph{Commun. ACM} 19, 7 (1976).
+
+\bibitem{erwig2011choice}
+Martin Erwig and Eric Walkingshaw. 2011.
+The Choice Calculus: A Representation for Software Variation.
+\emph{ACM Trans. Softw. Eng. Methodol.} 21, 1 (2011).
+
+\end{thebibliography}
+
+\end{document}

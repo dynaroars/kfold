@@ -1,18 +1,10 @@
-.PHONY: build test corpus-check check clean
+.PHONY: test busybox-check clean
 
-build:
-	lake build skbuild skbuild_tests
+test:
+	PYTHONPATH=src python3 src/skbuild.py tests/paper_example/Makefile --nomp --rmtmp
 
-test: build
-	.lake/build/bin/skbuild_tests
-	sh Tests/e2e.sh
-
-corpus-check: build
-	find tests -type f \( -name Makefile -o -name Kbuild \) -print0 | \
-		xargs -0 .lake/build/bin/skbuild --tristate --batch-check --json > /dev/null
-
-check: test corpus-check
-	git diff --check
+busybox-check:
+	PYTHONPATH=src python3 src/skbuild.py tests/busybox/Makfiles_only/busybox_orig --nomp --rmtmp
 
 clean:
-	lake clean
+	find src -name '__pycache__' -type d -exec rm -rf {} +

@@ -2,7 +2,7 @@ import itertools
 import pdb
 import pathlib
 import z3
-from ds import SVar
+from ds import Var
 
 import helpers.vcommon as CM
 import helpers.zsolver as zsolver
@@ -12,12 +12,13 @@ mlog = CM.getLogger(__name__, settings.logger_level)
 
 DBG = pdb.set_trace
 
-class Analysis:
-    def __init__(self, maindir, mysettings, kbuilds):
-        self.maindir = maindir
-        self.mysettings = mysettings
-        self.kbuilds = kbuilds
 
+class Analysis:
+    def __init__(self, result_dir):
+        assert result_dir.is_dir(), result_dir
+
+        from alg import Run
+        self.main_dir, self.mysettings, self.kbuilds = Run.load(result_dir)
         assert len(self.kbuilds)
 
         self.config_vars = {}
@@ -29,17 +30,18 @@ class Analysis:
                 if c not in self.config_vars:
                     self.config_vars[c] = kbuild.solver.__config_vars__[c]
 
-        kfiles_d = self.get_kfiles(None, self.maindir)
+        kfiles_d = self.get_kfiles(None, self.main_dir)
         self.kfiles = frozenset(itertools.chain(*kfiles_d.values()))
 
         # remove files in lib- or obj-
-        mlog.info("{} {} kfiles, {} files, {} config vars".format(
+        mlog.info("{}: {} {} kfiles, {} files, {} config vars".format(
+            result_dir,
             self.mysettings.zstate.__class__.__name__,
             len(self.kbuilds), len(self.kfiles), len(self.config_vars)))
 
         for i, kbuild in enumerate(self.kbuilds):
             mlog.debug("{}. {}\n{}".format(
-                i + 1, kbuild.makefile, kbuild.paths))
+                i + 1, kbuild.makefile, kbuild.state))
 
     def go(self, args):
         if args.src_dir:
@@ -109,7 +111,7 @@ class Analysis:
         # in setting topdirs
         # kbuild dirs also do not include dirs in setting topdirs that do
         # not have a Kbuild makefile
-        kbuild_dirs = set(kb.topdir.relative_to(self.maindir)
+        kbuild_dirs = set(kb.topdir.relative_to(self.main_dir)
                           for kb in self.kbuilds)
 
         removes = set(f for f in gfiles
@@ -134,7 +136,7 @@ class Analysis:
         # get results from kbuild constraints
         config_constraint = self.config2constraint(
             build_dir / '.config')
-        kfiles = self.get_kfiles(config_constraint, self.maindir)
+        kfiles = self.get_kfiles(config_constraint, self.main_dir)
         kfiles = frozenset(f for target in kfiles for f in kfiles[target])
 
         # get groundtruth results
@@ -159,50 +161,49 @@ class Analysis:
         else:
             mlog.info("{} => all matched".format(msg))
 
-    def get_kfiles(self, constraint, maindir):
+    def get_kfiles(self, constraint, main_dir):
         assert constraint is None or z3.is_expr(constraint), constraint
-        assert isinstance(maindir, pathlib.Path), maindir
+        assert isinstance(main_dir, pathlib.Path), main_dir
 
         solver = zsolver.ZSolver(self.mysettings) \
             if z3.is_expr(constraint) else None
 
-        paths = [(p, kbuild.makefile)
-                 for kbuild in self.kbuilds
-                 for p in kbuild.paths
-                 if (constraint is None or
-                     solver.is_valid(z3.Implies(constraint, p.cond)))]
-
         files_d = {}
-        for path, makefile in paths:
-            vals_d = None
-            for v in path.target_files:
-                assert isinstance(v, SVar), v
+        for kbuild in self.kbuilds:
+            state = kbuild.state
+            vals_d = state.vals_d
+            for v in state.target_files:
+                assert isinstance(v, Var), v
 
                 if v.name in self.mysettings.target_vars:
                     continue  # ignore obj-, lib-
 
-                if vals_d is None:
-                    vals_d = path.vals_d
+                for word, wcond in v.valconds.items():
+                    if not word.endswith('.o'):
+                        continue
+                    if constraint is not None and not solver.is_valid(
+                            z3.Implies(constraint, wcond)):
+                        continue
 
-                fs = [self.expand(v, vals_d)
-                      for v in v.vals if v.endswith('.o')]
-                fs = [makefile.parent / f for f in itertools.chain(*fs)]
-
-                fs = [f.relative_to(maindir) for f in fs]
-                files_d.setdefault(v.name, []).extend(fs)
+                    fs = [kbuild.makefile.parent / f
+                          for f, _ in self.expand(word, wcond, vals_d)]
+                    fs = [f.relative_to(main_dir) for f in fs]
+                    files_d.setdefault(v.name, []).extend(fs)
         return files_d
 
     @classmethod
-    def expand(cls, val_name, d):
+    def expand(cls, val_name, cond, d):
         """
-        val_name = files2.o
-        d = {files2-y:{1.o, 2.o}}
+        val_name = files2.o, cond = <condition files2.o is a member under>
+        d = {files2-y: {1.o: c1, 2.o: c2}}
         =>
-        1.o, 2.o
+        [(1.o, cond & c1), (2.o, cond & c2), (files2.o, cond)]
         """
 
         key = val_name[:-2] + '-y'  # files2.o -> files2-y
-        ret = list(d.get(key, set([]))) + [val_name]
+        ret = [(src, zsolver.conj(cond, src_cond))
+               for src, src_cond in d.get(key, {}).items()]
+        ret.append((val_name, cond))
         return ret
 
     @classmethod
@@ -236,8 +237,8 @@ class Analysis:
             try:
                 myconfigs[name] = cOptD[val]
             except KeyError:
+                assert name not in self.config_vars
                 mlog.warn("ignore {} = {}".format(name, val))
-                #assert name not in self.config_vars
 
         undef_val = solver.undef_val
         nundefs = 0

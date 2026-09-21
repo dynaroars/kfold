@@ -2,12 +2,12 @@ import pathlib
 import pdb
 import z3
 
-from pymake3 import parser
+from pymake3 import parser, parserdata
 
 import helpers.vcommon as CM
 import helpers.zsolver as zsolver
 
-from ds import SPath, DPath, Paths
+from ds import SState, DState
 import symexe as SE
 
 import settings
@@ -15,14 +15,12 @@ mlog = CM.getLogger(__name__, settings.logger_level)
 
 DBG = pdb.set_trace
 
-class Kbuild:
-    default_cond = None
 
-    def __init__(self, makefile, mysettings, precond_hash):
+class Kbuild:
+    def __init__(self, makefile, mysettings):
         assert makefile.is_file(), makefile
         assert isinstance(mysettings, settings.Settings), mysettings
 
-        self.precond_hash = precond_hash
         self.makefile = makefile
         self.mysettings = mysettings
         self.solver = zsolver.ZSolver(self.mysettings)
@@ -30,52 +28,47 @@ class Kbuild:
     def preprocess(self):
         stmts = parser.parsestring(
             self.makefile.read_text(), self.makefile)
-        mystmts = SE.StatementList.create(stmts, tuple(), self.solver)
+        mystmts = SE.StatementList.create(stmts, sid=tuple())
         siz = mystmts.siz
         mlog.debug("Preprocessing {} stmts".format(siz))
-        dpath = DPath.get_default(self.makefile.parent, self.mysettings)
-        mystmts.dexe(dpath, frozenset())
-
-        ddb = dpath.ddb
-        ddb.compute_used_vars(self.mysettings.target_vars)
-        mystmts = mystmts.myreduce(ddb)
-        newsiz = mystmts.siz if mystmts else 0
-        nremoved = siz - newsiz
-        mlog.debug("After preprocessing {} stmts remain {}".format(
-            newsiz, "({} removed)".format(nremoved) if nremoved else ''))
-
-        if mystmts:
-            mystmts.set_preds(pred=None)
-            # preds = {}
-            # mystmts.set_all_preds(preds)
-            # ddb.set_preds(preds)
+        mystmts.set_solver(self.solver)
+        dstate = DState.get_default(self.makefile.parent, self.mysettings)
+        mystmts.dexe(dstate, frozenset())
+        dstate.compute_used_vars()
+        reduced = mystmts.myreduce(dstate.ddb)
+        if reduced is None:
+            # The whole file turned out irrelevant to any target var (e.g.
+            # a Makefile that only sets variables no obj-/lib- var of ours
+            # depends on): keep an empty, harmless statement list rather
+            # than crashing.
+            mystmts = SE.StatementList.create(parserdata.StatementList(), sid=tuple())
+            mystmts.set_solver(self.solver)
+        else:
+            mystmts = reduced
+        nremoved = siz - mystmts.siz
+        mlog.debug("After processing {} remain {}".format(
+            mystmts.siz, "({} removed)".format(nremoved) if nremoved else ''))
+        mystmts.set_preds(pred=None)
 
         self.stmts = mystmts
-        self.ddb = ddb
+        self.dstate = dstate
 
     def symexe(self):
         mlog.debug("Symexe ({} used vars) ...".format(
-            len(self.ddb.used_vars)))
-        spath = SPath.get_default(self.makefile.parent, self.mysettings)
-        paths = Paths([spath])
-        if self.stmts:
-            self.paths = self.stmts.sexe(paths, self.ddb)
-        else:
-            self.paths = paths
+            len(self.dstate.ddb.used_vars)))
+        state = SState.get_default(self.makefile.parent, self.mysettings)
+        self.stmts.sexe(state, zsolver.T, self.dstate.ddb)
+        self.state = state
 
     def fork(self, new_cond):
+        """Return a new Kbuild sharing this one's (already computed) state,
+        restricted to an additional external condition -- e.g. this
+        Makefile's directory was reached under some parent guard. Replaces
+        the old per-Path ``fork``, which forked every remaining ``Path``."""
         assert z3.is_expr(new_cond), new_cond
 
-        kbuild = self.__class__(self.makefile, self.mysettings, hash(new_cond))
-
-        paths = []
-        for path in self.paths:
-            cond = zsolver.conj(path.cond, new_cond)
-            if self.solver.is_sat(cond):
-                cond = zsolver.simplify(cond)
-                new_path = path.fork(cond)
-                paths.append(new_path)
-        kbuild.paths = Paths(paths)
+        kbuild = self.__class__(self.makefile, self.mysettings)
+        kbuild.state = self.state.restrict(new_cond, self.solver)
         return kbuild
 
     def save(self, tofile):
@@ -86,8 +79,8 @@ class Kbuild:
         """
         assert (isinstance(tofile, pathlib.Path)
                 and not tofile.exists() and tofile), tofile
-        kinfo = (self.makefile, self.precond_hash,
-                 [(zsolver.to_smt2_str(p.cond), p.states) for p in self.paths],
+        kinfo = (self.makefile,
+                 self.state.to_savable(),
                  list(self.solver.__config_vars__.keys()))
 
         CM.vsave(tofile, kinfo)
@@ -98,13 +91,10 @@ class Kbuild:
         assert isinstance(mysettings, settings.Settings), mysettings
 
         kinfo = CM.vload(fromfile)
-        makefile, precond_hash, paths_info, config_names = kinfo
+        makefile, state_info, config_names = kinfo
 
-        paths = Paths([
-            SPath(zsolver.from_smt2_str(cond), states, mysettings)
-            for cond, states in paths_info
-        ])
-        kbuild = Kbuild(makefile, mysettings, precond_hash)
+        state = SState.from_savable(state_info, mysettings)
+        kbuild = Kbuild(makefile, mysettings)
         kbuild.solver.reconstruct(config_names)
-        kbuild.paths = paths
+        kbuild.state = state
         return kbuild

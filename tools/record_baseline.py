@@ -56,7 +56,7 @@ def file_digest(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--analyzer", default=".lake/build/bin/skbuild")
+    parser.add_argument("--analyzer", default="src/skbuild.py")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("input", type=Path)
     parser.add_argument("analyzer_args", nargs=argparse.REMAINDER)
@@ -78,11 +78,13 @@ def main():
     dirty_diff = dirty_result.stdout if dirty_result.returncode == 0 else ""
     (output_dir / "dirty.diff").write_text(dirty_diff, encoding="utf-8")
     dirty_diff_digest = hashlib.sha256(dirty_diff.encode("utf-8")).hexdigest()
-    command = [str(analyzer), "--json", *args.analyzer_args, str(input_path)]
+    command = [sys.executable, str(analyzer), *args.analyzer_args, str(input_path)] \
+        if analyzer.suffix == ".py" else [str(analyzer), *args.analyzer_args, str(input_path)]
 
     started = time.time()
     monotonic_started = time.perf_counter()
-    result = subprocess.run(command, cwd=root, text=True, capture_output=True)
+    env = {**os.environ, "PYTHONPATH": str(analyzer.parent)}
+    result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True)
     elapsed = time.perf_counter() - monotonic_started
     (output_dir / "stderr.txt").write_text(result.stderr, encoding="utf-8")
     report_path = output_dir / "report.json"
@@ -122,7 +124,6 @@ def main():
             "processor": platform.processor(),
             "python": platform.python_version(),
         },
-        "lean_toolchain": (root / "lean-toolchain").read_text(encoding="utf-8").strip(),
         "input": str(input_path),
         "input_sha256": source_digest,
         "input_file_count": input_file_count,
