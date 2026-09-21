@@ -93,8 +93,8 @@ class Kbuild:
         kinfo = CM.vload(fromfile)
         makefile, state_info, config_names = kinfo
 
-        state = SState.from_savable(state_info, mysettings)
         kbuild = Kbuild(makefile, mysettings)
+        state = SState.from_savable(state_info, mysettings)
         kbuild.solver.reconstruct(config_names)
         kbuild.state = state
         return kbuild

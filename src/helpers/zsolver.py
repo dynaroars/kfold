@@ -93,16 +93,22 @@ def mdisj(cs):
     return f
 
 
+_enum_sort_cache = {}
+
+
+def _get_enum_sort(name, names, ctx=None):
+    key = (ctx, name, tuple(names))
+    if key not in _enum_sort_cache:
+        sort, exprs = z3.EnumSort(name, names, ctx=ctx)
+        _enum_sort_cache[key] = (sort, exprs)
+    return _enum_sort_cache[key]
+
+
 class ZSolver:
     __config_vars__ = OrderedDict()
     __instances__ = {}
 
     def __new__(cls, mysettings):
-        # One ZSolver (and its z3 EnumSorts) per Settings object: creating a
-        # fresh z3.EnumSort with the same name for every analyzed Kbuild file
-        # (as used to happen, one ZSolver per Kbuild) raises
-        # "enumeration sort name is already declared" as soon as more than
-        # one directory is analyzed in the same process/z3 context.
         key = id(mysettings)
         inst = cls.__instances__.get(key)
         if inst is None:
@@ -121,7 +127,7 @@ class ZSolver:
         zstate = mysettings.zstate  # tristate or twostate config options
 
         names, vals = zip(*zstate.states.items())
-        cOptTyp, exprs = z3.EnumSort(zstate.__class__.__name__, names)
+        cOptTyp, exprs = _get_enum_sort(zstate.__class__.__name__, names)
         cOptD = dict(zip(vals, exprs))
         self.typs[None] = (cOptTyp, cOptD)
 
@@ -129,7 +135,7 @@ class ZSolver:
             vals = mysettings.xopts[name]
             assert isinstance(vals, list) and vals, vals
 
-            xOptTyp, exprs = z3.EnumSort(name, vals)
+            xOptTyp, exprs = _get_enum_sort(name, vals)
             xOptD = dict(zip(vals, exprs))
             self.typs[name] = (xOptTyp, xOptD)
 
