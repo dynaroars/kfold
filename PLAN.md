@@ -137,11 +137,11 @@ rather than each writing their own comparison script.
 This is the biggest lift; break it down as effects → root invocation →
 Kconfig validity, since each depends on the previous one's state shape.
 
-- [ ] Fix the immediate blocker found this session: `tests/linux_skbuild.ini`
+- [x] Fix the immediate blocker found this session: `tests/linux_skbuild.ini`
   has `[DEFAULT]` but no `[COMMON]` section, while `settings.py` reads
   `config['COMMON']` unconditionally — decide whether to fix the ini or make
   `Settings` fall back to `DEFAULT`, and document why.
-- [ ] Fix the `pymake3` parser crash found this session
+- [x] Fix the `pymake3` parser crash found this session
   (`TypeError: '>=' not supported between NoneType and int` in
   `parser.py`'s `getloc`, from an "Unterminated function call") on a real
   kernel Makefile construct. Minimize the failing input to a small fixture

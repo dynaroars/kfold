@@ -42,7 +42,7 @@ from pymake3 import errors
 
 _log = logging.getLogger('pymake.parser')
 
-_skipws = re.compile('\S')
+_skipws = re.compile(r'\S')
 
 
 class Data(object):
@@ -63,7 +63,9 @@ class Data(object):
     def fromstring(s, path):
         return Data(s, 0, len(s), parserdata.Location(path, 1, 0))
 
-    def getloc(self, offset):
+    def getloc(self, offset=None):
+        if offset is None:
+            offset = self.lend
         assert offset >= self.lstart and offset <= self.lend
         return self.loc.offset(self.s, self.lstart, offset)
 
@@ -255,7 +257,7 @@ def itercommandchars(d, offset, tokenlist, it):
     yield s[offset:d.lend].replace('\n\t', '\n'), None, None, None
 
 
-_redefines = re.compile('\s*define|\s*endef')
+_redefines = re.compile(r'\s*define|\s*endef')
 
 
 def iterdefinelines(it, startloc):
@@ -421,7 +423,7 @@ def parsefile(pathname):
 # colon followed by anything except a slash (Windows path detection)
 _depfilesplitter = re.compile(r':(?![\\/])')
 # simple variable references
-_vars = re.compile('\$\((\w+)\)')
+_vars = re.compile(r'\$\((\w+)\)')
 
 
 def parsedepfile(pathname):

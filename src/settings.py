@@ -78,7 +78,8 @@ class Settings:
         config = configparser.ConfigParser()
         config.optionxform = str  # preserve case sensitvity
         config.read(settings_file)
-        myconfig = config['COMMON']
+        section = 'COMMON' if 'COMMON' in config else 'DEFAULT'
+        myconfig = config[section]
 
         try:
             if myconfig.getboolean('use_tristate'):
@@ -100,6 +101,13 @@ class Settings:
         try:
             self.ignore_files = frozenset(myconfig.get(
                 'ignore_files').split())
+        except AttributeError:
+            pass
+
+        try:
+            if 'target_vars' in myconfig:
+                self.target_vars = frozenset(
+                    myconfig.get('target_vars').split())
         except AttributeError:
             pass
 
