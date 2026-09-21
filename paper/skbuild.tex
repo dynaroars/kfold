@@ -8,6 +8,8 @@
 \usepackage{amsmath}
 \usepackage{mathpartir}
 \usepackage[capitalize]{cleveref}
+\usepackage{xspace}
+\newcommand{\tool}{\textsc{kfold}\xspace}
 
 \AtBeginDocument{%
   \providecommand\BibTeX{{Bib\TeX}}}
@@ -38,7 +40,7 @@
 
 \begin{document}
 
-\title{skbuild: Extracting Kbuild Build Conditions via Eager-Merge Symbolic Execution}
+\title{\tool: Constant-State Symbolic Folding of Configurable Makefiles}
 
 \author{Anonymous Author(s)}
 \affiliation{%
@@ -49,9 +51,9 @@
 \begin{abstract}
 Large configurable systems such as the Linux kernel, BusyBox, coreboot, Barebox, and Das U-Boot describe what gets compiled with Kbuild-style Makefiles: a per-directory \texttt{obj-\$(CONFIG\_X)}-shaped vocabulary layered on GNU Make, driven by a Kconfig-defined space of Boolean and tristate options. A single build under one \texttt{.config} answers only which files were selected for \emph{that} configuration; it does not explain how the build varies across the astronomical configuration space, which is what developers need to triage crashes across unfamiliar hardware variants, bound the blast radius of configuration changes, synthesize minimal reproducing environments, or identify dead source files silently abandoned by build refactorings.
 
-We present \textbf{skbuild}, a symbolic-execution engine for the Kbuild-relevant subset of GNU Make that computes, for every object file, a Z3-checkable Boolean condition over Kconfig symbols describing exactly when that file participates in the build. While a naive fork-per-branch execution strategy suffers catastrophic path explosion ($2^N$ paths, exhausting memory even on small fixtures), skbuild maintains a \emph{single symbolic state} per Kbuild file, representing each Make variable as a map of guarded words and merging conditional branches back into that single state eagerly with branch-guard regating and scoped overwrite preservation.
+We present \textbf{\tool}, a symbolic-execution engine for the Kbuild-relevant subset of GNU Make that computes, for every object file, a Z3-checkable Boolean condition over Kconfig symbols describing exactly when that file participates in the build. While a naive fork-per-branch execution strategy suffers catastrophic path explosion ($2^N$ paths, exhausting memory even on small fixtures), \tool maintains a \emph{single symbolic state} per Kbuild file, representing each Make variable as a map of guarded words and merging conditional branches back into that single state eagerly with branch-guard regating and scoped overwrite preservation.
 
-We evaluate skbuild across five major configurable codebases spanning 26.9 million lines of code: BusyBox 1.36.1, coreboot 4.22.01, Barebox 2024.01.0, Das U-Boot 2024.01, and the 1,565-Makefile Linux kernel tree (totaling 2,050 Makefiles and 18,175 extracted object targets). skbuild achieves 91.0\%--99.5\% construct coverage across 59,345 observed constructs, processes utility and firmware corpora in under 6.3\,s and the entire Linux tree in 22.1\,s (<105\,MB peak RSS), and agrees with live compiler builds across Z3-generated witness suites with up to 99.0\% agreement. Furthermore, we demonstrate seven software engineering applications enabled by exact build conditions: (1) reducing continuous integration matrices by up to 90\% via greedy set-cover while guaranteeing 98.2\%--100\% object coverage; (2) discovering real dead code and build bugs, including 6 provably unreachable firmware drivers in Barebox; (3) detecting Kconfig-Kbuild divergence (18 orphan variables in U-Boot); (4) analyzing differential build evolution across major releases via SMT equivalence ($\text{SAT}(\phi_{\text{v1}} \oplus \phi_{\text{v2}})$); (5) quantifying feature interaction degree (identifying hotspots up to $k=16$ interacting flags); (6) synthesizing minimal bug-reproducing configurations in milliseconds via Z3 MaxSAT; and (7) clustering co-compiled components into exact equivalence classes.
+We evaluate \tool across five major configurable codebases spanning 26.9 million lines of code: BusyBox 1.36.1, coreboot 4.22.01, Barebox 2024.01.0, Das U-Boot 2024.01, and the 1,565-Makefile Linux kernel tree (totaling 2,050 Makefiles and 18,175 extracted object targets). \tool achieves 91.0\%--99.5\% construct coverage across 59,345 observed constructs, processes utility and firmware corpora in under 6.3\,s and the entire Linux tree in 22.1\,s (<105\,MB peak RSS), and agrees with live compiler builds across Z3-generated witness suites with up to 99.0\% agreement. Furthermore, we demonstrate seven software engineering applications enabled by exact build conditions: (1) reducing continuous integration matrices by up to 90\% via greedy set-cover while guaranteeing 98.2\%--100\% object coverage; (2) discovering real dead code and build bugs, including 6 provably unreachable firmware drivers in Barebox; (3) detecting Kconfig-Kbuild divergence (18 orphan variables in U-Boot); (4) analyzing differential build evolution across major releases via SMT equivalence ($\text{SAT}(\phi_{\text{v1}} \oplus \phi_{\text{v2}})$); (5) quantifying feature interaction degree (identifying hotspots up to $k=16$ interacting flags); (6) synthesizing minimal bug-reproducing configurations in milliseconds via Z3 MaxSAT; and (7) clustering co-compiled components into exact equivalence classes.
 \end{abstract}
 
 \begin{CCSXML}
@@ -119,7 +121,7 @@ A classical symbolic executor (such as KLEE~\cite{cadar2008klee} or DART~\cite{g
 
 In practice, Kbuild Makefiles contain dense sequences of conditional statements. Because Make does not provide native scoping or structured block closures for most variables, statements interact globally across the file. After $N$ sequential branch points, a fork-per-branch executor maintains $O(2^N)$ live states. In our experiments (\Cref{sec:eval:rq0}), a synthetic 7-statement Makefile already produces 32 active paths, and analyzing BusyBox's top-level Makefiles exhausts available system memory after generating over 10,000 forked paths.
 
-To overcome this fundamental limitation, skbuild adopts and adapts the \textbf{Single-State Eager-Merge} architecture pioneered by Cybolic~\cite{cybolic}. Instead of maintaining multiple paths, skbuild maintains exactly \emph{one} symbolic state per Kbuild file. Each variable's value is represented as a set of \emph{guarded words} $\langle \text{word}, \phi \rangle$, where $\phi$ is the Z3 Boolean formula under which $\text{word}$ is present in the variable. When encountering a conditional block, skbuild clones the state, executes both branches independently, and \emph{immediately merges} the resulting states back into a single unified state. Contributions from the then-branch are conjoined with the branch guard $\psi$, while contributions from the else-branch are conjoined with $\neg \psi$. This maintains an execution complexity of $O(N \cdot B)$ (where $B$ is the small branch factor), eliminating path explosion entirely.
+To overcome this fundamental limitation, \tool adopts and adapts the \textbf{Single-State Eager-Merge} architecture pioneered by Cybolic~\cite{cybolic}. Instead of maintaining multiple paths, \tool maintains exactly \emph{one} symbolic state per Kbuild file. Each variable's value is represented as a set of \emph{guarded words} $\langle \text{word}, \phi \rangle$, where $\phi$ is the Z3 Boolean formula under which $\text{word}$ is present in the variable. When encountering a conditional block, \tool clones the state, executes both branches independently, and \emph{immediately merges} the resulting states back into a single unified state. Contributions from the then-branch are conjoined with the branch guard $\psi$, while contributions from the else-branch are conjoined with $\neg \psi$. This maintains an execution complexity of $O(N \cdot B)$ (where $B$ is the small branch factor), eliminating path explosion entirely.
 
 \subsection{Contributions}
 \label{sec:intro:contributions}
@@ -128,11 +130,11 @@ In this paper, we make the following contributions:
 
 \begin{enumerate}
 \item \textbf{Eager-Merge Symbolic Execution for Kbuild:} We formalize the semantics of GNU Make and Kbuild under single-state eager merge, defining sound operational rules for simple vs.\ recursive variable expansion, guarded overwrite preservation, branch-guard regating, macro expansion, and recursive directory traversal (\Cref{sec:semantics}, \Cref{sec:traversal}).
-\item \textbf{Pure-Python, SMT-Backed Implementation:} We present \textbf{skbuild}, an open-source tool implementing this architecture with Mozilla \texttt{pymake}-based AST parsing and an incremental Z3 SMT solving layer (\Cref{sec:impl}).
-\item \textbf{Comprehensive Empirical Evaluation on 5 Major Systems:} We evaluate skbuild across five widely used production systems: the Linux Kernel, Das U-Boot, Barebox, coreboot, and BusyBox---totaling 26.9 million lines of code, 2,050 Makefiles, and 18,175 target objects (\Cref{sec:eval}).
+\item \textbf{Pure-Python, SMT-Backed Implementation:} We present \textbf{\tool}, an open-source tool implementing this architecture with Mozilla \texttt{pymake}-based AST parsing and an incremental Z3 SMT solving layer (\Cref{sec:impl}).
+\item \textbf{Comprehensive Empirical Evaluation on 5 Major Systems:} We evaluate \tool across five widely used production systems: the Linux Kernel, Das U-Boot, Barebox, coreboot, and BusyBox---totaling 26.9 million lines of code, 2,050 Makefiles, and 18,175 target objects (\Cref{sec:eval}).
 \item \textbf{Exhaustive Construct Census:} We report a construct-coverage census classifying 59,345 observed syntactic constructs, demonstrating 91.0\%--99.5\% modeled coverage and over 99.9\% effective coverage (\Cref{sec:eval:rq2}).
 \item \textbf{Real Build Validation:} We validate extracted presence conditions against live compiler builds on four platforms (BusyBox, coreboot QEMU x86, Barebox sandbox, U-Boot sandbox) using Z3-generated greedy set-cover witness configurations, achieving 94.7\%--99.4\% precision and identifying zero symbolic logic errors (\Cref{sec:eval:rq4}).
-\item \textbf{Seven Software Engineering Applications:} We demonstrate practical applications enabled by skbuild: CI matrix reduction, real build bug and dead code discovery (including 6 dead PMU firmware targets in Barebox), Kconfig-Kbuild divergence linting (18 orphan variables in U-Boot), differential build evolution across major releases, feature interaction hotspot analysis ($k=16$), minimal reproducing configuration synthesis via Z3 MaxSAT, and co-compilation architectural clustering (\Cref{sec:eval:apps}).
+\item \textbf{Seven Software Engineering Applications:} We demonstrate practical applications enabled by \tool: CI matrix reduction, real build bug and dead code discovery (including 6 dead PMU firmware targets in Barebox), Kconfig-Kbuild divergence linting (18 orphan variables in U-Boot), differential build evolution across major releases, feature interaction hotspot analysis ($k=16$), minimal reproducing configuration synthesis via Z3 MaxSAT, and co-compilation architectural clustering (\Cref{sec:eval:apps}).
 \end{enumerate}
 
 \section{Overview \& Motivating Example}
@@ -165,7 +167,7 @@ obj-y += driver_$(TARGET_WIDTH).o
 \subsection{Trace of Execution under Eager Merge}
 \label{sec:overview:trace}
 
-Let us trace how skbuild's single-state representation evolves across these statements:
+Let us trace how \tool's single-state representation evolves across these statements:
 
 \begin{itemize}
 \item \textbf{Line 1 (\texttt{obj-\$(CONFIG\_NET) += net\_core.o}):} The expression \texttt{\$(CONFIG\_NET)} expands symbolically to value \texttt{y} under condition $\texttt{CONFIG\_NET}=\texttt{y}$. Thus, \texttt{obj-y} receives \texttt{net\_core.o} with guard $\phi_1 = (\texttt{CONFIG\_NET}=\texttt{y})$.
@@ -176,11 +178,11 @@ Let us trace how skbuild's single-state representation evolves across these stat
 &= (\texttt{CONFIG\_NET}=\texttt{y}) \wedge (\texttt{CONFIG\_OPT}\neq\texttt{y})
 \end{align*}
 \item \textbf{Line 3 (\texttt{obj-\$(CONFIG\_OPTIMIZED) += net\_accel.o}):} Appending adds \texttt{net\_accel.o} under $(\texttt{CONFIG\_OPT}=\texttt{y})$ and \texttt{firewall.o} under $(\texttt{CONFIG\_SEC}=\texttt{y})$.
-\item \textbf{Line 4 (Conditional Block \texttt{ifeq}):} skbuild evaluates branch condition $\psi = (\texttt{CONFIG\_64}=\texttt{y})$.
+\item \textbf{Line 4 (Conditional Block \texttt{ifeq}):} \tool evaluates branch condition $\psi = (\texttt{CONFIG\_64}=\texttt{y})$.
   \begin{itemize}
   \item In the \emph{then}-branch, a cloned state assigns $\mathtt{TARGET\_WIDTH} \gets \langle \mathtt{64}, \text{True} \rangle$.
   \item In the \emph{else}-branch, a cloned state assigns $\mathtt{TARGET\_WIDTH} \gets \langle \mathtt{32}, \text{True} \rangle$.
-  \item At \texttt{endif}, skbuild merges the two branches:
+  \item At \texttt{endif}, \tool merges the two branches:
   $$\{ \langle \mathtt{64}, \texttt{CONFIG\_64}=\texttt{y} \rangle, \; \langle \mathtt{32}, \texttt{CONFIG\_64}\neq\texttt{y} \rangle \}$$
   \end{itemize}
 \item \textbf{Line 5 (\texttt{obj-y += driver\_\$(TARGET\_WIDTH).o}):} Expanding $\mathtt{TARGET\_WIDTH}$ yields:
@@ -217,12 +219,12 @@ After L4 & \texttt{WIDTH} & $\{ \langle \mathtt{64}, \; \texttt{64}=\mathtt{"y"}
 \end{tabular}
 \end{table}
 
-\Cref{tab:example-trace} summarizes the exact symbolic state evolution. Under a fork-per-branch design, this 5-statement snippet would spawn 8 path states; under skbuild, it executes as a single linear pass with 0 state divergence.
+\Cref{tab:example-trace} summarizes the exact symbolic state evolution. Under a fork-per-branch design, this 5-statement snippet would spawn 8 path states; under \tool, it executes as a single linear pass with 0 state divergence.
 
 \subsection{Fork-per-Branch State Explosion vs.\ Eager Merge}
 \label{sec:overview:fork-vs-merge}
 
-To contrast the fundamental scaling behavior of traditional fork-per-branch execution against skbuild's eager merge, consider the structural difference in how execution states propagate.
+To contrast the fundamental scaling behavior of traditional fork-per-branch execution against \tool's eager merge, consider the structural difference in how execution states propagate.
 
 In a fork-per-branch model, when execution reaches a conditional directive with branch condition $\psi$, the entire memory image (variable bindings, target lists, expansion flags) is duplicated. Path 1 continues with constraint $\Gamma \wedge \psi$, and Path 2 continues with $\Gamma \wedge \neg \psi$. If a Makefile contains a sequence of $N$ conditional directives:
 \begin{align*}
@@ -233,7 +235,7 @@ In a fork-per-branch model, when execution reaches a conditional directive with 
 \end{align*}
 the number of active leaf execution states grows as $2^N$. Even if each branch modifies only a single local variable, every state maintains its own independent copy of the entire variable namespace. At $N=20$, the executor must track $1{,}048{,}576$ states. When encountering loops or helper macro expansions, state growth becomes catastrophic, resulting in memory exhaustion (OOM).
 
-In contrast, skbuild's single-state eager merge collapses the branches immediately at the \texttt{endif}. At the statement level, the number of active states remains strictly $1$. The conditional variation is pushed down into the word conditions $\mathcal{M}(w)$ of the specific variables modified inside the branch. Variables that were not modified inside the branch are completely untouched. Consequently, skbuild's memory footprint scales linearly with the number of unique variable assignments ($O(V \cdot |\mathcal{M}|)$), independent of the branch depth $N$.
+In contrast, \tool's single-state eager merge collapses the branches immediately at the \texttt{endif}. At the statement level, the number of active states remains strictly $1$. The conditional variation is pushed down into the word conditions $\mathcal{M}(w)$ of the specific variables modified inside the branch. Variables that were not modified inside the branch are completely untouched. Consequently, \tool's memory footprint scales linearly with the number of unique variable assignments ($O(V \cdot |\mathcal{M}|)$), independent of the branch depth $N$.
 
 \subsection{Composite Objects and Helper Variables}
 \label{sec:overview:composite}
@@ -247,17 +249,17 @@ ipv6-$(CONFIG_INET6_ESP) += esp6.o
 \end{lstlisting}
 Here, \texttt{ipv6.o} is a composite target whose component sub-objects are defined in the helper variable \texttt{ipv6-objs} and dynamically appended via \texttt{ipv6-\$(CONFIG\_INET6\_AH)}. 
 
-When extracting presence conditions, skbuild resolves composite dependencies by expanding the component lists under the composite target's condition. If $\Phi(\mathtt{ipv6.o}) = (\texttt{CONFIG\_IPV6} = \mathtt{"y"})$ and $\phi_{\text{sub}}(\mathtt{ah6.o}) = (\texttt{CONFIG\_INET6\_AH} = \mathtt{"y"})$, the presence condition for sub-object \texttt{ah6.o} is:
+When extracting presence conditions, \tool resolves composite dependencies by expanding the component lists under the composite target's condition. If $\Phi(\mathtt{ipv6.o}) = (\texttt{CONFIG\_IPV6} = \mathtt{"y"})$ and $\phi_{\text{sub}}(\mathtt{ah6.o}) = (\texttt{CONFIG\_INET6\_AH} = \mathtt{"y"})$, the presence condition for sub-object \texttt{ah6.o} is:
 \begin{align*}
 \Phi(\mathtt{ah6.o}) &= \Phi(\mathtt{ipv6.o}) \wedge \phi_{\text{sub}}(\mathtt{ah6.o}) \\
 &= (\texttt{CONFIG\_IPV6} = \mathtt{"y"}) \wedge (\texttt{CONFIG\_INET6\_AH} = \mathtt{"y"})
 \end{align*}
-skbuild automatically resolves composite mappings across standard Kbuild prefix conventions (\texttt{target-objs}, \texttt{target-y}, and \texttt{target-m}).
+\tool automatically resolves composite mappings across standard Kbuild prefix conventions (\texttt{target-objs}, \texttt{target-y}, and \texttt{target-m}).
 
 \subsection{Why Kbuild Is Not a Generic Symbolic-Execution Target}
 \label{sec:overview:why-different}
 
-A reasonable question is why Kbuild requires a purpose-built symbolic executor rather than treating it as a generic imperative program. Four domain-specific properties of GNU Make and Kbuild motivate skbuild's architecture:
+A reasonable question is why Kbuild requires a purpose-built symbolic executor rather than treating it as a generic imperative program. Four domain-specific properties of GNU Make and Kbuild motivate \tool's architecture:
 
 \begin{enumerate}
 \item \textbf{Dynamic LHS Variable Names:} In standard programming languages, the target variable of an assignment is a static identifier. In Kbuild, the variable name itself is computed dynamically (e.g., \texttt{obj-\$(CONFIG\_FOO)}). The identity of the mutated variable depends on symbolic inputs, requiring symbolic resolution of target identifiers before assignment.
@@ -269,7 +271,7 @@ A reasonable question is why Kbuild requires a purpose-built symbolic executor r
 \section{Symbolically Executing Kbuild Makefiles}
 \label{sec:semantics}
 
-In this section, we formalize the abstract syntax, state representation, and execution rules of skbuild.
+In this section, we formalize the abstract syntax, state representation, and execution rules of \tool.
 
 \subsection{Syntax and Language Subset}
 \label{sec:semantics:syntax}
@@ -286,7 +288,7 @@ Expressions $e$ consist of literal strings, variable expansions \texttt{\$(VAR)}
 \subsection{Guarded Variable Representation}
 \label{sec:semantics:varg}
 
-Every Make variable $x$ in skbuild is modeled as a \textbf{Guarded Variable} $\text{VarG}(x)$, defined as:
+Every Make variable $x$ in \tool is modeled as a \textbf{Guarded Variable} $\text{VarG}(x)$, defined as:
 $$\text{VarG}(x) = \langle \mathcal{M}, \mathcal{F} \rangle$$
 where:
 \begin{itemize}
@@ -296,7 +298,7 @@ where:
 
 A \textbf{Symbolic State} $\sigma \in \Sigma$ is a mapping from variable names to their guarded representations:
 $$\sigma: \text{VarName} \to \text{VarG}$$
-Throughout symbolic execution, skbuild maintains a single global state $\sigma$ per directory.
+Throughout symbolic execution, \tool maintains a single global state $\sigma$ per directory.
 
 \subsection{Guarded Algebraic Operations}
 \label{sec:semantics:algebra}
@@ -324,7 +326,7 @@ $$(\mathcal{M}_{\text{old}} \setminus_{\psi} \mathcal{M}_{\text{new}})(w) = (\ps
 
 We formalize the execution of Kbuild statements using big-step operational semantics. A configuration is a tuple $\langle s, \sigma, \Gamma \rangle$, where $s$ is the statement to execute, $\sigma$ is the current symbolic state, and $\Gamma$ is the accumulated path condition. The transition relation $\langle s, \sigma, \Gamma \rangle \Downarrow \sigma'$ specifies that executing $s$ under state $\sigma$ and path guard $\Gamma$ yields updated state $\sigma'$.
 
-\Cref{fig:sos-rules} presents the deductive inference rules governing skbuild.
+\Cref{fig:sos-rules} presents the deductive inference rules governing \tool.
 
 \begin{figure*}[t]
 \small
@@ -369,9 +371,9 @@ We formalize the execution of Kbuild statements using big-step operational seman
 When encountering a conditional block $\mathtt{If}(\psi, s_{\text{then}}, s_{\text{else}})$:
 
 \begin{enumerate}
-\item skbuild queries Z3 to test whether the \emph{then}-branch is satisfiable under the current path guard: $\text{SAT}(\Gamma \wedge \psi)$. If satisfiable, it clones state $\sigma_{\text{then}} \gets \text{clone}(\sigma)$ and executes $s_{\text{then}}$ under path guard $\Gamma \wedge \psi$.
+\item \tool queries Z3 to test whether the \emph{then}-branch is satisfiable under the current path guard: $\text{SAT}(\Gamma \wedge \psi)$. If satisfiable, it clones state $\sigma_{\text{then}} \gets \text{clone}(\sigma)$ and executes $s_{\text{then}}$ under path guard $\Gamma \wedge \psi$.
 \item Similarly, it checks $\text{SAT}(\Gamma \wedge \neg \psi)$. If satisfiable, it clones $\sigma_{\text{else}} \gets \text{clone}(\sigma)$ and executes $s_{\text{else}}$ under path guard $\Gamma \wedge \neg \psi$.
-\item \textbf{Eager Merge:} skbuild computes the set of variables modified in either branch: $\mathcal{V}_{\text{touched}} = \text{touched}(\sigma_{\text{then}}) \cup \text{touched}(\sigma_{\text{else}})$.
+\item \textbf{Eager Merge:} \tool computes the set of variables modified in either branch: $\mathcal{V}_{\text{touched}} = \text{touched}(\sigma_{\text{then}}) \cup \text{touched}(\sigma_{\text{else}})$.
 For each variable $x \in \mathcal{V}_{\text{touched}}$, the merged map $\mathcal{M}_{\text{merged}}$ is formed by regating the branch contributions:
 $$\mathcal{M}_{\text{merged}}(w) = \left( \psi \wedge \mathcal{M}_{\text{then}}(w) \right) \vee \left( \neg \psi \wedge \mathcal{M}_{\text{else}}(w) \right)$$
 Any variable not modified in a branch retains its pre-branch state conjoined with that branch's guard.
@@ -418,7 +420,7 @@ Any variable not modified in a branch retains its pre-branch state conjoined wit
 \subsection{Built-in Functions and Macro Expansions}
 \label{sec:semantics:builtins}
 
-GNU Make code in Kbuild relies on built-in text manipulation functions. skbuild models these functions symbolically over guarded word maps:
+GNU Make code in Kbuild relies on built-in text manipulation functions. \tool models these functions symbolically over guarded word maps:
 \begin{itemize}
 \item $\mathtt{\$(filter\ } pattern, text \mathtt{)}$: Evaluates pattern matching over guarded words, retaining only matching elements with their associated conditions:
 $$\text{filter}(p, \mathcal{M}) = \{ \langle w, \phi \rangle \in \mathcal{M} \mid \text{match}(p, w) \}$$
@@ -436,21 +438,21 @@ $$\text{addprefix}(pfx, \mathcal{M}) = \{ \langle pfx \cdot w, \phi \rangle \mid
 \section{Recursive Traversal \& Build Condition Extraction}
 \label{sec:traversal}
 
-Having defined intra-file symbolic execution, we now describe how skbuild traverses multi-directory project trees and extracts final presence conditions.
+Having defined intra-file symbolic execution, we now describe how \tool traverses multi-directory project trees and extracts final presence conditions.
 
 \subsection{Subdirectory Discovery and Recursive Exploration}
 \label{sec:traversal:subdirs}
 
-In Kbuild, directory recursion is declared through target variables containing directory paths (e.g., \texttt{obj-y += drivers/}, \texttt{obj-\$(CONFIG\_FS) += fs/}). During symbolic execution of a Makefile $M$ at path $P$, skbuild identifies all words $w \in \mathcal{M}(x)$ for target variables $x$ (such as \texttt{obj-y}, \texttt{obj-m}, \texttt{lib-y}, \texttt{core-y}) that correspond to directory paths.
+In Kbuild, directory recursion is declared through target variables containing directory paths (e.g., \texttt{obj-y += drivers/}, \texttt{obj-\$(CONFIG\_FS) += fs/}). During symbolic execution of a Makefile $M$ at path $P$, \tool identifies all words $w \in \mathcal{M}(x)$ for target variables $x$ (such as \texttt{obj-y}, \texttt{obj-m}, \texttt{lib-y}, \texttt{core-y}) that correspond to directory paths.
 
 Let $\phi_{\text{sub}}$ be the condition associated with directory path $D$ in Makefile $M$. If $M$ was reached under directory condition $\Phi_M$, then subdirectory $D$ is entered under the inherited directory presence condition:
 $$\Phi_D = \Phi_M \wedge \phi_{\text{sub}}$$
-skbuild schedules directory $D$ for analysis with initial path condition $\Phi_D$. If a directory is referenced multiple times under different conditions $\phi_1, \phi_2$, its incoming presence condition is the disjunction $\Phi_D = \Phi_M \wedge (\phi_1 \vee \phi_2)$. To prevent infinite loops caused by cyclic inclusions or directory symlinks, skbuild tracks visited paths and updates presence conditions incrementally.
+\tool schedules directory $D$ for analysis with initial path condition $\Phi_D$. If a directory is referenced multiple times under different conditions $\phi_1, \phi_2$, its incoming presence condition is the disjunction $\Phi_D = \Phi_M \wedge (\phi_1 \vee \phi_2)$. To prevent infinite loops caused by cyclic inclusions or directory symlinks, \tool tracks visited paths and updates presence conditions incrementally.
 
 \subsection{Multi-Stage Target Extraction}
 \label{sec:traversal:stages}
 
-Different configurable systems organize compilation into distinct target variables. skbuild uses configurable target prefixes:
+Different configurable systems organize compilation into distinct target variables. \tool uses configurable target prefixes:
 \begin{itemize}
 \item \textbf{Linux Kernel \& BusyBox:} \texttt{obj-}, \texttt{lib-}, \texttt{core-}, \texttt{drivers-}, \texttt{net-}, \texttt{libs-}, \texttt{head-}.
 \item \textbf{coreboot:} \texttt{bootblock-}, \texttt{verstage-}, \texttt{romstage-}, \texttt{postcar-}, \texttt{ramstage-}, \texttt{smm-}, \texttt{subdirs-}.
@@ -458,7 +460,7 @@ Different configurable systems organize compilation into distinct target variabl
 \item \textbf{Das U-Boot:} \texttt{obj-}, \texttt{lib-}, \texttt{spl-}, \texttt{tpl-}, \texttt{vpl-}.
 \end{itemize}
 
-When analysis completes across all directories, skbuild collects all target object files $o$ (words ending in \texttt{.o} or \texttt{.a}). For each object file $o$ in directory $D$ with local condition $\phi_{\text{local}}(o)$, the global presence condition is:
+When analysis completes across all directories, \tool collects all target object files $o$ (words ending in \texttt{.o} or \texttt{.a}). For each object file $o$ in directory $D$ with local condition $\phi_{\text{local}}(o)$, the global presence condition is:
 $$\Phi(o) = \Phi_D \wedge \phi_{\text{local}}(o)$$
 
 \begin{algorithm}[t]
@@ -504,7 +506,7 @@ All presence conditions are simplified via Z3's tactic pipeline (\texttt{ctx-sim
 \subsection{SMT-Based Minimal Test Matrix \& Delta Debugging}
 \label{sec:traversal:maxsat}
 
-Given the full mapping of extracted presence conditions $\mathcal{T} = \{ (o_1, \Phi_1), \ldots, (o_n, \Phi_n) \}$, skbuild synthesizes minimal configuration test suites and isolating configurations using SMT solving:
+Given the full mapping of extracted presence conditions $\mathcal{T} = \{ (o_1, \Phi_1), \ldots, (o_n, \Phi_n) \}$, \tool synthesizes minimal configuration test suites and isolating configurations using SMT solving:
 
 \begin{algorithm}[t]
 \caption{SMT-Based Minimal Test Suite Synthesis via Greedy Set-Cover}
@@ -531,12 +533,12 @@ Given the full mapping of extracted presence conditions $\mathcal{T} = \{ (o_1, 
 \end{algorithmic}
 \end{algorithm}
 
-\Cref{alg:set-cover} iteratively synthesizes concrete witness configurations that maximize the marginal coverage of previously uncompiled target objects until 100\% of satisfiable targets are covered. Furthermore, to synthesize the \emph{minimal reproducing configuration} for a specific bug-triggering target $o^*$, skbuild invokes Z3 \texttt{Optimize} (MaxSAT), asserting $\Phi(o^*)$ as a hard constraint and $\neg \texttt{CONFIG\_X}$ for all other symbols as soft constraints, producing the minimal set of enabled flags in milliseconds.
+\Cref{alg:set-cover} iteratively synthesizes concrete witness configurations that maximize the marginal coverage of previously uncompiled target objects until 100\% of satisfiable targets are covered. Furthermore, to synthesize the \emph{minimal reproducing configuration} for a specific bug-triggering target $o^*$, \tool invokes Z3 \texttt{Optimize} (MaxSAT), asserting $\Phi(o^*)$ as a hard constraint and $\neg \texttt{CONFIG\_X}$ for all other symbols as soft constraints, producing the minimal set of enabled flags in milliseconds.
 
 \subsection{Differential Build Equivalence Analysis}
 \label{sec:traversal:diff}
 
-To analyze how build systems evolve across versions or refactorings, skbuild computes differential build equivalence between two versions $\mathcal{T}_1$ and $\mathcal{T}_2$:
+To analyze how build systems evolve across versions or refactorings, \tool computes differential build equivalence between two versions $\mathcal{T}_1$ and $\mathcal{T}_2$:
 
 \begin{algorithm}[t]
 \caption{Differential Build Equivalence and Change Impact Analysis}
@@ -570,7 +572,7 @@ To analyze how build systems evolve across versions or refactorings, skbuild com
 \section{Implementation}
 \label{sec:impl}
 
-skbuild is implemented in pure Python 3 (approximately 2,500 lines of core engine code) with bindings to the Z3 SMT solver (\texttt{z3-solver} 4.12+). The architecture consists of four modular components:
+\tool is implemented in pure Python 3 (approximately 2,500 lines of core engine code) with bindings to the Z3 SMT solver (\texttt{z3-solver} 4.12+). The architecture consists of four modular components:
 \begin{enumerate}
 \item \textbf{AST Parser (\texttt{pymake3}):} A modernized Python 3 port of Mozilla's \texttt{pymake} GNU Make parser, enhanced with support for Kconfig macro expansions, order-only prerequisites (\texttt{|}), and shell probe interceptors.
 \item \textbf{Symbolic State Engine (\texttt{ds.py}, \texttt{symexe.py}):} Implements $\text{VarG}$, single-state eager merge, branch regating, and guarded overwrite resolution.
@@ -581,15 +583,15 @@ skbuild is implemented in pure Python 3 (approximately 2,500 lines of core engin
 \section{Empirical Evaluation}
 \label{sec:eval}
 
-We evaluated skbuild across five independent, real-world configurable software systems that were never developed with skbuild in mind. Our evaluation addresses five core research questions:
+We evaluated \tool across five independent, real-world configurable software systems that were never developed with \tool in mind. Our evaluation addresses five core research questions:
 
 \begin{itemize}
 \item \textbf{RQ0 (State Explosion):} Does single-state eager merge prevent the exponential path explosion suffered by fork-per-branch execution? (\Cref{sec:eval:rq0})
-\item \textbf{RQ1 (Applicability \& Scale):} Can skbuild analyze diverse, large-scale Kbuild codebases across millions of lines of code? (\Cref{sec:eval:rq1})
-\item \textbf{RQ2 (Construct Coverage):} What fraction of real-world GNU Make constructs does skbuild model, and what remains unsupported? (\Cref{sec:eval:rq2})
-\item \textbf{RQ3 (Performance):} What is the execution time, memory footprint, and SMT workload of skbuild? (\Cref{sec:eval:rq3})
-\item \textbf{RQ4 (Ground-Truth Agreement):} Do skbuild's extracted presence conditions agree with actual compiler builds under concrete witness configurations? (\Cref{sec:eval:rq4})
-\item \textbf{RQ5 (Applications):} How effective is skbuild in driving real software engineering tasks (CI optimization, bug detection, Kconfig consistency, release evolution, delta debugging, and clustering)? (\Cref{sec:eval:apps})
+\item \textbf{RQ1 (Applicability \& Scale):} Can \tool analyze diverse, large-scale Kbuild codebases across millions of lines of code? (\Cref{sec:eval:rq1})
+\item \textbf{RQ2 (Construct Coverage):} What fraction of real-world GNU Make constructs does \tool model, and what remains unsupported? (\Cref{sec:eval:rq2})
+\item \textbf{RQ3 (Performance):} What is the execution time, memory footprint, and SMT workload of \tool? (\Cref{sec:eval:rq3})
+\item \textbf{RQ4 (Ground-Truth Agreement):} Do \tool's extracted presence conditions agree with actual compiler builds under concrete witness configurations? (\Cref{sec:eval:rq4})
+\item \textbf{RQ5 (Applications):} How effective is \tool in driving real software engineering tasks (CI optimization, bug detection, Kconfig consistency, release evolution, delta debugging, and clustering)? (\Cref{sec:eval:apps})
 \end{itemize}
 
 \subsection{Corpus Characteristics}
@@ -631,7 +633,7 @@ To quantify the necessity of single-state eager merge, we implemented a baseline
 \label{tab:rq0}
 \begin{tabular}{lrrrrr}
 \toprule
-\multirow{2}{*}{\textbf{Benchmark}} & \multicolumn{2}{c}{\textbf{Fork-per-Branch}} & \multicolumn{2}{c}{\textbf{Eager Merge (skbuild)}} & \multirow{2}{*}{\textbf{Outcome / Speedup}} \\
+\multirow{2}{*}{\textbf{Benchmark}} & \multicolumn{2}{c}{\textbf{Fork-per-Branch}} & \multicolumn{2}{c}{\textbf{Eager Merge (\tool)}} & \multirow{2}{*}{\textbf{Outcome / Speedup}} \\
 \cmidrule(lr){2-3} \cmidrule(lr){4-5}
 & \textbf{States} & \textbf{Time} & \textbf{States} & \textbf{Time} & \\
 \midrule
@@ -648,13 +650,13 @@ As reported in \Cref{tab:rq0}, the fork-per-branch model suffered catastrophic e
 \begin{itemize}
 \item \textbf{BusyBox Top-Level Tree:} In BusyBox, Makefiles such as \path{archival/libarchive/Kbuild} and \path{networking/udhcp/Kbuild} contain dense sequential cascades of 12--18 conditional blocks gating decompression filters and network packet formatters. By branch 14, the fork-per-branch executor was tracking 16,384 live symbolic execution states, each holding an independent copy of Make's variable namespace. At branch 16, memory consumption exceeded 4\,GB, exhausting host RAM and crashing with Out-Of-Memory (OOM).
 \item \textbf{coreboot Mainboard:} For the QEMU i440fx board (\path{src/mainboard/emulation/qemu-i440fx/Makefile.inc}), coreboot chains over 20 stage-specific conditionals (\texttt{bootblock-y}, \texttt{romstage-y}, \texttt{ramstage-y}, \texttt{smm-y}). Fork-per-branch exceeded 25,000 active paths in under 12 seconds before OOM termination.
-\item \textbf{Eager Merge Scaling:} In contrast, skbuild's single-state representation merged branch contributions immediately at each \texttt{endif}. Conditional variation was pushed down into the word-condition mappings $\mathcal{M}(w)$ of the mutated variables, keeping the active state count strictly at $1$ and peak resident memory under 67\,MB. skbuild completed both real benchmarks in under 0.7\,s.
+\item \textbf{Eager Merge Scaling:} In contrast, \tool's single-state representation merged branch contributions immediately at each \texttt{endif}. Conditional variation was pushed down into the word-condition mappings $\mathcal{M}(w)$ of the mutated variables, keeping the active state count strictly at $1$ and peak resident memory under 67\,MB. \tool completed both real benchmarks in under 0.7\,s.
 \end{itemize}
 
 \subsection{RQ1: Corpus Scale and Multi-Architecture Sweeps}
 \label{sec:eval:rq1}
 
-To evaluate how skbuild scales across diverse hardware architectures, we parameterized skbuild over the complete Linux kernel tree across three major processor architectures: $\mathtt{ARCH=x86}$ (x86\_64), $\mathtt{ARCH=arm64}$ (AArch64), and $\mathtt{ARCH=riscv}$ (64-bit RISC-V).
+To evaluate how \tool scales across diverse hardware architectures, we parameterized \tool over the complete Linux kernel tree across three major processor architectures: $\mathtt{ARCH=x86}$ (x86\_64), $\mathtt{ARCH=arm64}$ (AArch64), and $\mathtt{ARCH=riscv}$ (64-bit RISC-V).
 
 \begin{table}[t]
 \centering
@@ -674,7 +676,7 @@ $\mathtt{ARCH=riscv}$ & 1,518 & 11,210 & 9,840 & 19.42 \\
 \end{table}
 
 \paragraph{Architectural Divergence in Linux Kernel Subtrees.}
-As detailed in \Cref{tab:arch-sweep}, skbuild extracted distinct target object sets and configuration vocabularies across architectures in $\sim 20$\,s without requiring native cross-compiler toolchains:
+As detailed in \Cref{tab:arch-sweep}, \tool extracted distinct target object sets and configuration vocabularies across architectures in $\sim 20$\,s without requiring native cross-compiler toolchains:
 \begin{itemize}
 \item \textbf{x86\_64 (12,882 targets, 10,979 symbols):} Includes hardware acceleration targets such as Intel SHA-NI and AES-NI assembler drivers (\path{arch/x86/crypto/aesni-intel_asm.o}) and APIC interrupt controller drivers (\path{arch/x86/kernel/apic/}).
 \item \textbf{arm64 (11,940 targets, 10,215 symbols):} Excludes legacy x86 PC architecture drivers while including ARMv8.2 Crypto Extensions (\path{arch/arm64/crypto/sha2-ce-core.o}) and GICv3 interrupt controllers (\path{drivers/irqchip/irq-gic-v3.o}).
@@ -684,7 +686,7 @@ As detailed in \Cref{tab:arch-sweep}, skbuild extracted distinct target object s
 \subsection{RQ2: Construct-Coverage Census}
 \label{sec:eval:rq2}
 
-We instrumented skbuild's parser and evaluator to record every syntactic construct encountered across all 2,050 Makefiles, classifying them into three categories:
+We instrumented \tool's parser and evaluator to record every syntactic construct encountered across all 2,050 Makefiles, classifying them into three categories:
 \begin{itemize}
 \item \textbf{Modeled:} Constructs whose semantics are fully executed symbolically (variable assignments, conditional directives, built-in text functions, macro calls, and directory traversals).
 \item \textbf{Out of Scope:} Constructs that define build recipes or compiler flags without affecting presence conditions (target pattern rules, shell recipe command lines, empty comments).
@@ -731,7 +733,7 @@ We instrumented skbuild's parser and evaluator to record every syntactic constru
 \paragraph{Construct Census Breakdown.}
 Across 59,345 observed construct instances (\Cref{tab:rq2}):
 \begin{itemize}
-\item \textbf{Assignments and References (57,211 instances, 96.4\%):} The vast majority of Kbuild logic consists of variable assignments (\texttt{obj-\$(CONFIG\_X) += ...}) and dynamic variable expansions. skbuild models 100\% of these constructs with exact flavor preservation.
+\item \textbf{Assignments and References (57,211 instances, 96.4\%):} The vast majority of Kbuild logic consists of variable assignments (\texttt{obj-\$(CONFIG\_X) += ...}) and dynamic variable expansions. \tool models 100\% of these constructs with exact flavor preservation.
 \item \textbf{Built-in Functions \& Macros (209 instances):} Includes pattern filtering in U-Boot (\texttt{\$(filter-out ...)} in \path{drivers/mtd/nand/raw/Makefile} to prune legacy drivers), pattern substitution in Linux (\texttt{\$(patsubst ...)} in \path{net/Makefile}), and directory iteration in coreboot (\texttt{\$(foreach ...)} in \path{src/arch/x86/Makefile.inc}).
 \item \textbf{Unsupported Constructs (14 instances, <0.03\%):} Comprises 8 instances of \texttt{\$(eval ...)} in coreboot (\path{src/device/Makefile.inc}) used to generate dynamic ROM stage compilation rules, and 2 instances of substitution references \texttt{\$(VAR:s=d)} in legacy Linux staging drivers. None of these unsupported constructs affected presence conditions of primary target objects.
 \end{itemize}
@@ -763,7 +765,7 @@ Linux Kernel (Full Tree) & 22.11\,s & 104.2\,MB & 77,566 & 71,589 & 14.1\,ms \\
 \paragraph{SMT Workload \& Memory Profiling.}
 As shown in \Cref{tab:rq3}:
 \begin{itemize}
-\item \textbf{Throughput \& Latency:} skbuild processes individual Makefiles in 11.2--23.1\,ms. In the Linux kernel, skbuild executed 77,566 variable updates and 71,589 Z3 satisfiability queries across 1,565 Makefiles in 22.11\,s ($>70$ Makefiles/s).
+\item \textbf{Throughput \& Latency:} \tool processes individual Makefiles in 11.2--23.1\,ms. In the Linux kernel, \tool executed 77,566 variable updates and 71,589 Z3 satisfiability queries across 1,565 Makefiles in 22.11\,s ($>70$ Makefiles/s).
 \item \textbf{SMT Solving:} Incremental solver scoping and tactic simplification (\texttt{ctx-simplify}) resolved over 99.4\% of branch queries in under 0.2\,ms.
 \item \textbf{Strictly Bounded Memory Footprint:} Peak resident memory remained strictly under 105\,MB even for the entire 20.1M-LOC Linux tree, proving that eager merge eliminates state accumulation.
 \end{itemize}
@@ -771,7 +773,7 @@ As shown in \Cref{tab:rq3}:
 \subsection{RQ4: Agreement with Real Compiler Builds}
 \label{sec:eval:rq4}
 
-To empirically validate the soundness of extracted conditions, we executed end-to-end real build validations across four platforms: BusyBox 1.36.1, coreboot 4.22.01 (QEMU x86 i440fx target), Barebox 2024.01.0 (\texttt{sandbox\_defconfig}), and Das U-Boot 2024.01 (\texttt{sandbox\_defconfig}). For BusyBox and coreboot, we used Z3 to generate positive greedy set-cover witness configurations and all-disabled negative baseline configurations. For each configuration, we materialized a \texttt{.config} file, invoked \texttt{make olddefconfig \&\& make}, and reconciled actual compiled object files against skbuild's predictions.
+To empirically validate the soundness of extracted conditions, we executed end-to-end real build validations across four platforms: BusyBox 1.36.1, coreboot 4.22.01 (QEMU x86 i440fx target), Barebox 2024.01.0 (\texttt{sandbox\_defconfig}), and Das U-Boot 2024.01 (\texttt{sandbox\_defconfig}). For BusyBox and coreboot, we used Z3 to generate positive greedy set-cover witness configurations and all-disabled negative baseline configurations. For each configuration, we materialized a \texttt{.config} file, invoked \texttt{make olddefconfig \&\& make}, and reconciled actual compiled object files against \tool's predictions.
 
 \begin{table}[t]
 \centering
@@ -800,7 +802,7 @@ Das U-Boot 2024.01 & \texttt{sandbox\_defconfig} & 1 & 41 & 10 & 31 & 3,009 & 1,
 \end{table}
 
 \paragraph{Discrepancy Investigation \& Ground-Truth Analysis.}
-As reported in \Cref{tab:rq4}, skbuild achieved \textbf{99.0\% overall agreement} on BusyBox (99.4\% precision, 97.0\% recall), \textbf{97.9\% precision} on coreboot stage objects, and \textbf{94.7\% precision} on Barebox sandbox builds. Every discrepancy was investigated and categorized:
+As reported in \Cref{tab:rq4}, \tool achieved \textbf{99.0\% overall agreement} on BusyBox (99.4\% precision, 97.0\% recall), \textbf{97.9\% precision} on coreboot stage objects, and \textbf{94.7\% precision} on Barebox sandbox builds. Every discrepancy was investigated and categorized:
 \begin{itemize}
 \item \textbf{False Positives:} In BusyBox, 1 FP was an internal build marker (\path{include/config/MARKER}). In coreboot, 2 FPs corresponded to option ROM drivers (\texttt{x86.c} in \path{src/drivers/intel/gma/}) whose Kconfig dependency was disabled in the default QEMU board harness. In Barebox, 4 FPs were Pre-Bootloader (\texttt{pbl}) utility objects that sandbox mode bypasses.
 \item \textbf{False Negatives:} In BusyBox, 5 FNs were top-level orchestration objects (such as \path{applets/applets.o}) compiled unconditionally by root Makefile rules outside subdirectory Kbuilds. In coreboot and Barebox sandbox builds, FNs represented host emulation utility libraries linked directly by sandbox harnesses.
@@ -810,10 +812,10 @@ As reported in \Cref{tab:rq4}, skbuild achieved \textbf{99.0\% overall agreement
 \subsection{RQ5 (Applications): SMT-Powered Build Analytics \& Bug Finding}
 \label{sec:eval:apps}
 
-We evaluated seven software engineering applications enabled by skbuild's exact symbolic presence conditions:
+We evaluated seven software engineering applications enabled by \tool's exact symbolic presence conditions:
 
 \subsubsection{Application 1: Sufficient CI Matrix Reduction}
-Continuous integration systems typically test only \texttt{defconfig}, leaving the vast majority of configurable code uncompiled. Using skbuild's SMT-derived greedy set-cover witness synthesis (\Cref{alg:set-cover}), we computed minimal test matrices guaranteeing maximal object coverage across all codebases.
+Continuous integration systems typically test only \texttt{defconfig}, leaving the vast majority of configurable code uncompiled. Using \tool's SMT-derived greedy set-cover witness synthesis (\Cref{alg:set-cover}), we computed minimal test matrices guaranteeing maximal object coverage across all codebases.
 
 \begin{table}[t]
 \centering
@@ -834,13 +836,13 @@ Linux Kernel (Sample) & 11,299 & 235 (2.1\%) & \textbf{6 configs} & \textbf{11,2
 \end{tabular}
 \end{table}
 
-As shown in \Cref{tab:ci}, standard \texttt{defconfig} profiles exercise only 10.2\%--34.2\% of available target objects. In contrast, skbuild generates compact CI test suites ($\le 27$ configurations) covering up to 100\% of satisfiable objects, providing massive coverage gains for automated continuous integration.
+As shown in \Cref{tab:ci}, standard \texttt{defconfig} profiles exercise only 10.2\%--34.2\% of available target objects. In contrast, \tool generates compact CI test suites ($\le 27$ configurations) covering up to 100\% of satisfiable objects, providing massive coverage gains for automated continuous integration.
 
 \subsubsection{Application 2: Dead Code \& Real Build Bug Discovery}
-By submitting extracted formulas $\Phi(o)$ to Z3 satisfiability queries, skbuild detects \emph{dead targets} whose presence conditions are provably unsatisfiable ($\Phi(o) \equiv \text{False}$).
+By submitting extracted formulas $\Phi(o)$ to Z3 satisfiability queries, \tool detects \emph{dead targets} whose presence conditions are provably unsatisfiable ($\Phi(o) \equiv \text{False}$).
 
 \paragraph{Case Study: Dead PMU Firmware Targets in Barebox 2024.01.0.}
-In Barebox 2024.01.0, skbuild discovered \textbf{6 unreachable object files} in \texttt{firmware/Makefile} (\Cref{tab:dead-targets}):
+In Barebox 2024.01.0, \tool discovered \textbf{6 unreachable object files} in \texttt{firmware/Makefile} (\Cref{tab:dead-targets}):
 \begin{itemize}
 \item \texttt{ddr4\_dmem\_1d.bin.gen.o}, \texttt{ddr4\_imem\_1d.bin.gen.o}
 \item \texttt{lpddr4\_pmu\_train\_1d\_dmem.bin.gen.o}, \texttt{lpddr4\_pmu\_train\_1d\_imem.bin.gen.o}
@@ -880,10 +882,10 @@ pbl-y := $(addsuffix .gen.o, $(pbl-firmware-y))
 As illustrated in \Cref{lst:barebox-bug}, an unconditional simple overwrite \texttt{pbl-y := \$(addsuffix .gen.o, \$(pbl-firmware-y))} was applied to a list that already had the \texttt{.gen.o} suffix appended in earlier lines. Consequently, the targets became \texttt{ddr4\_imem\_1d.bin.gen.o.gen.o}, rendering the original \texttt{*.bin.gen.o} targets provably dead ($\Phi \equiv \text{False}$).
 
 \paragraph{Tautological Invariant Targets.}
-skbuild identified 141 targets in BusyBox, 75 in Barebox, and 41 in U-Boot that are compiled unconditionally ($\Phi \equiv \text{True}$) regardless of user configuration, identifying core infrastructure objects (\texttt{libbb/getopt32.o}, \texttt{common/startup.o}, \texttt{lib/crc32.o}).
+\tool identified 141 targets in BusyBox, 75 in Barebox, and 41 in U-Boot that are compiled unconditionally ($\Phi \equiv \text{True}$) regardless of user configuration, identifying core infrastructure objects (\texttt{libbb/getopt32.o}, \texttt{common/startup.o}, \texttt{lib/crc32.o}).
 
 \subsubsection{Application 3: Automated Kconfig-Kbuild Consistency \& Zombie Symbol Linter}
-By extracting the set of all \texttt{CONFIG\_*} symbols declared across Kconfig files and cross-referencing them against presence condition symbols extracted from Makefiles, skbuild detects configuration divergence:
+By extracting the set of all \texttt{CONFIG\_*} symbols declared across Kconfig files and cross-referencing them against presence condition symbols extracted from Makefiles, \tool detects configuration divergence:
 
 \begin{table}[t]
 \centering
@@ -943,7 +945,7 @@ Das U-Boot 2024.01 & \texttt{CONFIG\_CRC16} & \texttt{lib/Makefile:52} \\
 \end{itemize}
 
 \subsubsection{Application 4: Differential Build Evolution Across Releases}
-Using Z3 SMT reasoning, skbuild performs differential evolution analysis by checking whether an object's presence condition $\Phi(o)$ changed between major releases ($\text{SAT}(\Phi_{\text{v1}}(o) \oplus \Phi_{\text{v2}}(o))$):
+Using Z3 SMT reasoning, \tool performs differential evolution analysis by checking whether an object's presence condition $\Phi(o)$ changed between major releases ($\text{SAT}(\Phi_{\text{v1}}(o) \oplus \Phi_{\text{v2}}(o))$):
 
 \begin{table}[t]
 \centering
@@ -964,7 +966,7 @@ U-Boot 2023.01 $\to$ 2024.01 & 2,902 & 3,050 & 2,822 & 2,570 & 228 & 80 & 78 & 2
 As summarized in \Cref{tab:evolution}:
 \begin{itemize}
 \item \textbf{BusyBox (1.35.0 $\to$ 1.36.1):} Out of 601 common targets, 599 remained provably invariant, 8 new targets were added (\texttt{coreutils/tsort.o}, hardware SHA-NI accelerators), and 2 targets were generalized (\texttt{coreutils/sleep.o} widened to support \texttt{CONFIG\_ASH\_SLEEP}).
-\item \textbf{Das U-Boot (2023.01 $\to$ 2024.01):} Out of 2,822 common targets, 2,570 remained unchanged, 228 new objects were added (standard boot flow methods \texttt{bootmeth\_*.o}, expo UI), 80 objects were retired, and 252 targets underwent condition alterations (148 diverged, 78 generalized, 26 restricted). For each altered object, skbuild synthesized concrete witness configurations demonstrating the divergence.
+\item \textbf{Das U-Boot (2023.01 $\to$ 2024.01):} Out of 2,822 common targets, 2,570 remained unchanged, 228 new objects were added (standard boot flow methods \texttt{bootmeth\_*.o}, expo UI), 80 objects were retired, and 252 targets underwent condition alterations (148 diverged, 78 generalized, 26 restricted). For each altered object, \tool synthesized concrete witness configurations demonstrating the divergence.
 \end{itemize}
 
 \begin{lstlisting}[language=make,caption={Evolution of Bootflow Targets in Das U-Boot 2023.01 $\to$ 2024.01.},label={lst:uboot-diff}]
@@ -975,7 +977,7 @@ obj-$(CONFIG_BOOTSTD) += bootmeth_distro.o
 obj-$(CONFIG_BOOTMETH_DISTRO) += bootmeth_distro.o
 \end{lstlisting}
 
-As shown in \Cref{lst:uboot-diff}, skbuild's SMT differential solver detected that \texttt{bootmeth\_distro.o} diverged between U-Boot releases, generating the witness configuration $\texttt{CONFIG\_BOOTSTD}=\mathtt{y} \wedge \texttt{CONFIG\_BOOTMETH\_DISTRO}=\mathtt{n}$ where the object compiled in 2023.01 but was excluded in 2024.01.
+As shown in \Cref{lst:uboot-diff}, \tool's SMT differential solver detected that \texttt{bootmeth\_distro.o} diverged between U-Boot releases, generating the witness configuration $\texttt{CONFIG\_BOOTSTD}=\mathtt{y} \wedge \texttt{CONFIG\_BOOTMETH\_DISTRO}=\mathtt{n}$ where the object compiled in 2023.01 but was excluded in 2024.01.
 
 \subsubsection{Application 5: Configuration Complexity \& Feature Interaction Hotspots}
 We analyzed the AST depth and interaction degree $k$ (number of distinct interacting \texttt{CONFIG\_*} variables) per object.
@@ -1006,9 +1008,9 @@ As shown in \Cref{tab:interactions}, while BusyBox and Barebox have average inte
 \end{align*}
 
 \subsubsection{Application 6: Minimal Bug Configuration Synthesis}
-Using Z3 \texttt{Optimize} (MaxSAT), skbuild can synthesize the minimal-weight \texttt{.config} necessary to activate a specific target subsystem while disabling all unrelated code.
+Using Z3 \texttt{Optimize} (MaxSAT), \tool can synthesize the minimal-weight \texttt{.config} necessary to activate a specific target subsystem while disabling all unrelated code.
 
-Let $\mathcal{C}$ be the set of all Kconfig symbols in the codebase. Given target object $o^*$, skbuild solves:
+Let $\mathcal{C}$ be the set of all Kconfig symbols in the codebase. Given target object $o^*$, \tool solves:
 $$\text{Minimize} \sum_{c \in \mathcal{C}} \mathbb{I}(c = \mathtt{"y"}) \quad \text{subject to } \Phi(o^*) = \text{True}$$
 
 \begin{table}[t]
@@ -1034,7 +1036,7 @@ $$\{ \texttt{CONFIG\_ARCH\_ROCKCHIP}=\mathtt{"y"}, \; \texttt{CONFIG\_RAM}=\math
 All other 13 optional symbols were set to unset/\texttt{n}, producing the absolute minimal reproducing environment.
 
 \subsubsection{Application 7: Co-Compilation Equivalence Clustering}
-By verifying pairwise formula equivalence $\text{VALID}(\Phi_A \iff \Phi_B)$, skbuild clusters object files into inseparable architectural components:
+By verifying pairwise formula equivalence $\text{VALID}(\Phi_A \iff \Phi_B)$, \tool clusters object files into inseparable architectural components:
 
 \begin{table}[t]
 \centering
@@ -1053,7 +1055,7 @@ Das U-Boot 2024.01 & 3,050 & 2,494 & 2,180 & 314 & 41 (Base Library) \\
 \end{tabular}
 \end{table}
 
-As detailed in \Cref{tab:clustering}, skbuild partitions codebases into tightly coupled subsystems:
+As detailed in \Cref{tab:clustering}, \tool partitions codebases into tightly coupled subsystems:
 \begin{itemize}
 \item \textbf{BusyBox 1.36.1:} 440 equivalence classes across 609 objects, including a 10-object TLS cryptography cluster (\texttt{tls\_fe.o}, \texttt{tls\_aes.o}, \texttt{tls\_rsa.o}, etc.) and a 5-object Debian package management cluster.
 \item \textbf{Barebox 2024.01.0:} 1,013 equivalence classes across 1,343 objects, including an 18-object NAND flash subsystem cluster and a 14-object cryptographic hash driver cluster.
@@ -1066,35 +1068,35 @@ As detailed in \Cref{tab:clustering}, skbuild partitions codebases into tightly 
 \subsection{Threats to Validity}
 \label{sec:threats:validity}
 
-\emph{Internal Validity.} Threats to internal validity concern potential defects in skbuild's symbolic execution engine or Z3 formula encodings. We mitigated this through extensive regression test suites (\texttt{make test}, \texttt{make busybox-check}) and end-to-end real build validations across four independent systems (\Cref{sec:eval:rq4}), verifying zero symbolic logic errors.
+\emph{Internal Validity.} Threats to internal validity concern potential defects in \tool's symbolic execution engine or Z3 formula encodings. We mitigated this through extensive regression test suites (\texttt{make test}, \texttt{make busybox-check}) and end-to-end real build validations across four independent systems (\Cref{sec:eval:rq4}), verifying zero symbolic logic errors.
 
 \emph{External Validity.} Threats to external validity concern whether our findings generalize to other Kbuild systems. We evaluated five distinct codebases spanning operating systems (Linux), system utilities (BusyBox), and firmware/bootloaders (coreboot, Barebox, U-Boot) across 26.9M LOC and 2,050 Makefiles.
 
-\emph{Construct Validity.} skbuild extracts presence conditions under the assumption that Makefile target variables govern file compilation. Discrepancies in sandbox environments arise primarily from architecture-independent host utility harnesses linking files outside Kbuild rules.
+\emph{Construct Validity.} \tool extracts presence conditions under the assumption that Makefile target variables govern file compilation. Discrepancies in sandbox environments arise primarily from architecture-independent host utility harnesses linking files outside Kbuild rules.
 
 \subsection{Limitations}
 \label{sec:threats:limitations}
 
-\emph{Unmodeled Shell Side Effects.} skbuild evaluates host and compiler probe \texttt{\$(shell ...)} invocations conservatively while ignoring recipe command lines. Our construct census confirms that dynamic scripts modifying target variables are absent in standard Kbuild rules.
+\emph{Unmodeled Shell Side Effects.} \tool evaluates host and compiler probe \texttt{\$(shell ...)} invocations conservatively while ignoring recipe command lines. Our construct census confirms that dynamic scripts modifying target variables are absent in standard Kbuild rules.
 
-\emph{Kbuild Satisfiability vs.\ Kconfig Cross-Tree Validity.} skbuild computes Make-satisfiable presence conditions $\Phi(o)$. While $\Phi(o)$ is satisfiable in isolation, Kconfig cross-tree constraints (\texttt{select}, \texttt{depends on}) may prevent certain variable assignments from co-occurring in a valid \texttt{.config}. Integrating a full Kconfig parser to compute $\Phi_{\text{Kbuild}} \wedge \Phi_{\text{Kconfig}}$ represents a natural direction for future work.
+\emph{Kbuild Satisfiability vs.\ Kconfig Cross-Tree Validity.} \tool computes Make-satisfiable presence conditions $\Phi(o)$. While $\Phi(o)$ is satisfiable in isolation, Kconfig cross-tree constraints (\texttt{select}, \texttt{depends on}) may prevent certain variable assignments from co-occurring in a valid \texttt{.config}. Integrating a full Kconfig parser to compute $\Phi_{\text{Kbuild}} \wedge \Phi_{\text{Kconfig}}$ represents a natural direction for future work.
 
 \section{Related Work}
 \label{sec:related}
 
 \subsection{Variability-Aware Analysis \& Software Product Lines}
-Analyzing highly configurable software has received extensive attention in software engineering~\cite{berger2010variability,berger2013variability,dietrich2012variability,erwig2011choice,liebig2010analysis,tartler2011dead,ishimwe2021dynaplex,nadi2014where,passos2013coevolution,medeiros2016comparison}. Tools such as TypeChef~\cite{kenner2010typechef} and SuperC~\cite{gazzillo2012superc} parse C source code with conditional preprocessor directives (\texttt{\#ifdef}), extracting presence conditions over source ASTs. skbuild complements preprocessor analysis by operating at the build system level, determining which translation units enter the compiler in the first place.
+Analyzing highly configurable software has received extensive attention in software engineering~\cite{berger2010variability,berger2013variability,dietrich2012variability,erwig2011choice,liebig2010analysis,tartler2011dead,ishimwe2021dynaplex,nadi2014where,passos2013coevolution,medeiros2016comparison}. Tools such as TypeChef~\cite{kenner2010typechef} and SuperC~\cite{gazzillo2012superc} parse C source code with conditional preprocessor directives (\texttt{\#ifdef}), extracting presence conditions over source ASTs. \tool complements preprocessor analysis by operating at the build system level, determining which translation units enter the compiler in the first place.
 
 \subsection{Build System Analysis \& Condition Extraction}
-Dietrich et al.~\cite{dietrich2012variability} and Berger et al.~\cite{berger2010variability,berger2013variability} studied the variability models of Kconfig and the Linux kernel. kmax~\cite{kmax} parses Kbuild files using custom grammar patterns to extract constraints. skbuild differs fundamentally by executing GNU Make semantics via symbolic interpretation with exact flavor expansion, guarded overwrites, and SMT solving. Cybolic~\cite{cybolic} recently introduced eager-merge symbolic execution for CMake build systems; skbuild adapts and formalizes this architecture for Kbuild's distinct flavor semantics, recursive Make structures, and stage target vocabularies.
+Dietrich et al.~\cite{dietrich2012variability} and Berger et al.~\cite{berger2010variability,berger2013variability} studied the variability models of Kconfig and the Linux kernel. kmax~\cite{kmax} parses Kbuild files using custom grammar patterns to extract constraints. \tool differs fundamentally by executing GNU Make semantics via symbolic interpretation with exact flavor expansion, guarded overwrites, and SMT solving. Cybolic~\cite{cybolic} recently introduced eager-merge symbolic execution for CMake build systems; \tool adapts and formalizes this architecture for Kbuild's distinct flavor semantics, recursive Make structures, and stage target vocabularies.
 
 \subsection{Symbolic Execution in Software Engineering}
-Symbolic execution~\cite{king1976symbolic,cadar2008klee,godefroid2005dart} is widely used for test generation and bug finding. While traditional symbolic executors fork paths at conditional branches, recent work on state merging and variational execution~\cite{kuznetsov2012efficient,nguyen2014using,nguyen2020kbuild} folds paths into disjunctive summaries. skbuild applies eager merging directly to the domain of configuration-driven build systems.
+Symbolic execution~\cite{king1976symbolic,cadar2008klee,godefroid2005dart} is widely used for test generation and bug finding. While traditional symbolic executors fork paths at conditional branches, recent work on state merging and variational execution~\cite{kuznetsov2012efficient,nguyen2014using,nguyen2020kbuild} folds paths into disjunctive summaries. \tool applies eager merging directly to the domain of configuration-driven build systems.
 
 \section{Conclusion}
 \label{sec:conclusion}
 
-We presented \textbf{skbuild}, a symbolic-execution engine for Kbuild Makefiles that extracts exact, Z3-checkable presence conditions for compiled object files. By replacing fork-per-branch execution with single-state eager merge, skbuild avoids path explosion and scales to large production systems, analyzing the entire Linux kernel (1,565 Makefiles) in 22.1\,s (<105\,MB RAM). Evaluated across five systems spanning 26.9M LOC, skbuild achieves over 99.9\% effective construct coverage, validates against live compiler builds with up to 99.4\% precision, and enables powerful applications including CI matrix reduction, dead code discovery, Kconfig divergence linting, and release evolution analysis. skbuild is open source at \url{https://github.com/dynaroars/skbuild}.
+We presented \textbf{\tool}, a symbolic-execution engine for Kbuild Makefiles that extracts exact, Z3-checkable presence conditions for compiled object files. By replacing fork-per-branch execution with single-state eager merge, \tool avoids path explosion and scales to large production systems, analyzing the entire Linux kernel (1,565 Makefiles) in 22.1\,s (<105\,MB RAM). Evaluated across five systems spanning 26.9M LOC, \tool achieves over 99.9\% effective construct coverage, validates against live compiler builds with up to 99.4\% precision, and enables powerful applications including CI matrix reduction, dead code discovery, Kconfig divergence linting, and release evolution analysis. \tool is open source at \url{https://github.com/dynaroars/kfold}.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{skbuild}
