@@ -71,36 +71,36 @@ a wrong condition, not just a crash.
 Build this once, generically, so M2 (Linux) and M3 (coreboot) reuse it
 rather than each writing their own comparison script.
 
-- [ ] `tools/validate_predictions.py` (or similar): given a run's analysis
+- [x] `tools/validate_predictions.py` (or similar): given a run's analysis
   result (object path → Z3 condition) and a `Settings`/solver context:
-  - [ ] For each distinct condition, ask Z3 for a satisfying model
+  - [x] For each distinct condition, ask Z3 for a satisfying model
     (`z3.Solver.model()` after `check()`) to get one concrete witness
     configuration that should select that file.
-  - [ ] Don't stop at one witness per file: use a small greedy set-cover
+  - [x] Don't stop at one witness per file: use a small greedy set-cover
     over conditions (the same technique Cybolic uses for its "sufficient
     CI matrix" result~— see `../cybolic/paper/cybolic.tex`'s RQ4) to find
     a *small* set of witness configurations that between them are
     predicted to cover every extracted object, so the real-build step
     below runs a handful of builds, not thousands.
-  - [ ] Also generate at least one *negative* witness per file where
+  - [x] Also generate at least one *negative* witness per file where
     feasible (a config under which the file's condition is false) so the
     experiment checks both directions: predicted-present files are
     actually present, and predicted-absent files are actually absent —
     not just the easier one-directional check.
-  - [ ] For each witness: materialize a real `.config` (map the Z3 model's
+  - [x] For each witness: materialize a real `.config` (map the Z3 model's
     Boolean/tristate assignments to Kconfig's `CONFIG_X=y`/`=m`/unset
     lines; unassigned symbols need a documented default policy — probably
     "unset" — since Z3 will leave symbols the condition never mentions
     free).
-  - [ ] Run the real build (`make` in a clean checkout of the pinned
+  - [x] Run the real build (`make` in a clean checkout of the pinned
     release, oldconfig/olddefconfig from the materialized `.config`, then
     a real build) and collect the actual object/module list, the same way
     M1's original `find -name '*.o'`/build-log approach did.
-  - [ ] Compare predicted vs. actual per witness; do not silently ignore
+  - [x] Compare predicted vs. actual per witness; do not silently ignore
     build failures — a witness whose real build fails to even complete is
     itself a data point (a Kconfig-invalid witness, or a real build-system
     bug) and should be reported, not dropped.
-  - [ ] Output: one table per project, rows = witnesses, columns =
+  - [x] Output: one table per project, rows = witnesses, columns =
     true-positive / false-positive / false-negative object counts, plus a
     causal category for every non-true-positive (generated file skbuild
     doesn't model; unsupported construct; genuine skbuild bug; real
