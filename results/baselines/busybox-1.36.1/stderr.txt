@@ -1,0 +1,61 @@
+__main__:INFO:DEBUG MODE ON. Use python -O to optimize
+alg:INFO:tmpdir '/var/tmp/skbuild_4243b_h0'
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/applets/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/applets/Kbuild: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/archival/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/archival/Kbuild: 4 vars (0.02s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/console-tools/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/console-tools/Kbuild: 3 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/coreutils/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/coreutils/Kbuild: 4 vars (0.06s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/coreutils/libcoreutils/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/coreutils/libcoreutils/Kbuild: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/debianutils/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/debianutils/Kbuild: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/e2fsprogs/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/e2fsprogs/Kbuild: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/editors/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/editors/Kbuild: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/findutils/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/findutils/Kbuild: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/init/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/init/Kbuild: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/klibc-utils/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/klibc-utils/Kbuild: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/libbb/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/libbb/Kbuild: 3 vars (0.06s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/libpwdgrp/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/libpwdgrp/Kbuild: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/loginutils/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/loginutils/Kbuild: 3 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/mailutils/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/mailutils/Kbuild: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/miscutils/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/miscutils/Kbuild: 3 vars (0.03s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/modutils/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/modutils/Kbuild: 3 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/networking/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/networking/Kbuild: 3 vars (0.03s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/networking/libiproute/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/networking/libiproute/Kbuild: 3 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/networking/udhcp/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/networking/udhcp/Kbuild: 3 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/printutils/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/printutils/Kbuild: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/procps/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/procps/Kbuild: 3 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/runit/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/runit/Kbuild: 3 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/selinux/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/selinux/Kbuild: 3 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/shell/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/shell/Kbuild: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/sysklogd/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/sysklogd/Kbuild: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/util-linux/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/util-linux/Kbuild: 3 vars (0.05s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/util-linux/volume_id/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/util-linux/volume_id/Kbuild: 3 vars (0.02s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/archival/libarchive/Kbuild'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1/archival/libarchive/Kbuild: 5 vars (0.04s)
+alg:INFO:analyzed 30 kbuilds from 29 makefiles in 0.47s

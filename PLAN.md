@@ -108,14 +108,14 @@ rather than each writing their own comparison script.
 
 ### M1.1 — Run it on BusyBox
 
-- [ ] Pick a pinned BusyBox release tag; acquire it with
+- [x] Pick a pinned BusyBox release tag; acquire it with
   `tools/acquire_source.py` into `results/workspaces/busybox` (reuse as-is;
   it's generic and was already Python-only).
-- [ ] Fix `tests/busybox_skbuild.ini` / write a fresh `skbuild.ini` for the
+- [x] Fix `tests/busybox_skbuild.ini` / write a fresh `skbuild.ini` for the
   real release layout (the checked-in ini's `top_dirs` list was hand-curated
   for the old snapshot; verify it still matches, or regenerate from the real
   top-level `Makefile`'s `libs-y`/`core-y`).
-- [ ] BusyBox's root `Makefile` uses `$(shell ...)`/`$(error ...)` — these
+- [x] BusyBox's root `Makefile` uses `$(shell ...)`/`$(error ...)` — these
   are exactly the constructs flagged in the "support real constructs"
   discussion below, and skbuild not modeling them will directly show up as
   false negatives/positives in M1.0's table on BusyBox specifically, not
@@ -123,11 +123,11 @@ rather than each writing their own comparison script.
   work (shell execution, guarded error) BusyBox's own root Makefile
   actually needs before running the full validation loop, rather than
   doing that work generically for Linux first.
-- [ ] Run M1.0's tool against a pinned BusyBox release; get the witness
+- [x] Run M1.0's tool against a pinned BusyBox release; get the witness
   table above.
-- [ ] Record a `tools/record_baseline.py` run against the real release and
+- [x] Record a `tools/record_baseline.py` run against the real release and
   commit the manifest (not the full source) under `results/baselines/`.
-- [ ] Acceptance: one pinned BusyBox release, a Z3-derived witness set with
+- [x] Acceptance: one pinned BusyBox release, a Z3-derived witness set with
   set-cover coverage of the extracted conditions, real builds run for each
   witness, and a predicted-vs-actual table with every non-match causally
   explained (not just counted).

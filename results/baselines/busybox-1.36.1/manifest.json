@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "started_unix_seconds": 1790005084.6429477,
+  "elapsed_seconds": 0.6228026730241254,
+  "exit_code": 0,
+  "status": "success",
+  "command": [
+    "/usr/bin/python3",
+    "/home/tnguyen/git/projects/skbuild/src/skbuild.py",
+    "--rmtmp",
+    "/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1"
+  ],
+  "repository": "/home/tnguyen/git/projects/skbuild",
+  "revision": "c9cd2bce01d1c2574c111abbd56c3fc53c41c8df",
+  "dirty": true,
+  "dirty_diff_sha256": "9d76be769c18c4a31d39889476959ddbeb02b45c7403d2e5ca855d0d9631b248",
+  "artifacts": {
+    "dirty_diff": "dirty.diff",
+    "report": null,
+    "stderr": "stderr.txt"
+  },
+  "artifact_sha256": {
+    "dirty_diff": "9d76be769c18c4a31d39889476959ddbeb02b45c7403d2e5ca855d0d9631b248",
+    "report": null,
+    "stderr": "70bd742d0a95e18aaf7196490e16a8dcc9c5b20f9bdb7f10dde46f265d3fc8a7"
+  },
+  "machine": {
+    "system": "Linux",
+    "release": "7.1.12+deb14-amd64",
+    "machine": "x86_64",
+    "processor": "",
+    "python": "3.14.7"
+  },
+  "input": "/home/tnguyen/git/projects/skbuild/results/workspaces/busybox/source/busybox-1.36.1",
+  "input_sha256": "c0bd8b8e922ac17013278680e62144822aca85a5dfb867cf45da829422af035f",
+  "input_file_count": 4410,
+  "peak_rss_kib": 65184
+}
