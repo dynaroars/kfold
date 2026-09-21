@@ -1,0 +1,74 @@
+__main__:INFO:DEBUG MODE ON. Use python -O to optimize
+alg:WARNING:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/drivers has no makefile
+alg:INFO:tmpdir '/var/tmp/skbuild_i__jtubw'
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/acpi/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/acpi/Makefile.inc: 4 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/commonlib/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/commonlib/Makefile.inc: 11 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/console/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/console/Makefile.inc: 13 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/device/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/device/Makefile.inc: 14 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/lib/Makefile.inc'
+expansion:WARNING:NotImplemented: EvalFunction: $(eval $(stage)-srcs += $(addprefix $(1),$(2)))
+expansion:WARNING:NotImplemented: EvalFunction: $(eval $(stage)-srcs += $(addprefix $(1),$(2)))
+expansion:WARNING:NotImplemented: EvalFunction: $(eval $(stage)-srcs += $(addprefix $(1),$(2)))
+expansion:WARNING:NotImplemented: EvalFunction: $(eval $(stage)-srcs += $(addprefix $(1),$(2)))
+expansion:WARNING:NotImplemented: EvalFunction: $(eval $(stage)-srcs += $(addprefix $(1),$(2)))
+expansion:WARNING:NotImplemented: EvalFunction: $(eval $(stage)-srcs += $(addprefix $(1),$(2)))
+expansion:WARNING:NotImplemented: EvalFunction: $(eval $(stage)-srcs += $(addprefix $(1),$(2)))
+expansion:WARNING:NotImplemented: EvalFunction: $(eval $(stage)-srcs += $(addprefix $(1),$(2)))
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/lib/Makefile.inc: 16 vars (0.09s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/Makefile.inc: 2 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/3rdparty/libhwbase/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/3rdparty/libhwbase/Makefile.inc: 2 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/commonlib/storage/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/commonlib/storage/Makefile.inc: 9 vars (0.06s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/device/dram/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/device/dram/Makefile.inc: 5 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/device/oprom/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/device/oprom/Makefile.inc: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/lib/gnat/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/lib/gnat/Makefile.inc: 4 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/intel/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/intel/Makefile.inc: 2 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/lockdown/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/lockdown/Makefile.inc: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/memory/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/memory/Makefile.inc: 7 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/tpm/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/tpm/Makefile.inc: 13 vars (0.03s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/vboot/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/vboot/Makefile.inc: 12 vars (0.11s)
+alg:WARNING:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/lib/gnat/--RTS=$$(obj)/libgnat-$(1) does not exist
+alg:WARNING:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/lib/gnat/$$(obj)/libgnat-$(1)/adalib does not exist
+alg:WARNING:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/lib/gnat/-I$$(src)/lib/gnat does not exist
+alg:WARNING:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/lib/gnat/$$(obj)/libgnat-$(1)/adainclude does not exist
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/3rdparty/libhwbase/ada/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/3rdparty/libhwbase/ada/Makefile.inc: 1 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/3rdparty/libhwbase/c/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/3rdparty/libhwbase/c/Makefile.inc: 1 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/3rdparty/libhwbase/common/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/3rdparty/libhwbase/common/Makefile.inc: 1 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/3rdparty/libhwbase/debug/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/3rdparty/libhwbase/debug/Makefile.inc: 1 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/3rdparty/libhwbase/proof/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/3rdparty/libhwbase/proof/Makefile.inc: 1 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/device/oprom/realmode/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/device/oprom/realmode/Makefile.inc: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/device/oprom/x86emu/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/device/oprom/x86emu/Makefile.inc: 2 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/device/oprom/yabel/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/device/oprom/yabel/Makefile.inc: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/intel/cbnt/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/intel/cbnt/Makefile.inc: 2 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/intel/stm/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/intel/stm/Makefile.inc: 3 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/intel/txt/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/intel/txt/Makefile.inc: 4 vars (0.01s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/tpm/tss/vendor/cr50/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/security/tpm/tss/vendor/cr50/Makefile.inc: 6 vars (0.00s)
+alg:INFO:analyzing '/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/device/oprom/yabel/compat/Makefile.inc'
+alg:INFO:/home/tnguyen/git/projects/skbuild/results/workspaces/coreboot/source/coreboot-4.22.01/source/coreboot-4.22.01/src/device/oprom/yabel/compat/Makefile.inc: 2 vars (0.00s)
+alg:INFO:analyzed 29 kbuilds from 29 makefiles in 0.46s

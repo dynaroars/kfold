@@ -147,6 +147,8 @@ class ZSolver:
 
     def check(self, f):
         assert z3.is_expr(f), f
+        from census import GLOBAL_METRICS
+        GLOBAL_METRICS.z3_checks += 1
         self.solver.push()
         self.solver.add(f)
         ret = self.solver.check()
@@ -155,6 +157,8 @@ class ZSolver:
 
     def is_sat(self, f):
         assert z3.is_expr(f), f
+        from census import GLOBAL_METRICS
+        GLOBAL_METRICS.z3_sat_calls += 1
         if f is T:
             return True
         elif f is F:
@@ -165,6 +169,8 @@ class ZSolver:
 
     def is_valid(self, f):
         assert z3.is_expr(f), f
+        from census import GLOBAL_METRICS
+        GLOBAL_METRICS.z3_valid_calls += 1
         if f is T:
             return True
         elif f is F:

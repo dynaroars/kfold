@@ -93,26 +93,42 @@ class Statement(ABC):
     # miscs
     @classmethod
     def get_cls(cls, stmt):
+        from census import GLOBAL_METRICS
         if isinstance(stmt, parserdata.SetVariable):
             mycls = SetVariable
+            token = getattr(stmt, 'token', '=')
+            GLOBAL_METRICS.record_construct(f"SetVariable{token}")
 
         elif isinstance(stmt, parserdata.ConditionBlock):
             mycls = ConditionBlock
+            if len(stmt) > 0 and len(stmt[0]) > 0 and hasattr(stmt[0][0], '__class__'):
+                cond_type = stmt[0][0].__class__.__name__.replace("Condition", "").lower()
+                GLOBAL_METRICS.record_construct(f"ConditionBlock:{cond_type}")
+            else:
+                GLOBAL_METRICS.record_construct("ConditionBlock")
 
-        elif isinstance(
-                stmt, (parserdata.Rule, parserdata.StaticPatternRule)):
+        elif isinstance(stmt, parserdata.Rule):
             mycls = Rule
+            GLOBAL_METRICS.record_construct("Rule")
+
+        elif isinstance(stmt, parserdata.StaticPatternRule):
+            mycls = Rule
+            GLOBAL_METRICS.record_construct("StaticPatternRule")
 
         elif isinstance(stmt, parserdata.Include):
             mycls = Include
+            GLOBAL_METRICS.record_construct("Include")
 
         elif isinstance(stmt, parserdata.Command):
             mycls = Command
+            GLOBAL_METRICS.record_construct("Command")
 
         elif isinstance(stmt, parserdata.EmptyDirective):
             mycls = EmptyDirective
+            GLOBAL_METRICS.record_construct("EmptyDirective")
 
         else:
+            GLOBAL_METRICS.record_construct(f"Unknown:{stmt.__class__.__name__}")
             raise NotImplementedError("cannot parse {}".format(stmt))
         return mycls
 
@@ -414,26 +430,26 @@ class ConditionBlock(Statement):
         3a, 4:  [] => False
         5,6:  f3 && f4  or   f2 and f2a
         """
-        keys1 = set([v for v, _ in exps1])
-        keys2 = set([v for v, _ in exps2])
-        keys = set.intersection(keys1, keys2)
+        d1 = {}
+        for v, c in exps1:
+            if v in d1:
+                d1[v] = zsolver.disj(d1[v], c)
+            else:
+                d1[v] = c
 
-        merge_d = {}
-        for v, c in exps1 + exps2:
-            if v not in keys:
-                continue
-            merge_d.setdefault(v, []).append(c)
+        d2 = {}
+        for v, c in exps2:
+            if v in d2:
+                d2[v] = zsolver.disj(d2[v], c)
+            else:
+                d2[v] = c
 
-        assert all(len(merge_d[k]) >= 2 for k in merge_d), merge_d
-
-        disjs = [zsolver.mconj(cs) for cs in merge_d.values()]
-        if not disjs:
+        common_keys = set(d1.keys()) & set(d2.keys())
+        if not common_keys:
             return zsolver.F
-        elif len(disjs) == 1:
-            return disjs[0]
-        else:
-            assert all(disj is not zsolver.T for disj in disjs), disjs
-            return zsolver.mdisj(disjs)
+
+        terms = [zsolver.conj(d1[k], d2[k]) for k in common_keys]
+        return zsolver.mdisj(terms)
 
 
 class SetVariable(Statement):

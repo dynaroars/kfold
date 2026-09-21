@@ -683,8 +683,17 @@ def parsestring(s, filename):
                 condstack[-1].append(parserdata.SetVariable(e, value=value,
                                                             valueloc=d.getloc(offset), token=token, targetexp=targets))
             elif token == '|':
-                raise errors.SyntaxError(
-                    'order-only prerequisites not implemented', d.getloc(offset))
+                order_deps, token, offset = parsemakesyntax(
+                    d, offset, (';',), itermakefilechars)
+                condstack[-1].append(parserdata.Rule(
+                    targets, e, doublecolon))
+                currule = True
+
+                if token == ';':
+                    offset = d.skipwhitespace(offset)
+                    e, t, offset = parsemakesyntax(
+                        d, offset, (), itercommandchars)
+                    condstack[-1].append(parserdata.Command(e))
             else:
                 assert token == ':'
                 # static pattern rule

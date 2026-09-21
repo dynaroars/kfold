@@ -66,6 +66,7 @@ class Settings:
         self.ignore_setvar_endswith = frozenset()
         self.ignore_setvar_kws = frozenset()
         self.target_vars = frozenset(["obj-", "lib-"])
+        self.entry_files = ["Kbuild", "Makefile", "Makefile.inc"]
         self.ignore_vars = frozenset(["src"])
         self.xopts = {}
 
@@ -89,6 +90,12 @@ class Settings:
 
         try:
             self.topdirs = myconfig.get('top_dirs').split()
+        except AttributeError:
+            pass
+
+        try:
+            if 'entry_files' in myconfig:
+                self.entry_files = myconfig.get('entry_files').split()
         except AttributeError:
             pass
 

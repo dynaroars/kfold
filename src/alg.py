@@ -38,7 +38,7 @@ class Run:
                 topdirs = [self.maindir]
 
             makefiles = [(makefile, self.default_cond) for makefile in
-                         self.get_makefiles(topdirs)]
+                         self.get_makefiles(topdirs, self.mysettings)]
 
         assert makefiles
         self.makefiles = makefiles
@@ -56,6 +56,7 @@ class Run:
 
         nkbuilds = 0  # number of created kbuilds
         cache = {}  # makefile -> kbuild file
+        self.all_kbuilds = []
         makefiles = self.makefiles
         while makefiles:
             tmp_kbuilds = []
@@ -79,7 +80,8 @@ class Run:
                 tmp_kbuilds.append(kbuild)
                 kbuild.save(self.tmpdir / 'kbuild_{}'.format(nkbuilds))
 
-            makefiles = self.get_makefiles_from_kbuilds(tmp_kbuilds)
+            self.all_kbuilds.extend(tmp_kbuilds)
+            makefiles = self.get_makefiles_from_kbuilds(tmp_kbuilds, self.mysettings)
 
         mlog.info("analyzed {} kbuilds from {} makefiles in {:.2f}s".format(
             nkbuilds, len(cache), time() - st))
@@ -115,14 +117,14 @@ class Run:
         return (maindir, mysettings, kbuilds)
 
     @classmethod
-    def get_makefiles(cls, paths):
+    def get_makefiles(cls, paths, mysettings=None):
         assert all(isinstance(p, pathlib.Path) for p in paths), paths
 
-        makefiles = [cls.get_makefile(p) for p in paths]
+        makefiles = [cls.get_makefile(p, mysettings) for p in paths]
         return [makefile for makefile in makefiles if makefile]
 
     @classmethod
-    def get_makefiles_from_kbuilds(cls, kbuilds):
+    def get_makefiles_from_kbuilds(cls, kbuilds, mysettings=None):
         subdir_conds = {}
         for kb in kbuilds:
             for subdir, cond in kb.state.subdirs_with_cond(
@@ -135,7 +137,7 @@ class Run:
 
         cache = {}
         for subdir, cond in subdir_conds.items():
-            makefile = cls.get_makefile(subdir)
+            makefile = cls.get_makefile(subdir, mysettings)
             if makefile:
                 cache.setdefault(makefile, []).append(cond)
 
@@ -144,9 +146,9 @@ class Run:
         return makefiles
 
     @classmethod
-    def get_makefile(cls, path):
+    def get_makefile(cls, path, mysettings=None):
         """
-        use Kbuild file if found, otherwise try Makefile
+        use Kbuild / Makefile / Makefile.inc as configured
         """
         assert isinstance(path, pathlib.Path), path
 
@@ -156,11 +158,15 @@ class Run:
 
         makefile = path
         if path.is_dir():
-            makefile = path / "Kbuild"
-            if not makefile.is_file():
-                makefile = path / "Makefile"
+            entry_files = mysettings.entry_files if mysettings and hasattr(mysettings, 'entry_files') else ["Kbuild", "Makefile", "Makefile.inc"]
+            makefile = None
+            for fname in entry_files:
+                candidate = path / fname
+                if candidate.is_file():
+                    makefile = candidate
+                    break
 
-        if not makefile.is_file():
+        if not makefile or not makefile.is_file():
             mlog.warn("{} has no makefile".format(path))
             return None
 

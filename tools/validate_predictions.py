@@ -89,6 +89,7 @@ class PredictionValidator:
 
     def _extract_predictions(self) -> Tuple[Dict[str, z3.ExprRef], Dict[str, Callable]]:
         target_objects: Dict[str, z3.ExprRef] = {}
+        valid_exts = (".o", ".c", ".s", ".S", ".a", ".ads", ".adb")
         for kbuild in self.analysis.kbuilds:
             state = kbuild.state
             vals_d = state.vals_d
@@ -96,11 +97,14 @@ class PredictionValidator:
                 if v.name in self.mysettings.target_vars:
                     continue
                 for word, wcond in v.valconds.items():
-                    if not word.endswith(".o"):
+                    if not any(word.endswith(ext) for ext in valid_exts):
                         continue
                     for f, cond in self.analysis.expand(word, wcond, vals_d):
-                        rel = (kbuild.makefile.parent / f).relative_to(self.analysis.main_dir)
-                        target_objects[str(rel)] = cond
+                        try:
+                            rel = (kbuild.makefile.parent / f).relative_to(self.analysis.main_dir)
+                            target_objects[str(rel)] = cond
+                        except ValueError:
+                            target_objects[str(f)] = cond
 
         compiled = {obj: compile_expr(cond) for obj, cond in target_objects.items()}
         return target_objects, compiled

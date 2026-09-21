@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "started_unix_seconds": 1790005782.2549329,
+  "elapsed_seconds": 22.826694917021086,
+  "exit_code": 0,
+  "status": "success",
+  "command": [
+    "/usr/bin/python3",
+    "/home/tnguyen/git/projects/skbuild/src/skbuild.py",
+    "/home/tnguyen/git/projects/skbuild/tests/linux/linux_orig"
+  ],
+  "repository": "/home/tnguyen/git/projects/skbuild",
+  "revision": "dde3ae466a5309a510ceb2f2c1bb4ec230b521ba",
+  "dirty": true,
+  "dirty_diff_sha256": "8fe728fd41b04d44ecfbe9204a24e931bbdff8672494bcb64890b0b6c83551d5",
+  "artifacts": {
+    "dirty_diff": "dirty.diff",
+    "report": "report.json",
+    "stderr": "stderr.txt"
+  },
+  "artifact_sha256": {
+    "dirty_diff": "8fe728fd41b04d44ecfbe9204a24e931bbdff8672494bcb64890b0b6c83551d5",
+    "report": "149a6bc6ce904af93493b5fb18cde6183f3a1bb4f6ff6f2b4feee69285e95856",
+    "stderr": "d2ac3a5cad1fd64a78715f4241b7e6f994783daef36cf0cc1f4d45efda45392d"
+  },
+  "machine": {
+    "system": "Linux",
+    "release": "7.1.12+deb14-amd64",
+    "machine": "x86_64",
+    "processor": "",
+    "python": "3.14.7"
+  },
+  "input": "/home/tnguyen/git/projects/skbuild/tests/linux/linux_orig",
+  "input_sha256": "87cb8f0d4714ea21ef45ce39a551c8297409a4c49daca270e9ae59df3e472f5f",
+  "input_file_count": 2060,
+  "peak_rss_kib": 94020
+}

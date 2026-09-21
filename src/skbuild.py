@@ -35,6 +35,10 @@ if __name__ == '__main__':
        action="store_true",
        help="lots of debug detail")
 
+    ag("--json", "-json",
+       action="store_true",
+       help="output analysis result and metrics as JSON")
+
     # Analysis Option
     ag("--build_dir", "-build_dir",
        type=str,
@@ -76,10 +80,40 @@ if __name__ == '__main__':
         cls = Run(path)
         tmpdir = cls.go()
 
+    from census import GLOBAL_METRICS
+    summary = GLOBAL_METRICS.summary()
+
+    if args.json:
+        import json
+        from analysis import Analysis
+        res_data = {
+            "summary": summary,
+            "target": str(path.resolve()),
+        }
+        kbuilds_list = getattr(cls, 'all_kbuilds', getattr(cls, 'kbuilds', []))
+        main_dir = getattr(cls, 'maindir', getattr(cls, 'main_dir', path))
+        mysettings = getattr(cls, 'mysettings', None)
+        target_objects = {}
+        for kbuild in kbuilds_list:
+            state = kbuild.state
+            parent = kbuild.makefile.parent
+            for v in state.target_files:
+                if mysettings and v.name in mysettings.target_vars:
+                    continue
+                for word, wcond in v.valconds.items():
+                    try:
+                        rel = str((parent / word).relative_to(main_dir))
+                    except ValueError:
+                        rel = str(word)
+                    target_objects[rel] = str(wcond)
+        res_data["predictions_count"] = len(target_objects)
+        res_data["predictions"] = target_objects
+        print(json.dumps(res_data, indent=2))
+
     if tmpdir and tmpdir.is_dir():
         if args.rmtmp:
             import shutil
             mlog.debug("rm -rf {}".format(tmpdir))
             shutil.rmtree(tmpdir)
-        else:
+        elif not args.json:
             print("tmpdir: {}".format(tmpdir))

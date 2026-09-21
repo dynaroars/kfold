@@ -70,14 +70,22 @@ class VarG:
     @property
     def subdir_names(self):
         assert not self.ignorable
-        return [d for d in self.valconds if d.endswith('/')]
+        return [d for d in self.valconds
+                if d.endswith('/') or self.name.startswith("subdirs-") or self.name == "subdirs"]
 
     def subdirs_with_cond(self, topdir):
         assert topdir.is_dir(), topdir
         assert not self.ignorable
 
-        return {topdir / d: cond for d, cond in self.valconds.items()
-                if d.endswith('/')}
+        res = {}
+        for d, cond in self.valconds.items():
+            if d.endswith('/') or self.name.startswith("subdirs-") or self.name == "subdirs":
+                subdir_path = (topdir / d).resolve()
+                if subdir_path in res:
+                    res[subdir_path] = zsolver.disj(res[subdir_path], cond)
+                else:
+                    res[subdir_path] = cond
+        return res
 
     @classmethod
     def get_flavor(cls, token):
@@ -156,6 +164,8 @@ class BaseState:
         assert isinstance(token, str) and token, token
         assert isinstance(val, str), val
         assert z3.is_expr(cond), cond
+        from census import GLOBAL_METRICS
+        GLOBAL_METRICS.set_var_calls += 1
 
         words = frozenset(val.split())
         old = self.states.get(name)
