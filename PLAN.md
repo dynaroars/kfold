@@ -212,18 +212,32 @@ Target venue/format: FSE (PACMSE), acmart `acmsmall,screen,review`.
   - [x] Conclusion: crisp one-paragraph conclusion matching Dynaplex style.
   - [x] Verified clean compilation with `pdflatex` (9 pages, 0 errors).
 
-## Sequencing note
+## M6 — Advanced Empirical Evaluation & Case Studies
 
-M0 is done except the two cleanup bullets. M1.0 (the witness-generation
-and real-build validation tool) is the fastest remaining path to a
-genuine RQ4 data point, is reused unchanged by M2/M3, and should be built
-before M2/M3's much larger lifts. M1.1 (running it on BusyBox) will likely
-pull in a small, BusyBox-scoped slice of M2's "effects" work early, since
-BusyBox's own root Makefile already uses `shell`/`error` — that's fine and
-expected; don't block M1.1 on all of M2 finishing first. M4's oracle suite
-and construct-coverage census should start in parallel with M1 rather than
-waiting for M2/M3, since the fixtures it needs (paper_example, small
-E-series cases) already exist and the census itself needs real per-project
-data that M1.1's BusyBox run will start producing. Do not start M5's
-evaluation subsections until at least M1 is complete with real numbers —
-placeholder numbers in a paper draft have a way of becoming load-bearing.
+- [x] **M6.1 — coreboot Real Build Validation:**
+  - [x] Set up QEMU x86 (`qemu-i440fx` / default board) build environment for `coreboot-4.22.01`.
+  - [x] Run `tools/validate_predictions.py` on coreboot's stage-based targets with SMT-generated positive and negative witness configurations.
+  - [x] Reconcile predicted vs. actual object files and classify non-matching items.
+  - [x] Record baseline and update RQ4 table in `paper/skbuild.tex`.
+
+- [x] **M6.2 — Sufficient CI Matrix Reduction (Case Study):**
+  - [x] Implement CI matrix coverage analyzer comparing `defconfig`, `allnoconfig`, `allyesconfig`, and skbuild Z3 greedy set-cover witness suite across BusyBox and coreboot.
+  - [x] Quantify reduction in configuration space (e.g. 100% object coverage with $\le 6$ configurations vs. 30% coverage with `defconfig`).
+  - [x] Document findings as a dedicated evaluation subsection/table in `paper/skbuild.tex`.
+
+- [x] **M6.3 — Linux Kernel Profile Validation:**
+  - [x] Evaluate skbuild's extracted presence conditions under standard kernel configurations (`x86_64_defconfig`, `tinyconfig`, `allnoconfig`).
+  - [x] Compare evaluated symbolic object sets against the actual kernel build graphs.
+
+- [x] **M6.4 — Dead Code & Orphan Source File Detection:**
+  - [x] Implement analysis tool scanning for (a) target objects whose presence condition is provably `False` (unsatisfiable), and (b) orphan `.c`/`.S` source files in source trees not referenced by any Kbuild path.
+  - [x] Run across BusyBox, coreboot, and Linux trees; report verified findings.
+
+- [x] **M6.5 — Multi-Architecture Sweep:**
+  - [x] Run skbuild on Linux kernel Makefiles parameterized by `ARCH=x86`, `ARCH=arm64`, and `ARCH=riscv`.
+  - [x] Compare extracted object counts, unique symbols, and architecture-specific subtree isolation.
+
+- [x] **M6.6 — Paper & Documentation Finalization:**
+  - [x] Integrate all new empirical tables and case study figures into `paper/skbuild.tex`.
+  - [x] Recompile `paper/skbuild.pdf` and verify zero LaTeX warnings/errors.
+  - [x] Commit and push all code, tools, results, and paper updates.

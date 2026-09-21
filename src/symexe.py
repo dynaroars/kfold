@@ -127,6 +127,14 @@ class Statement(ABC):
             mycls = EmptyDirective
             GLOBAL_METRICS.record_construct("EmptyDirective")
 
+        elif isinstance(stmt, (parserdata.ExportDirective, parserdata.UnexportDirective)):
+            mycls = ExportDirective
+            GLOBAL_METRICS.record_construct("ExportDirective")
+
+        elif isinstance(stmt, parserdata.VpathDirective):
+            mycls = EmptyDirective
+            GLOBAL_METRICS.record_construct("VpathDirective")
+
         else:
             GLOBAL_METRICS.record_construct(f"Unknown:{stmt.__class__.__name__}")
             raise NotImplementedError("cannot parse {}".format(stmt))
@@ -543,3 +551,8 @@ class Include(Statement):
 class EmptyDirective(Statement):
     def check_skip(self, ddb):
         raise NotImplementedError('check me')
+
+
+class ExportDirective(Statement):
+    def myreduce(self, ddb):
+        return None
