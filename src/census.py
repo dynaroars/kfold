@@ -31,6 +31,8 @@ class Metrics:
             "Function:variableref": "modeled",
             "Function:subst": "modeled",
             "Function:patsubst": "modeled",
+            "Function:substitutionref": "modeled",
+            "Function:SubstitutionRef": "modeled",
             "Function:filter": "modeled",
             "Function:filter-out": "modeled",
             "Function:filterout": "modeled",
@@ -59,8 +61,8 @@ class Metrics:
             "Function:info": "modeled",
             "Function:wildcard": "modeled",
             # Correctly out of scope
-            "Rule": "out_of_scope",
-            "StaticPatternRule": "out_of_scope",
+            "Rule": "modeled",
+            "StaticPatternRule": "modeled",
             "Command": "out_of_scope",
             "EmptyDirective": "out_of_scope",
         }

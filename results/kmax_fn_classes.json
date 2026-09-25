@@ -1,0 +1,42 @@
+{
+ "tinyconfig/local": {
+  "fn": 21,
+  "kfold_members": 0,
+  "arch_x86": 21
+ },
+ "tinyconfig/with_dirs": {
+  "fn": 125,
+  "kfold_members": 3,
+  "arch_x86": 125
+ },
+ "defconfig/local": {
+  "fn": 918,
+  "kfold_members": 882,
+  "arch_x86": 34
+ },
+ "defconfig/with_dirs": {
+  "fn": 1111,
+  "kfold_members": 891,
+  "arch_x86": 227
+ },
+ "debian/local": {
+  "fn": 5472,
+  "kfold_members": 5425,
+  "arch_x86": 122
+ },
+ "debian/with_dirs": {
+  "fn": 5782,
+  "kfold_members": 5437,
+  "arch_x86": 413
+ },
+ "allmodconfig/local": {
+  "fn": 7479,
+  "kfold_members": 7428,
+  "arch_x86": 147
+ },
+ "allmodconfig/with_dirs": {
+  "fn": 7902,
+  "kfold_members": 7455,
+  "arch_x86": 486
+ }
+}

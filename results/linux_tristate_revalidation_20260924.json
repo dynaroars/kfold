@@ -1,0 +1,88 @@
+{
+  "source_commit": "ffc253263a1375a65fa6c9f62a893e9767fbebfa",
+  "config_sha256": "8fb22042e81eb86379db880fd8a515977fbd51ca01a442ca5ae32650d0a9368a",
+  "use_tristate": true,
+  "analysis_time_s": 28.21446418762207,
+  "kbuild_instances": 1938,
+  "target_entries": 27108,
+  "census": {
+    "totals": {
+      "modeled": 53324,
+      "out_of_scope": 264,
+      "unsupported": 8,
+      "total": 53596
+    },
+    "by_category": {
+      "modeled": {
+        "ConditionBlock:eq": 193,
+        "ConditionBlock:ifdef": 85,
+        "Function:addprefix": 15,
+        "Function:addsuffix": 2,
+        "Function:call": 30,
+        "Function:filter": 16,
+        "Function:filter-out": 3,
+        "Function:findstring": 1,
+        "Function:or": 1,
+        "Function:patsubst": 4,
+        "Function:shell": 8,
+        "Function:subst": 42,
+        "Function:variableref": 32442,
+        "Function:words": 4,
+        "Include": 15,
+        "SetVariable+=": 17235,
+        "SetVariable:=": 2932,
+        "SetVariable=": 294,
+        "SetVariable?=": 2
+      },
+      "out_of_scope": {
+        "Command": 100,
+        "EmptyDirective": 10,
+        "Rule": 150,
+        "StaticPatternRule": 4
+      },
+      "unsupported": {
+        "Function:substitutionref": 8
+      }
+    }
+  },
+  "comparison": {
+    "config_name": "existing normalized .config",
+    "description": "",
+    "eval_time_s": 1.61,
+    "total_targets": 13841,
+    "kfold_predicted_active": 5375,
+    "gmake_ground_truth_active": 5220,
+    "tp": 5041,
+    "fp": 334,
+    "fn": 179,
+    "tn": 8287,
+    "precision": 93.79,
+    "recall": 96.57,
+    "f1_score": 95.16,
+    "accuracy": 96.29,
+    "sample_fp": [
+      "certs/blacklist.o",
+      "certs/blacklist_hashes.o",
+      "certs/system_certificates.o",
+      "certs/system_keyring.o",
+      "crypto/adiantum.o",
+      "crypto/aead.o",
+      "crypto/aegis128.o",
+      "crypto/aes_generic.o",
+      "crypto/af_alg.o",
+      "crypto/akcipher.o"
+    ],
+    "sample_fn": [
+      "drivers/acpi/arm64/dma.o",
+      "drivers/acpi/arm64/init.o",
+      "drivers/acpi/riscv/rhct.o",
+      "drivers/clk/at91/clk-main.o",
+      "drivers/clk/at91/clk-master.o",
+      "drivers/clk/at91/clk-peripheral.o",
+      "drivers/clk/at91/clk-pll.o",
+      "drivers/clk/at91/clk-plldiv.o",
+      "drivers/clk/at91/clk-programmable.o",
+      "drivers/clk/at91/clk-slow.o"
+    ]
+  }
+}

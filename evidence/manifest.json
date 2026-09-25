@@ -1,0 +1,103 @@
+{
+  "manifest_version": "1.1",
+  "generated_at": "2026-09-21T14:48:40-04:00",
+  "environment": {
+    "os": "Linux 7.1.12+deb14-amd64 x86_64 (Debian trixie/sid)",
+    "python": "3.14.7",
+    "z3": "4.13.3",
+    "make": "GNU Make 4.4.1",
+    "gcc": "gcc 16.2.0",
+    "kernel": "7.1.12+deb14-amd64",
+    "cpu": "Intel Core i7-7700, 8 logical CPUs",
+    "ram": "31 GiB",
+    "gcc_12": "gcc-12 (Debian 12.5.0-9) 12.5.0",
+    "binutils": "GNU objcopy (GNU Binutils for Debian) 2.47"
+  },
+  "subjects": {
+    "busybox": {
+      "name": "BusyBox",
+      "version": "1.36.1",
+      "source_url": "https://busybox.net/downloads/busybox-1.36.1.tar.bz2",
+      "archive_sha256": "b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314",
+      "local_path": "results/workspaces/busybox/source/busybox-1.36.1",
+      "makefiles_count": 30,
+      "extracted_targets": 609
+    },
+    "coreboot": {
+      "name": "coreboot",
+      "version": "4.22.01",
+      "source_url": "https://coreboot.org/releases/coreboot-4.22.01.tar.xz",
+      "archive_sha256": null,
+      "local_path": "results/workspaces/coreboot/source/coreboot-4.22.01",
+      "makefiles_count": 29,
+      "extracted_targets": 222,
+      "archive_status": "matching source archive not present in local cache",
+      "build_status": "archived partial ROM build; not rebuilt in September 24 rerun"
+    },
+    "barebox": {
+      "name": "Barebox",
+      "version": "2024.01.0",
+      "source_url": "https://barebox.org/download/barebox-2024.01.0.tar.bz2",
+      "archive_sha256": "4597e38bc156d4a6b37a623762cebeaf777ab81bb575572caf22dfc4791d010f",
+      "local_path": "results/workspaces/barebox/source/barebox-2024.01.0",
+      "makefiles_count": 155,
+      "extracted_targets": 1343,
+      "rebuild_status": "completed; 406/406 archived objects reproduced"
+    },
+    "uboot": {
+      "name": "Das U-Boot",
+      "version": "2024.01",
+      "source_url": "https://ftp.denx.de/pub/u-boot/u-boot-2024.01.tar.bz2",
+      "archive_sha256": "a03c3c2ba9d2bea5176c6406f1f3429a79e1147be242f5a07dbd9e89b3cc83c4",
+      "local_path": "results/workspaces/uboot/source/u-boot-2024.01",
+      "makefiles_count": 271,
+      "extracted_targets": 3031,
+      "rebuild_status": "compilation produced all 1123 archived objects plus 81 further objects; final packaging failed without Python libfdt; EFI_TARGET workaround used"
+    },
+    "linux": {
+      "name": "Linux Kernel",
+      "version": "6.6",
+      "source_path": "results/workspaces/linux",
+      "local_path": "results/workspaces/linux",
+      "makefiles_count": 1938,
+      "extracted_targets": 13841,
+      "git_commit": "ffc253263a1375a65fa6c9f62a893e9767fbebfa",
+      "source_dirty_files": [
+        " M arch/x86/Makefile",
+        " M drivers/firmware/efi/libstub/Makefile"
+      ],
+      "source_diff_sha256": "209d365bc125f2257bd200414b745581ba450d852e6abe560a51c2d1b90ac9cc",
+      "revalidated_configs": {
+        "tinyconfig": {
+          "path": "results/revalidation_builds/linux_configs/tinyconfig_i386/.config",
+          "sha256": "37779578762454e17718bc2fdc311388ea8283b203ad235c6af43b70c1057a9c",
+          "symbols": 813,
+          "arch": "i386",
+          "clean_build": "completed; 489/489 archived objects reproduced"
+        },
+        "defconfig": {
+          "path": "results/revalidation_builds/linux_configs/defconfig/.config",
+          "sha256": "e0eef62fcde302a0d16c50ad1afecde8ef68b858d5b0d37834557b2a526a5b25",
+          "symbols": 4207,
+          "arch": "x86_64",
+          "clean_build": "completed; 2874/2874 archived objects reproduced"
+        },
+        "debian": {
+          "path": "results/workspaces/linux/.config",
+          "sha256": "8fb22042e81eb86379db880fd8a515977fbd51ca01a442ca5ae32650d0a9368a",
+          "symbols": 9128,
+          "build_status": "archived objects; not rebuilt in September 24 rerun"
+        },
+        "allmodconfig": {
+          "path": "results/revalidation_builds/linux_configs/allmodconfig/.config",
+          "sha256": "2866350036419f82f6ceae0ff5fd1c5ba3e6715df7223775919745d49d62e58d",
+          "symbols": 14260,
+          "build_status": "archived objects; not rebuilt in September 24 rerun"
+        }
+      }
+    }
+  },
+  "timeout_seconds": 300,
+  "memory_limit_mb": 4096,
+  "revalidated_at": "2026-09-24"
+}

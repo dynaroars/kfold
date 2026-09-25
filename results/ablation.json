@@ -1,0 +1,410 @@
+{
+ "Linux": {
+  "no_includes": {
+   "makefile_instances": 2022,
+   "profiles": {
+    "tinyconfig": {
+     "universe": 23382,
+     "predicted": 489,
+     "tp": 489,
+     "fp": 0,
+     "fn_within_universe": 0,
+     "outside_universe": 0,
+     "precision_pct": 100.0,
+     "overlap_pct": 100.0
+    },
+    "defconfig": {
+     "universe": 27966,
+     "predicted": 2874,
+     "tp": 2874,
+     "fp": 0,
+     "fn_within_universe": 0,
+     "outside_universe": 0,
+     "precision_pct": 100.0,
+     "overlap_pct": 100.0
+    },
+    "debian": {
+     "universe": 27967,
+     "predicted": 14196,
+     "tp": 14196,
+     "fp": 0,
+     "fn_within_universe": 0,
+     "outside_universe": 1223,
+     "precision_pct": 100.0,
+     "overlap_pct": 92.1
+    },
+    "allmodconfig": {
+     "universe": 28010,
+     "predicted": 24726,
+     "tp": 24726,
+     "fp": 0,
+     "fn_within_universe": 0,
+     "outside_universe": 1223,
+     "precision_pct": 100.0,
+     "overlap_pct": 95.3
+    }
+   }
+  },
+  "no_rules": {
+   "makefile_instances": 2022,
+   "profiles": {
+    "tinyconfig": {
+     "universe": 24508,
+     "predicted": 448,
+     "tp": 448,
+     "fp": 0,
+     "fn_within_universe": 0,
+     "outside_universe": 41,
+     "precision_pct": 100.0,
+     "overlap_pct": 91.6
+    },
+    "defconfig": {
+     "universe": 29092,
+     "predicted": 2812,
+     "tp": 2812,
+     "fp": 0,
+     "fn_within_universe": 0,
+     "outside_universe": 62,
+     "precision_pct": 100.0,
+     "overlap_pct": 97.8
+    },
+    "debian": {
+     "universe": 29102,
+     "predicted": 15340,
+     "tp": 15340,
+     "fp": 0,
+     "fn_within_universe": 0,
+     "outside_universe": 79,
+     "precision_pct": 100.0,
+     "overlap_pct": 99.5
+    },
+    "allmodconfig": {
+     "universe": 29145,
+     "predicted": 25869,
+     "tp": 25869,
+     "fp": 0,
+     "fn_within_universe": 0,
+     "outside_universe": 80,
+     "precision_pct": 100.0,
+     "overlap_pct": 99.7
+    }
+   }
+  },
+  "no_link_semantics": {
+   "makefile_instances": 2022,
+   "profiles": {
+    "tinyconfig": {
+     "universe": 24611,
+     "predicted": 494,
+     "tp": 489,
+     "fp": 5,
+     "fn_within_universe": 0,
+     "outside_universe": 0,
+     "precision_pct": 99.0,
+     "overlap_pct": 100.0
+    },
+    "defconfig": {
+     "universe": 29196,
+     "predicted": 3022,
+     "tp": 2874,
+     "fp": 148,
+     "fn_within_universe": 0,
+     "outside_universe": 0,
+     "precision_pct": 95.1,
+     "overlap_pct": 100.0
+    },
+    "debian": {
+     "universe": 29206,
+     "predicted": 15531,
+     "tp": 15419,
+     "fp": 112,
+     "fn_within_universe": 0,
+     "outside_universe": 0,
+     "precision_pct": 99.3,
+     "overlap_pct": 100.0
+    },
+    "allmodconfig": {
+     "universe": 29249,
+     "predicted": 26063,
+     "tp": 25949,
+     "fp": 114,
+     "fn_within_universe": 0,
+     "outside_universe": 0,
+     "precision_pct": 99.6,
+     "overlap_pct": 100.0
+    }
+   }
+  },
+  "original_settings": {
+   "makefile_instances": 1952,
+   "profiles": {
+    "tinyconfig": {
+     "universe": 23413,
+     "predicted": 215,
+     "tp": 212,
+     "fp": 3,
+     "fn_within_universe": 0,
+     "outside_universe": 277,
+     "precision_pct": 98.6,
+     "overlap_pct": 43.4
+    },
+    "defconfig": {
+     "universe": 27995,
+     "predicted": 2481,
+     "tp": 2352,
+     "fp": 129,
+     "fn_within_universe": 2,
+     "outside_universe": 520,
+     "precision_pct": 94.8,
+     "overlap_pct": 81.8
+    },
+    "debian": {
+     "universe": 27996,
+     "predicted": 14689,
+     "tp": 14596,
+     "fp": 93,
+     "fn_within_universe": 5,
+     "outside_universe": 818,
+     "precision_pct": 99.4,
+     "overlap_pct": 94.7
+    },
+    "allmodconfig": {
+     "universe": 28039,
+     "predicted": 25015,
+     "tp": 24919,
+     "fp": 96,
+     "fn_within_universe": 5,
+     "outside_universe": 1025,
+     "precision_pct": 99.6,
+     "overlap_pct": 96.0
+    }
+   }
+  }
+ },
+ "Das U-Boot": {
+  "no_includes": {
+   "makefile_instances": 289,
+   "profiles": {
+    "sandbox_defconfig": {
+     "universe": 3148,
+     "predicted": 1029,
+     "tp": 952,
+     "fp": 77,
+     "fn_within_universe": 0,
+     "outside_universe": 171,
+     "precision_pct": 92.5,
+     "overlap_pct": 84.8
+    },
+    "sandbox_defconfig_fresh": {
+     "universe": 3150,
+     "predicted": 1029,
+     "tp": 1029,
+     "fp": 0,
+     "fn_within_universe": 0,
+     "outside_universe": 280,
+     "precision_pct": 100.0,
+     "overlap_pct": 78.6
+    }
+   }
+  },
+  "no_rules": {
+   "makefile_instances": 289,
+   "profiles": {
+    "sandbox_defconfig": {
+     "universe": 3148,
+     "predicted": 1029,
+     "tp": 952,
+     "fp": 77,
+     "fn_within_universe": 0,
+     "outside_universe": 171,
+     "precision_pct": 92.5,
+     "overlap_pct": 84.8
+    },
+    "sandbox_defconfig_fresh": {
+     "universe": 3150,
+     "predicted": 1029,
+     "tp": 1029,
+     "fp": 0,
+     "fn_within_universe": 0,
+     "outside_universe": 280,
+     "precision_pct": 100.0,
+     "overlap_pct": 78.6
+    }
+   }
+  },
+  "no_link_semantics": {
+   "makefile_instances": 289,
+   "profiles": {
+    "sandbox_defconfig": {
+     "universe": 3148,
+     "predicted": 1029,
+     "tp": 952,
+     "fp": 77,
+     "fn_within_universe": 0,
+     "outside_universe": 171,
+     "precision_pct": 92.5,
+     "overlap_pct": 84.8
+    },
+    "sandbox_defconfig_fresh": {
+     "universe": 3150,
+     "predicted": 1029,
+     "tp": 1029,
+     "fp": 0,
+     "fn_within_universe": 0,
+     "outside_universe": 280,
+     "precision_pct": 100.0,
+     "overlap_pct": 78.6
+    }
+   }
+  },
+  "original_settings": {
+   "makefile_instances": 271,
+   "profiles": {
+    "sandbox_defconfig": {
+     "universe": 3065,
+     "predicted": 995,
+     "tp": 918,
+     "fp": 77,
+     "fn_within_universe": 12,
+     "outside_universe": 193,
+     "precision_pct": 92.3,
+     "overlap_pct": 81.7
+    },
+    "sandbox_defconfig_fresh": {
+     "universe": 3067,
+     "predicted": 995,
+     "tp": 995,
+     "fp": 0,
+     "fn_within_universe": 12,
+     "outside_universe": 302,
+     "precision_pct": 100.0,
+     "overlap_pct": 76.0
+    }
+   }
+  }
+ },
+ "Barebox": {
+  "no_includes": {
+   "makefile_instances": 160,
+   "profiles": {
+    "sandbox_defconfig": {
+     "universe": 1384,
+     "predicted": 406,
+     "tp": 402,
+     "fp": 4,
+     "fn_within_universe": 0,
+     "outside_universe": 4,
+     "precision_pct": 99.0,
+     "overlap_pct": 99.0
+    }
+   }
+  },
+  "no_rules": {
+   "makefile_instances": 160,
+   "profiles": {
+    "sandbox_defconfig": {
+     "universe": 1384,
+     "predicted": 406,
+     "tp": 402,
+     "fp": 4,
+     "fn_within_universe": 0,
+     "outside_universe": 4,
+     "precision_pct": 99.0,
+     "overlap_pct": 99.0
+    }
+   }
+  },
+  "no_link_semantics": {
+   "makefile_instances": 160,
+   "profiles": {
+    "sandbox_defconfig": {
+     "universe": 1384,
+     "predicted": 406,
+     "tp": 402,
+     "fp": 4,
+     "fn_within_universe": 0,
+     "outside_universe": 4,
+     "precision_pct": 99.0,
+     "overlap_pct": 99.0
+    }
+   }
+  },
+  "original_settings": {
+   "makefile_instances": 155,
+   "profiles": {
+    "sandbox_defconfig": {
+     "universe": 1340,
+     "predicted": 376,
+     "tp": 372,
+     "fp": 4,
+     "fn_within_universe": 0,
+     "outside_universe": 34,
+     "precision_pct": 98.9,
+     "overlap_pct": 91.6
+    }
+   }
+  }
+ },
+ "coreboot": {
+  "no_includes": {
+   "makefile_instances": 458,
+   "profiles": {
+    "qemu-i440fx": {
+     "universe": 4581,
+     "predicted": 540,
+     "tp": 437,
+     "fp": 103,
+     "fn_within_universe": 0,
+     "outside_universe": 237,
+     "precision_pct": 80.9,
+     "overlap_pct": 64.8
+    }
+   }
+  },
+  "no_rules": {
+   "makefile_instances": 458,
+   "profiles": {
+    "qemu-i440fx": {
+     "universe": 4581,
+     "predicted": 540,
+     "tp": 437,
+     "fp": 103,
+     "fn_within_universe": 0,
+     "outside_universe": 237,
+     "precision_pct": 80.9,
+     "overlap_pct": 64.8
+    }
+   }
+  },
+  "no_link_semantics": {
+   "makefile_instances": 458,
+   "profiles": {
+    "qemu-i440fx": {
+     "universe": 4581,
+     "predicted": 540,
+     "tp": 437,
+     "fp": 103,
+     "fn_within_universe": 0,
+     "outside_universe": 237,
+     "precision_pct": 80.9,
+     "overlap_pct": 64.8
+    }
+   }
+  },
+  "original_settings": {
+   "makefile_instances": 29,
+   "profiles": {
+    "qemu-i440fx": {
+     "universe": 580,
+     "predicted": 316,
+     "tp": 244,
+     "fp": 72,
+     "fn_within_universe": 0,
+     "outside_universe": 430,
+     "precision_pct": 77.2,
+     "overlap_pct": 36.2
+    }
+   }
+  }
+ }
+}

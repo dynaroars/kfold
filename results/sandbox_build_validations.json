@@ -4,11 +4,13 @@
     "config_target": "sandbox_defconfig",
     "total_symbolic_targets": 1343,
     "predicted_present": 75,
-    "tp": 71,
-    "fp": 4,
-    "fn": 865,
-    "precision_pct": 94.7,
-    "recall_pct": 7.6,
+    "kfold_vs_gmake_dryrun": {
+      "tp": 71,
+      "fp": 4,
+      "fn": 840,
+      "precision_pct": 94.7,
+      "recall_pct": 7.8
+    },
     "sample_fp": [
       "pbl/decomp.o",
       "pbl/string.o",
@@ -16,36 +18,160 @@
       "fs/fat/fat-pbl.o"
     ],
     "sample_fn": [
-      "common/ddr4_dimm_params.o",
-      "common/.filetype.o",
-      "lib/zlib_inflate/.built-in.a",
-      "commands/.help.o",
-      "commands/.cp.o"
-    ]
+      "lib/xz/.xz_dec_bcj.o",
+      "drivers/spi/.spi.o",
+      "commands/mw.o",
+      "fs/squashfs/.squashfs.o",
+      "drivers/misc/built-in.a"
+    ],
+    "tp": 71,
+    "fp": 4,
+    "fn": 840,
+    "precision_pct": 94.7,
+    "recall_pct": 7.8,
+    "physical_objects": 406,
+    "kfold_vs_physical": {
+      "tp": 71,
+      "fp": 4,
+      "fn": 316,
+      "precision_pct": 94.7,
+      "recall_pct": 18.3
+    },
+    "gmake_dryrun_vs_physical": {
+      "tp": 406,
+      "fp": 554,
+      "fn": 0,
+      "precision_pct": 42.3,
+      "recall_pct": 100.0
+    }
   },
   {
     "corpus": "Das U-Boot (Sandbox)",
     "config_target": "sandbox_defconfig",
-    "total_symbolic_targets": 3050,
+    "total_symbolic_targets": 3031,
     "predicted_present": 41,
-    "tp": 10,
-    "fp": 31,
-    "fn": 1568,
-    "precision_pct": 24.4,
-    "recall_pct": 0.6,
+    "kfold_vs_gmake_dryrun": {
+      "tp": 31,
+      "fp": 10,
+      "fn": 2312,
+      "precision_pct": 75.6,
+      "recall_pct": 1.3
+    },
     "sample_fp": [
-      "lib/string.o",
+      "post/drivers/memory.o",
+      "api/api_net.o",
+      "api/api_storage.o",
       "post/drivers/i2c.o",
-      "lib/ctype.o",
-      "lib/display_options.o",
-      "lib/linux_string.o"
+      "post/tests.o"
     ],
     "sample_fn": [
-      "drivers/usb/gadget/.f_dfu.o",
-      "drivers/sound/da7219.o",
-      "drivers/core/of_extra.o",
-      "disk/disk-uclass.o",
-      "drivers/mtd/spi/sandbox.o"
-    ]
+      "drivers/tpm/.tpm2_tis_sandbox.o",
+      "cmd/.font.o",
+      "cmd/.w1.o",
+      "lib/efi_loader/efi_string.o",
+      "drivers/misc/.misc-uclass.o"
+    ],
+    "tp": 31,
+    "fp": 10,
+    "fn": 2312,
+    "precision_pct": 75.6,
+    "recall_pct": 1.3,
+    "physical_objects": 1123,
+    "kfold_vs_physical": {
+      "tp": 12,
+      "fp": 29,
+      "fn": 1096,
+      "precision_pct": 29.3,
+      "recall_pct": 1.1
+    },
+    "gmake_dryrun_vs_physical": {
+      "tp": 1123,
+      "fp": 1422,
+      "fn": 0,
+      "precision_pct": 44.1,
+      "recall_pct": 100.0
+    }
+  },
+  {
+    "corpus": "BusyBox",
+    "config_target": null,
+    "total_symbolic_targets": 609,
+    "predicted_present": 141,
+    "kfold_vs_gmake_dryrun": {
+      "tp": 141,
+      "fp": 0,
+      "fn": 248,
+      "precision_pct": 100.0,
+      "recall_pct": 36.2
+    },
+    "sample_fp": [],
+    "sample_fn": [
+      "libbb/.compare_string_array.o",
+      "libbb/built-in.o",
+      "archival/libarchive/.filter_accept_reject_list.o",
+      "libbb/.makedev.o",
+      "libbb/.iterate_on_dir.o"
+    ],
+    "tp": 141,
+    "fp": 0,
+    "fn": 248,
+    "precision_pct": 100.0,
+    "recall_pct": 36.2,
+    "physical_objects": 191,
+    "kfold_vs_physical": {
+      "tp": 141,
+      "fp": 0,
+      "fn": 50,
+      "precision_pct": 100.0,
+      "recall_pct": 73.8
+    },
+    "gmake_dryrun_vs_physical": {
+      "tp": 191,
+      "fp": 198,
+      "fn": 0,
+      "precision_pct": 49.1,
+      "recall_pct": 100.0
+    }
+  },
+  {
+    "corpus": "coreboot (QEMU i440fx)",
+    "config_target": null,
+    "total_symbolic_targets": 582,
+    "predicted_present": 243,
+    "kfold_vs_gmake_dryrun": {
+      "tp": 182,
+      "fp": 61,
+      "fn": 0,
+      "precision_pct": 74.9,
+      "recall_pct": 100.0
+    },
+    "sample_fp": [
+      "build/smm/console/die.o",
+      "build/smm/lib/boot_device.o",
+      "build/verstage/lib/reset.o",
+      "build/smm/lib/fmap.o",
+      "build/decompressor/commonlib/bsd/lz4_wrapper.o"
+    ],
+    "sample_fn": [],
+    "tp": 182,
+    "fp": 61,
+    "fn": 0,
+    "precision_pct": 74.9,
+    "recall_pct": 100.0,
+    "physical_objects": 674,
+    "kfold_vs_physical": {
+      "tp": 182,
+      "fp": 61,
+      "fn": 62,
+      "precision_pct": 74.9,
+      "recall_pct": 74.6
+    },
+    "gmake_dryrun_vs_physical": {
+      "tp": 508,
+      "fp": 532,
+      "fn": 0,
+      "precision_pct": 48.8,
+      "recall_pct": 100.0
+    }
   }
 ]

@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 import itertools
+import re
+import z3
 import pdb
 
 from pymake3 import parser, parserdata, data, functions
@@ -35,7 +37,9 @@ class ExpansionBase(ABC):
             for s1, c1 in comb:
                 for s2, c2 in next_t:
                     c = zsolver.conj(c1, c2)
-                    if c is not zsolver.F:
+                    # conj simplifies, so a contradiction is a fresh False
+                    # expression rather than the zsolver.F singleton.
+                    if not z3.is_false(c):
                         new_comb.append((s1 + delim + s2, c))
             comb = new_comb
             if len(comb) > 64:
@@ -45,15 +49,55 @@ class ExpansionBase(ABC):
 
         return comb
 
+    # In word-list mode (assignment right-hand sides), whitespace-separated
+    # parts of a value are independent list elements: each keeps its own
+    # guard, and only parts written without whitespace between them, such as
+    # driver_$(WIDTH).o, are concatenated by product. Names, conditions, and
+    # function arguments are expanded as strings.
+    _words = False
+
     def do_val(self, val, states):
         assert isinstance(val, str), val
 
         val = val.strip()
 
         if val:
-            return self.do_fake_expansion(val, states)
+            saved, self._words = self._words, True
+            try:
+                return self.do_fake_expansion(val, states)
+            finally:
+                self._words = saved
         else:
             return [('', zsolver.T)]
+
+    def _union(self, alternatives):
+        d = OrderedDict()
+        for v, c in alternatives:
+            d[v] = zsolver.disj(d[v], c) if v in d else c
+        return list(d.items())
+
+    def do_word_list(self, expansion, states):
+        groups, current = [], []
+        for elem, isfun in expansion:
+            if isinstance(elem, str) and not isfun:
+                for piece in re.split(r'(\s+)', elem):
+                    if not piece:
+                        continue
+                    if piece.isspace():
+                        if current:
+                            groups.append(current)
+                        current = []
+                    else:
+                        current.append([(piece, zsolver.T)])
+            else:
+                current.append(self.do_elem(elem, isfun, states))
+        if current:
+            groups.append(current)
+        alternatives = []
+        for group in groups:
+            if all(group):
+                alternatives.extend(self.combine(group))
+        return self._union(alternatives) or [('', zsolver.T)]
 
     def do_fake_expansion(self, expansion, states):
         assert isinstance(expansion, str), expansion
@@ -72,14 +116,25 @@ class ExpansionBase(ABC):
             return [(expansion.s, zsolver.T)]
         else:
             assert isinstance(expansion, data.Expansion), expansion
+            if self._words:
+                return self.do_word_list(expansion, states)
             elems = [self.do_elem(elem, isfun, states)
                      for elem, isfun in expansion]
+            if not all(elems):
+                return []
             comb = self.combine(elems)
             return comb
 
     def do_elem(self, elem, isfun, states):
         if isinstance(elem, str):
             return [(elem, zsolver.T)]
+        elif isfun and self._words and not isinstance(
+                elem, (functions.VariableRef, functions.SubstitutionRef)):
+            saved, self._words = self._words, False
+            try:
+                return self.do_elem(elem, isfun, states)
+            finally:
+                self._words = saved
         elif isfun:
             from census import GLOBAL_METRICS
             fname = getattr(elem, 'name', elem.__class__.__name__.replace('Function', '').lower())
@@ -87,6 +142,8 @@ class ExpansionBase(ABC):
             try:
                 if isinstance(elem, functions.VariableRef):
                     return self.do_fun_VariableRef(elem, states)
+                elif isinstance(elem, functions.SubstitutionRef):
+                    return self.do_fun_SubstitutionRef(elem, states)
                 elif isinstance(elem, functions.SubstFunction):
                     return self.do_fun_SubstFunction(elem, states)
                 elif isinstance(elem, functions.PatSubstFunction):
@@ -263,6 +320,9 @@ class ExpansionBase(ABC):
 
     def do_fun_ShellFunction(self, fun, states):
         assert isinstance(fun, functions.ShellFunction), fun
+        import os
+        if os.environ.get("KFOLD_SANDBOX"):  # never run commands for untrusted input
+            return [('', zsolver.T)]
         combines = self.get_fun_arg_vals(fun, 1, states)
         d = OrderedDict()
         dir_ = None
@@ -298,7 +358,7 @@ class ExpansionBase(ABC):
                 for word in tv.split():
                     for pat in patterns:
                         if '%' in pat:
-                            regex = '^' + re.escape(pat).replace(r'\%', '.*') + '$'
+                            regex = '^' + re.escape(pat).replace(r'\%', '.*').replace('%', '.*') + '$'
                             if re.match(regex, word):
                                 matched.append(word)
                                 break
@@ -326,7 +386,7 @@ class ExpansionBase(ABC):
                     matches = False
                     for pat in patterns:
                         if '%' in pat:
-                            regex = '^' + re.escape(pat).replace(r'\%', '.*') + '$'
+                            regex = '^' + re.escape(pat).replace(r'\%', '.*').replace('%', '.*') + '$'
                             if re.match(regex, word):
                                 matches = True
                                 break
@@ -575,23 +635,6 @@ class ExpansionBase(ABC):
         rs = list(d.items())
         return rs
 
-    def do_fun_Filterout(self, fun, states):
-        assert isinstance(fun, functions.FilteroutFunction), fun
-        combines = self.get_fun_arg_vals(fun, 2, states)
-
-        d = OrderedDict()
-        for (pv, pc), (tv, tc) in combines:
-            cond = zsolver.mconj([pc, tc])
-            if self.solver.is_sat(cond):
-                v = " ".join(v for v in tv.split() if v not in pv.split())
-                if v not in d:
-                    d[v] = cond
-                else:
-                    d[v] = zsolver.disj(d[v], cond)
-
-        rs = list(d.items())
-        return rs
-
     def do_fun_WildcardFunction(self, fun, states):
         assert isinstance(fun, functions.WildcardFunction), fun
 
@@ -609,6 +652,34 @@ class ExpansionBase(ABC):
 
         rs = list(d.items())
         return rs
+
+    def do_fun_SubstitutionRef(self, fun, states):
+        """$(VAR:from=to) and $(VAR:%.c=%.o): apply the substitution to every
+        word of each guarded alternative of VAR, as GNU Make does."""
+        assert isinstance(fun, functions.SubstitutionRef), fun
+        ref = functions.VariableRef(fun.loc, fun.vname)
+        values = self.do_fun_VariableRef(ref, states)
+        saved, self._words = self._words, False
+        try:
+            froms = self.do_expansion(fun.substfrom, states)
+            tos = self.do_expansion(fun.substto, states)
+        finally:
+            self._words = saved
+        d = OrderedDict()
+        for fv, fc in froms:
+            for tv, tc in tos:
+                pat = data.Pattern(fv)
+                to = tv
+                if not pat.ispattern():
+                    pat = data.Pattern('%' + fv)
+                    to = '%' + tv
+                for val, vc in values:
+                    cond = zsolver.mconj([fc, tc, vc])
+                    if z3.is_false(cond):
+                        continue
+                    out = " ".join(pat.subst(to, w, False) for w in val.split())
+                    d[out] = zsolver.disj(d[out], cond) if out in d else cond
+        return list(d.items())
 
     def do_fun_PatSubstFunction(self, fun, states):
         assert isinstance(fun, functions.PatSubstFunction), fun
@@ -654,7 +725,11 @@ class ExpansionBase(ABC):
         assert isinstance(fun, functions.VariableRef), fun
         assert isinstance(states, dict), states
 
-        names = self.do_expansion(fun.vname, states)
+        saved, self._words = self._words, False
+        try:
+            names = self.do_expansion(fun.vname, states)
+        finally:
+            self._words = saved
 
         rs = []
         for name, _ in names:
@@ -682,6 +757,19 @@ class ExpansionBase(ABC):
                     # symbolic value instead of exploding into one path per
                     # concrete subset of members.
                     vals = list(v.valconds.items())
+                # Where none of the variable's words is present, the
+                # reference expands to the empty string. Without this
+                # alternative, concatenation (``combine``) would give every
+                # other word of the enclosing value the guards of this
+                # variable's words, e.g. ``dvbdev.o`` in
+                # ``dvb-core-objs := dvbdev.o $(dvb-net-y)`` would require
+                # CONFIG_DVB_NET=y.
+                if not vals:
+                    vals = [('', zsolver.T)]
+                else:
+                    absent = zsolver.neg(zsolver.mdisj([c for _, c in vals]))
+                    if not z3.is_false(absent):
+                        vals.append(('', absent))
 
             elif (self.solver.mysettings.is_copt(name) or
                   self.solver.mysettings.is_xopt(name)):
@@ -700,7 +788,13 @@ class ExpansionBase(ABC):
 
         symbol, optd = self.solver.get_sort(name)
 
-        vals = [(k, symbol == optd[k]) for k in optd]
+        vals = []
+        for k in optd:
+            c = (symbol == optd[k])
+            if k == 'm' and name != "CONFIG_MODULES":
+                mod_symbol, mod_optd = self.solver.get_sort("CONFIG_MODULES")
+                c = zsolver.conj(c, mod_symbol == mod_optd['y'])
+            vals.append((k, c))
         return vals
 
     def get_fun_arg_vals(self, fun, nargs, states):

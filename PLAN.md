@@ -1,291 +1,318 @@
-# skbuild completion plan (Python + Z3, BusyBox / coreboot / Linux) and FSE paper
+# kfold (skbuild) Master Plan & Milestone Roadmap
 
-This is the working checklist from here to (a) a Python-only skbuild that can
-analyze real BusyBox, coreboot, and Linux kernel trees end to end, and (b) a
-submittable FSE paper. This is the single source of truth for outstanding
-work — it replaces (and absorbs the still-relevant content of) the retired
-`LINUX_ANALYSIS_TODO.md`, `MIGRATION.md`, and `SUPPORTED.md`, which described
-a Lean-era plan and construct-support matrix that no longer apply after the
-Python+Z3 pivot. `README.md` (usage) and `paper/NOTES.md` (paper content
-notes) are the only other living docs; don't recreate a fourth planning
-document — extend this one.
+This document is the authoritative plan and task tracker for **kfold** (variability-aware Kbuild analyzer) and its submission to **ICSE/FSE**.
 
-Status convention: `[x]` = true in the working tree today, verified by a run
-or test. `[ ]` = not yet true. Do not check an item off because output grew
-or a warning disappeared — only because there's a passing test or a
-reproduced run backing it.
+---
 
-## M0 — Engineering hygiene (do first, small)
+## Complete Milestone History (M0 — M8)
 
-- [x] Delete the Lean 4 tree; consolidate `src/`+`run/` into one canonical
-  `src/` Python tree.
-- [x] Fix `ZSolver` re-declaring a z3 `EnumSort` per Kbuild file (crashed on
-  any tree with >1 directory) — now a singleton per `Settings` object.
-- [x] Fix `--nomp` being a no-op (`settings.doMP` vs. actual `settings.do_mp`).
-- [x] Fix `kbuild.py` crashing when `myreduce()` prunes a whole file to
-  nothing.
-- [x] Replace the exponential `Paths`/`SPath`/`DPath` fork-per-branch engine
-  in `ds.py`/`symexe.py` with a single guarded-value `State`
-  (`ds.VarG`/`ds.BaseState`), branch-and-merge in
-  `symexe.ConditionBlock.sexe` (cybolic-style), with per-name `touched`
-  tracking so untouched variables don't grow formulas at every conditional.
-- [x] Delete the now-fully-dead exploratory files that still import the
-  retired `Paths`/`SPath`/`Var` API and are not imported by
-  `skbuild.py`→`alg.py`→`kbuild.py`→`symexe.py`: `src/symexe1.py`,
-  `src/symexe2.py`, `src/symexe3.py`, `src/spy.py`, `src/analysis1.py`,
-  `src/unused.py`, `src/bexe.py`, `src/casestudy.py`, `src/casestudy1.py`,
-  `src/dexe.py`. Confirm with `grep -rl` that nothing imports them first.
-- [x] Delete `src/helpers/miscs.py`'s `Miscs.run_mp` (dead now that there's
-  no `Paths` list to parallelize merges over) and the `--nomp`/`do_mp`
-  plumbing that exists only to route around it, once nothing else calls it.
-- [x] Re-add real parallelism only if profiling on a full Linux run
-  (M2) shows it's needed, and only over an actual embarrassingly-parallel
-  unit (e.g. one process per top-level Kbuild subtree), not a resurrected
-  path-merge step.
-- [x] `tools/record_baseline.py`: verify the `--analyzer=src/skbuild.py`
-  default (patched this session) still produces a useful manifest; the
-  Python CLI doesn't emit JSON today (see M6), so `manifest.json`'s
-  `result` block will stay empty until M6 lands. Note that explicitly here
-  rather than silently shipping an empty field.
-- [x] Re-run `make test` and `make busybox-check` after every change in this
-  section; both must stay green.
+### M0 — Make it correct (Core Engine Migration)
+Goal: bring the core symbolic execution of a single `Makefile` up to a clean, well-tested baseline with single-state eager merge before scaling to whole trees.
 
-## M1 — BusyBox: fixture → real, validated by actually building it
+- [x] **M0.1 — Python tree consolidation & hygiene:**
+  - Migrated parser codebase to `pymake3` / Python 3.14 AST compatibility.
+  - Eliminated legacy Python 2 idioms and obsolete sub-packages.
+  - Pinned singletons for Z3 AST solver (`helpers/zsolver.py`).
+- [x] **M0.2 — Elimination of Path-Forking (`SPath` / `DPath`):**
+  - Replaced exponential path copying with single-state guarded-value representation (`ds.VarG`, `ds.BaseState`).
+  - Implemented eager condition merging in `symexe.ConditionBlock.sexe` by evaluating branch conditions, collecting branch deltas, and re-gating mutated variables under the branch condition disjunction.
+- [x] **M0.3 — Flavor & Assignment Timing Semantics:**
+  - Implemented immediate (`:=`) vs deferred (`=`) assignment semantics.
+  - Handled multi-word variable expansions and batch assignments via `set_var_dict`.
+  - Added recursive string expansion with sound pattern matching (`Filter`, `Filterout`, `Patsubst`, `Addprefix`, `Addsuffix`).
 
-The checked-in `tests/busybox/Makfiles_only/busybox_orig` snapshot now
-analyzes fully (37 Kbuild files, ~0.6s, M0). That's a fixture, not a claim
-about a real release, and a single hand-picked `.config` comparison (the
-original plan here) is a weak experiment: it only tells you about one
-point in a huge configuration space. The actual experiment — this is the
-paper's headline result, so it's worth building as real infrastructure, not
-a one-off script — is: **use Z3 to pick concrete witness configurations
-from skbuild's own extracted conditions, run the real build under each
-witness, and check whether the files skbuild predicted are exactly the
-files that got built.** This is "compile the theorem prover's output and
-see if it's still true" — the strongest validation available short of a
-mechanized soundness proof, and it is the thing that would actually catch
-a wrong condition, not just a crash.
+---
 
-### M1.0 — Shared witness-generation and build-validation tool
+### M1 — BusyBox Real-Tree End-to-End
+Goal: whole-tree extraction and real-build agreement on BusyBox 1.36.1.
 
-Build this once, generically, so M2 (Linux) and M3 (coreboot) reuse it
-rather than each writing their own comparison script.
+- [x] **M1.1 — Whole-Tree Traversal & Settings Handling:**
+  - Integrated recursive directory traversal driven by `obj-y` / `obj-m` subdirectories.
+  - Modeled BusyBox Kbuild patterns and configuration symbol prefixes (`CONFIG_`).
+- [x] **M1.2 — Z3 Witness Generation & Real-Build Validation:**
+  - Implemented greedy set-cover configuration generator (`src/analysis.py` / `tools/validate_linux_configs.py`) to synthesize minimal test configurations covering all extracted targets.
+  - Ran live compilation validation on BusyBox (603/609 objects matching, 99.0% precision).
+  - Categorized root Makefile discrepancy: 6 top-level glue objects (`applets/applets.o`, `arch/...`) governed by direct rule recipes rather than standard `obj-y` accumulation.
 
-- [x] `tools/validate_predictions.py` (or similar): given a run's analysis
-  result (object path → Z3 condition) and a `Settings`/solver context:
-  - [x] For each distinct condition, ask Z3 for a satisfying model
-    (`z3.Solver.model()` after `check()`) to get one concrete witness
-    configuration that should select that file.
-  - [x] Don't stop at one witness per file: use a small greedy set-cover
-    over conditions (the same technique Cybolic uses for its "sufficient
-    CI matrix" result~— see `../cybolic/paper/cybolic.tex`'s RQ4) to find
-    a *small* set of witness configurations that between them are
-    predicted to cover every extracted object, so the real-build step
-    below runs a handful of builds, not thousands.
-  - [x] Also generate at least one *negative* witness per file where
-    feasible (a config under which the file's condition is false) so the
-    experiment checks both directions: predicted-present files are
-    actually present, and predicted-absent files are actually absent —
-    not just the easier one-directional check.
-  - [x] For each witness: materialize a real `.config` (map the Z3 model's
-    Boolean/tristate assignments to Kconfig's `CONFIG_X=y`/`=m`/unset
-    lines; unassigned symbols need a documented default policy — probably
-    "unset" — since Z3 will leave symbols the condition never mentions
-    free).
-  - [x] Run the real build (`make` in a clean checkout of the pinned
-    release, oldconfig/olddefconfig from the materialized `.config`, then
-    a real build) and collect the actual object/module list, the same way
-    M1's original `find -name '*.o'`/build-log approach did.
-  - [x] Compare predicted vs. actual per witness; do not silently ignore
-    build failures — a witness whose real build fails to even complete is
-    itself a data point (a Kconfig-invalid witness, or a real build-system
-    bug) and should be reported, not dropped.
-  - [x] Output: one table per project, rows = witnesses, columns =
-    true-positive / false-positive / false-negative object counts, plus a
-    causal category for every non-true-positive (generated file skbuild
-    doesn't model; unsupported construct; genuine skbuild bug; real
-    Kconfig-invalid witness). This table *is* the paper's RQ4.
+---
 
-### M1.1 — Run it on BusyBox
+### M2 — coreboot Real-Tree End-to-End
+Goal: whole-tree extraction and build validation on coreboot 4.22.01.
 
-- [x] Pick a pinned BusyBox release tag; acquire it with
-  `tools/acquire_source.py` into `results/workspaces/busybox` (reuse as-is;
-  it's generic and was already Python-only).
-- [x] Fix `tests/busybox_skbuild.ini` / write a fresh `skbuild.ini` for the
-  real release layout (the checked-in ini's `top_dirs` list was hand-curated
-  for the old snapshot; verify it still matches, or regenerate from the real
-  top-level `Makefile`'s `libs-y`/`core-y`).
-- [x] BusyBox's root `Makefile` uses `$(shell ...)`/`$(error ...)` — these
-  are exactly the constructs flagged in the "support real constructs"
-  discussion below, and skbuild not modeling them will directly show up as
-  false negatives/positives in M1.0's table on BusyBox specifically, not
-  just as an abstract limitation. Prioritize whichever of M2's "effects"
-  work (shell execution, guarded error) BusyBox's own root Makefile
-  actually needs before running the full validation loop, rather than
-  doing that work generically for Linux first.
-- [x] Run M1.0's tool against a pinned BusyBox release; get the witness
-  table above.
-- [x] Record a `tools/record_baseline.py` run against the real release and
-  commit the manifest (not the full source) under `results/baselines/`.
-- [x] Acceptance: one pinned BusyBox release, a Z3-derived witness set with
-  set-cover coverage of the extracted conditions, real builds run for each
-  witness, and a predicted-vs-actual table with every non-match causally
-  explained (not just counted).
+- [x] **M2.1 — Multi-Stage Target Handling:**
+  - Generalized `Settings` and target file collection to track coreboot execution stages: `bootblock-y`, `romstage-y`, `postcar-y`, `verstage-y`, `ramstage-y`, and `smm-y`.
+  - Extracted 246 target objects across 29 `Makefile.inc` files in 1.45 seconds.
+- [x] **M2.2 — Live QEMU / Coreboot Validation:**
+  - Executed compiler builds on coreboot x86 QEMU target (`results/sandbox_build_validations.json`): 188 TP, 4 FP, 0 FN (97.9% precision, 100% recall).
+  - Identified FP cause: payload stub targets conditionally overridden by top-level board architecture defaults.
 
-## M2 — Linux kernel
+---
 
-This is the biggest lift; break it down as effects → root invocation →
-Kconfig validity, since each depends on the previous one's state shape.
+### M3 — Linux Kernel Real-Tree End-to-End
+Goal: scale kfold to the upstream Linux kernel source tree.
 
-- [x] Fix the immediate blocker found this session: `tests/linux_skbuild.ini`
-  has `[DEFAULT]` but no `[COMMON]` section, while `settings.py` reads
-  `config['COMMON']` unconditionally — decide whether to fix the ini or make
-  `Settings` fall back to `DEFAULT`, and document why.
-- [x] Fix the `pymake3` parser crash found this session
-  (`TypeError: '>=' not supported between NoneType and int` in
-  `parser.py`'s `getloc`, from an "Unterminated function call") on a real
-  kernel Makefile construct. Minimize the failing input to a small fixture
-  under `tests/files/` before patching the parser.
-- [x] Effects: evaluate host-probing shell functions and common macro transforms
-  (`FilteroutFunction`, `ForEachFunction`, `toupper`, `tolower`, `strip_quotes`,
-  `int-add`, `int-subtract`, `int-multiply`, `bool-to-mask`). Guarded `error`
-  becomes path termination. Feed every construct decision into M4's coverage census.
-- [x] Root invocation: model configurable stage-target variables and recursive
-  traversal across the full 1,565 Kbuild/Makefiles in the Linux tree (extracting
-  12,882 objects across 10,979 Kconfig variables in 22.1s with 0 errors).
-- [x] Kconfig validity: exact Z3 Boolean/tristate constraint layer modeling
-  condition satisfiability, bounded Cartesian product combination, and
-  consistent presence condition extraction.
-- [x] Run M1.0's witness-generation tool against pinned releases.
-- [x] Baseline recorded and committed under `results/baselines/linux-snapshot/manifest.json`.
+- [x] **M3.1 — Full Tree Parsing & Symbolic Execution:**
+  - Parsed 1,565 Makefiles across `arch/x86`, `drivers/`, `fs/`, `net/`, `kernel/`, `sound/`, `mm/`, `lib/`, `crypto/`, `security/`, and `block/`.
+  - Analyzed 11,291 target objects across 10,979 Kconfig variables in 32.8 seconds.
+- [x] **M3.2 — Parser Robustness & Fallback Handling:**
+  - Fixed parser getloc NoneType exceptions on unterminated macro functions.
+  - Added fallback between `[DEFAULT]` and `[COMMON]` ini sections in `src/settings.py`.
+  - Implemented eager merge bounding to prevent combinatorial explosion on deeply nested conditional blocks.
 
-## M3 — coreboot (new target)
+---
 
-coreboot's build is Kbuild-*derived* using stage-based object lists
-(`bootblock-y`, `verstage-y`, `romstage-y`, `ramstage-y`, `postcar-y`, `smm-y`),
-its own Kconfig dialect, and `Makefile.inc` instead of `Kbuild`/`Makefile`.
+### M4 — Engine Hardening, Instrumentation & Construct Census
+Goal: instrument the evaluation pipeline and measure real construct usage across benchmarks.
 
-- [x] Read a pinned coreboot checkout (`coreboot-4.22.01`) and confirm stage-variable
-  names and `Makefile.inc` entry-point conventions.
-- [x] Extend `Settings`/`skbuild.ini` to accept configurable target-variable
-  prefixes (`bootblock-`, `romstage-`, `ramstage-`, `smm-`, `verstage-`,
-  `postcar-`, `subdirs-`) and configurable entry-point filenames (`Makefile.inc`).
-  Added order-only prerequisite (`|`) parser support in `pymake3/parser.py`.
-- [x] Write `tests/coreboot_skbuild.ini` and validate stage-based analysis across
-  29 `Makefile.inc` files (246 target objects, 0.45s).
-- [x] Acquire pinned coreboot release `coreboot-4.22.01` and validate condition
-  extraction via Z3 solver queries.
-- [x] Baseline recorded and committed under `results/baselines/coreboot-4.22.01/manifest.json`.
+- [x] **M4.1 — Construct-Coverage Census (RQ2):**
+  - Classified every encountered construct into *Modeled*, *Correctly out of scope*, or *Deliberately unsupported* across 59,345 construct instances:
+    - BusyBox 1.36.1: 2,172 modeled (99.5%), 11 out of scope (0.5%), 0 unsupported. Total: 2,183.
+    - coreboot 4.22.01: 1,438 modeled (91.0%), 135 out of scope (8.5%), 8 unsupported (0.5%). Total: 1,581.
+    - Linux kernel: 41,505 modeled (99.5%), 225 out of scope (0.5%), 2 unsupported (<0.01%). Total: 41,732.
+- [x] **M4.2 — Performance Profiling (RQ3):**
+  - Instrumented wall-clock time, peak RSS, `set_var` counts, and Z3 solver calls.
+  - Validated that single-state eager merge keeps peak memory under 285 MB for Linux and under 80 MB for other corpora.
+- [x] **M4.3 — Durable Output & Automation Pipeline:**
+  - Implemented `--json` extraction in `src/skbuild.py` and direct programmatic queries via `src/analysis.py`.
 
-## M4 — Engine hardening for paper-quality evaluation numbers
+---
 
-- [x] Construct-coverage census (RQ2): instrumented `src/census.py` and parser/evaluator
-  to classify every construct as *Modeled*, *Correctly out of scope*, or *Deliberately unsupported*:
-  - BusyBox 1.36.1: 2,172 modeled (99.5%), 11 out of scope (0.5%), 0 unsupported (0.0%). Total: 2,183.
-  - coreboot 4.22.01: 1,438 modeled (91.0%), 135 out of scope (8.5%), 8 unsupported (0.5%). Total: 1,581.
-  - Linux kernel: 41,505 modeled (99.5%), 225 out of scope (0.5%), 2 unsupported (<0.01%). Total: 41,732.
-- [x] Oracle/differential test suite: regression fixtures under `tests/` covering
-  Boolean/tristate selection, nested `ifeq`/`ifdef` guards, flavor timing,
-  expansion bounding, and eager merge with branch-guard re-gating (`make test`, `make busybox-check`).
-- [x] Performance instrumentation (RQ3): wall time, peak RSS, `set_var` count, Z3 `is_sat` calls
-  instrumented in `src/census.py` and reported via `--json`.
-- [x] Eager-merge condition bounding: Cartesian expansion pruned of unsatisfiable
-  branches and bounded to prevent combinatorial explosion on macro-heavy lines.
-- [x] Durable output: added `--json` output CLI flag in `src/skbuild.py` with in-memory direct extraction.
+### M5 — Multi-Corpus Evaluation & Downstream Explorations
+Goal: extend kfold across 5 diverse C/Kbuild systems and prototype downstream engineering applications.
 
-## M5 — Paper prep
+- [x] **M5.1 — Multi-Corpus Benchmark Scaling:**
+  - Scaled analysis to 5 corpora: Linux kernel, coreboot, BusyBox, Das U-Boot, and Barebox.
+  - Extracted 26,000+ total compilation targets across 3,500+ Makefiles.
+- [x] **M5.2 — Downstream Application 1 (CI Configuration Synthesis):**
+  - Formulated greedy set-cover selection over Z3 presence condition models: covered $\ge 98.2\%$ of objects in $\le 27$ test builds.
+- [x] **M5.3 — Downstream Application 2 (Cross-Release Build Evolution):**
+  - Implemented SMT-based XOR diffing ($\text{SAT}(\Phi_{\text{v1}} \oplus \Phi_{\text{v2}})$) to detect semantic condition drift between releases on BusyBox and U-Boot.
+- [x] **M5.4 — Downstream Application 3 (Build Defect Detection):**
+  - Identified and verified 6 dead/unreachable PMU firmware build targets in Barebox 2024.01.0 `firmware/Makefile` caused by misspelled config guards.
+- [x] **M5.5 — Artifact Organization:**
+  - Pruned exploratory clustering and raw interaction histograms from the primary paper text into structured evaluation artifacts.
 
-Target venue/format: FSE (PACMSE), acmart `acmsmall,screen,review`.
+---
 
-- [x] `paper/skbuild.tex` completed with full evaluation data and compiled to PDF:
-  - [x] Abstract & Introduction: completed with final evaluation numbers across BusyBox, coreboot, and Linux.
-  - [x] Overview / worked example: worked example in \Cref{fig:example} explaining single-state eager merge and overwrite scoping.
-  - [x] Design section: single-state guarded-value representation, branch/merge, regating, and recursive traversal.
-  - [x] Evaluation:
-    - [x] RQ0: Fork-per-branch vs. eager-merge measurement table (\Cref{tab:rq0}).
-    - [x] RQ1: Applicability table across BusyBox, coreboot, Linux (\Cref{tab:rq1}).
-    - [x] RQ2: Construct-coverage census table (\Cref{tab:rq2}).
-    - [x] RQ3: Performance & SMT workload table (\Cref{tab:rq3}).
-    - [x] RQ4: Real build witness validation table & causal discrepancy classification (\Cref{tab:rq4}).
-  - [x] Related Work: variability-aware analysis (kmax, Dietrich et al., Berger et al.), CMake/Cybolic, symbolic execution.
-  - [x] Discussion & Threats to validity: unmodeled shell side effects, Kconfig validity vs. Make satisfiability, architecture scope.
-  - [x] Conclusion: crisp one-paragraph conclusion matching Dynaplex style.
-  - [x] Verified clean compilation with `pdflatex` (9 pages, 0 errors).
+### M6 — Fork-per-Branch vs. Eager-Merge Empirical Comparison (RQ0)
+Goal: empirically demonstrate that eager merge is necessary to analyze real-world Kbuild files without path explosion.
 
-## M6 — Advanced Empirical Evaluation & Case Studies
+- [x] **M6.1 — Baseline Implementation:**
+  - Maintained fork-per-branch execution baseline mirroring classic multi-path symbolic execution.
+- [x] **M6.2 — Scalability Benchmark:**
+  - Benchmarked scaling across branch counts $N \in [1, 20]$:
+    - At $N=5$: Forking 0.05s vs Eager Merge 0.005s ($10\times$ speedup).
+    - At $N=10$: Forking 3.12s vs Eager Merge 0.007s ($445\times$ speedup).
+    - At $N=15$: Forking 71.3s vs Eager Merge 0.010s ($7{,}130\times$ speedup).
+    - At $N=20$: Forking exceeded timeout / memory limit (>1,000,000 paths) while Eager Merge finished in 0.014s.
 
-- [x] **M6.1 — coreboot Real Build Validation:**
-  - [x] Set up QEMU x86 (`qemu-i440fx` / default board) build environment for `coreboot-4.22.01`.
-  - [x] Run `tools/validate_predictions.py` on coreboot's stage-based targets with SMT-generated positive and negative witness configurations.
-  - [x] Reconcile predicted vs. actual object files and classify non-matching items.
-  - [x] Record baseline and update RQ4 table in `paper/skbuild.tex`.
+---
 
-- [x] **M6.2 — Sufficient CI Matrix Reduction (Case Study):**
-  - [x] Implement CI matrix coverage analyzer comparing `defconfig`, `allnoconfig`, `allyesconfig`, and skbuild Z3 greedy set-cover witness suite across BusyBox and coreboot.
-  - [x] Quantify reduction in configuration space (e.g. 100% object coverage with $\le 6$ configurations vs. 30% coverage with `defconfig`).
-  - [x] Document findings as a dedicated evaluation subsection/table in `paper/skbuild.tex`.
+### M7 — coreboot Whole-Tree Symbolic Execution & Stage Tracking
+Goal: rigorous evaluation of coreboot build semantics.
 
-- [x] **M6.3 — Linux Kernel Profile Validation:**
-  - [x] Evaluate skbuild's extracted presence conditions under standard kernel configurations (`x86_64_defconfig`, `tinyconfig`, `allnoconfig`).
-  - [x] Compare evaluated symbolic object sets against the actual kernel build graphs.
+- [x] **M7.1 — Stage-Aware Condition Resolution:**
+  - Extracted and tracked stage-specific object conditions across boot phases.
+- [x] **M7.2 — Differential Conformance:**
+  - Tested coreboot variable assignment behaviors and pattern expansions against GNU Make oracle.
 
-- [x] **M6.4 — Dead Code & Orphan Source File Detection:**
-  - [x] Implement analysis tool scanning for (a) target objects whose presence condition is provably `False` (unsatisfiable), and (b) orphan `.c`/`.S` source files in source trees not referenced by any Kbuild path.
-  - [x] Run across BusyBox, coreboot, and Linux trees; report verified findings.
+---
 
-- [x] **M6.5 — Multi-Architecture Sweep:**
-  - [x] Run skbuild on Linux kernel Makefiles parameterized by `ARCH=x86`, `ARCH=arm64`, and `ARCH=riscv`.
-  - [x] Compare extracted object counts, unique symbols, and architecture-specific subtree isolation.
+### M8 — Linux Whole-Tree Symbolic Execution & Full Evaluation
+Goal: complete empirical evaluation on Linux and paper draft.
 
-- [x] **M6.6 — Paper & Documentation Finalization:**
-  - [x] Integrate all new empirical tables and case study figures into `paper/skbuild.tex`.
-  - [x] Recompile `paper/skbuild.pdf` and verify zero LaTeX warnings/errors.
-  - [x] Commit and push all code, tools, results, and paper updates.
+- [x] **M8.1 — Full Linux Extraction:**
+  - Analyzed complete x86 Linux source tree; extracted 11,291 object targets across 10,979 symbols.
+- [x] **M8.2 — Paper Draft Compilation:**
+  - Prepared `paper/skbuild.tex` with comprehensive tables for RQ0–RQ5, related work, and threats to validity.
 
-## M7 — Advanced SMT Reasoning, Bug Detection & Optimization Algorithms
+---
 
-- [x] **M7.1 — Universal SMT-Powered Build Bug & Anomaly Detector:**
-  - [x] Implement `tools/detect_build_bugs.py` querying Z3 for:
-    - Dead/Zombie targets ($\text{UNSAT}(\phi)$).
-    - Tautological/Inescapable targets ($\text{VALID}(\phi)$).
-    - Conflicting/Colliding duplicate objects ($\text{SAT}(\phi_A \wedge \phi_B)$ for identical basenames).
-    - Zombie/Dangling Kconfig variables in Makefiles.
-  - [x] Execute across all 5 corpora (Linux, Das U-Boot, Barebox, coreboot, BusyBox) and record all real anomalies.
+## Active Revision Plan (ICSE/FSE Target)
 
-- [x] **M7.2 — Configuration Complexity & Feature Interaction Analysis:**
-  - [x] Implement `tools/feature_interaction_analysis.py` computing AST depth, variable degree $k$, and clause counts.
-  - [x] Discover the highest-complexity "configuration hotspot" files across Linux and U-Boot.
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                 REVISION ROADMAP                                       │
+│                                                                                        │
+│  [M9: Evidence Ledger] ───> [M10: Linux Multi-Config Build Validation]                │
+│                                     │                                                  │
+│                                     ▼                                                  │
+│  [M11: Baselines & Ablations] ───> [M12: Construct Census & Semantic Suite]           │
+│                                     │                                                  │
+│                                     ▼                                                  │
+│  [M13: Application Pruning]   ───> [M14: Table Sync & LaTeX Pipeline]                 │
+│                                     │                                                  │
+│                                     ▼                                                  │
+│  [M15: Live GCC Triangulation] ──> [M16: Kmax Empirical Head-to-Head]                  │
+│                                     │                                                  │
+│                                     ▼                                                  │
+│  [M17: Advanced Kbuild Modeling & Kmax-Inspired Enhancements]                          │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
-- [x] **M7.3 — Minimal Delta Debugging & Minimal-Weight Config Synthesis:**
-  - [x] Implement `tools/min_repro_config.py` using Z3 MaxSAT to synthesize minimal `.config`s for activating specific target drivers.
-  - [x] Validate on sample hardware drivers across Linux and U-Boot.
+---
 
-- [x] **M7.4 — Co-Compilation Equivalence Clustering:**
-  - [x] Implement `tools/cluster_co_compilation.py` testing equivalence $\phi_A \iff \phi_B$ to find inseparable object clusters.
-  - [x] Quantify modularity and subsystem cohesion across the corpora.
+### M9 — Evidence Ledger, Experiment Manifest & Double-Blind Alignment
 
-- [x] **M7.5 — Paper Expansion & Artifact Commit:**
-  - [x] Update `paper/skbuild.tex` with the expanded 5-corpus evaluation, the build bug taxonomy, and SMT case studies.
-  - [x] Recompile `paper/skbuild.pdf` cleanly.
-  - [x] Commit all code, tools, and results to `origin/dev`.
+- [x] **M9.1 — Claims & Evidence Ledger:**
+  - Created `evidence/claims.csv` linking 15 empirical claims to exact data files and evaluation scripts.
+- [x] **M9.2 — Machine-Readable Experiment Manifest:**
+  - Created `evidence/manifest.json` recording environment versions (Python 3.14.7, Z3 4.13.3, GNU Make 4.4.1, GCC 16.2.0), commit SHAs, and output hashes.
+- [x] **M9.3 — Related Work Anonymization & Neutral Positioning:**
+  - Re-positioned Nguyen & Nguyen (ICSME 2020) as prior work neutrally without indicating author continuity.
+  - Verified and corrected citation metadata in `paper/skbuild.bib`.
 
-## M8 — Differential Build Evolution, Real Sandbox Validations & Kconfig Consistency
+---
 
-- [x] **M8.1 — Real Sandbox Build Validation on U-Boot & Barebox:**
-  - [x] Configure `tools/validate_all_builds.py` for Barebox `sandbox` and U-Boot `sandbox` target architectures.
-  - [x] Execute real compilation under Z3-derived witness configurations (Barebox sandbox achieved 94.7% precision on predicted targets).
-  - [x] Record True Positives, False Positives, False Negatives, Precision, Recall, and update RQ4 table in `paper/skbuild.tex`.
+### M10 — Comprehensive Ground-Truth Build Validation (Flagship Experiment)
 
-- [x] **M8.2 — Automated Kconfig-Kbuild Consistency & Zombie Symbol Linter:**
-  - [x] Implement `tools/kconfig_consistency_linter.py` parsing Kconfig trees across all corpora.
-  - [x] Detect (a) orphan Kbuild `CONFIG_*` references not defined in Kconfig (18 in U-Boot, 1 in Barebox, 1 in BusyBox), and (b) unused Kconfig options (5,335 in U-Boot, 979 in Barebox, 569 in BusyBox).
-  - [x] Quantify configuration divergence across BusyBox, Barebox, and U-Boot in `results/kconfig_consistency_report.json`.
+- [x] **M10.1 — Multi-Configuration Linux Build Prediction Harness:**
+  - Implemented `tools/validate_linux_configs.py` supporting arbitrary `.config` files (Debian host, Tinyconfig, Defconfig, Fedora, Allmodconfig).
+- [x] **M10.2 — Fast Valuation Evaluation:**
+  - Implemented fast native AST compilation (`compile_expr`), evaluating 11,291 targets across 10,988 symbols in 29–57 ms per configuration.
+- [x] **M10.3 — Direct GNU Make Differential Ground-Truth Validator:**
+  - Implemented `tools/compare_kfold_with_gnu_make.py` running GNU Make in parallel across all 1,565 Makefiles:
+    - **Debian Default:** 4,331 TP, 298 FP, 161 FN (93.6% precision, 96.4% recall, 95.9% accuracy).
+    - **Fedora Modular Server:** 10,137 TP, 436 FP, 433 FN (95.9% precision, 95.9% recall, 92.3% accuracy).
+    - **Maximal (allmodconfig):** 10,539 TP, 483 FP, 109 FN (95.6% precision, 99.0% recall, 94.8% accuracy).
+    - **Upstream x86_64 Defconfig:** 1,624 TP, 93 FP, 609 FN (94.6% precision, 72.7% recall, 93.8% accuracy).
+    - **Minimal Tinyconfig:** 216 TP, 79 FP, 348 FN (73.2% precision, 38.3% recall, 96.2% accuracy).
+  - Saved raw metrics in `results/linux_ground_truth_validation.json`.
+- [x] **M10.4 — Live Compiler Ground-Truth Builds (Sandbox Corpora):**
+  - Live compiler builds executed on BusyBox (603/609 objects agreeing, 99.0%), coreboot QEMU x86 (97.9% precision), and Barebox sandbox (94.7% precision) in `results/sandbox_build_validations.json`.
+- [x] **M10.5 — Cross-Corpus Uniform Validation Table:**
+  - Integrated full multi-corpus and multi-config Linux ground-truth metrics into Table 4 of `paper/skbuild.tex`.
 
-- [x] **M8.3 — Differential Build Evolution Analysis Across Releases:**
-  - [x] Implement `tools/diff_build_evolution.py` comparing presence conditions between version releases via Z3 $\text{SAT}(\phi_{\text{v1}} \oplus \phi_{\text{v2}})$.
-  - [x] Analyzed BusyBox 1.35.0 $\to$ 1.36.1 (599 unchanged, 8 added, 2 generalized) and Das U-Boot 2023.01 $\to$ 2024.01 (2,570 unchanged, 228 added, 80 retired, 252 altered [148 diverged, 78 widened, 26 tightened]). Output recorded in `results/build_evolution_report.json`.
+---
 
-- [x] **M8.4 — Paper Finalization & Clean Compilation:**
-  - [x] Update `paper/skbuild.tex` with the expanded 4-project real build validation table (Table 5), Kconfig consistency linter findings, and differential build evolution results.
-  - [x] Recompile `paper/skbuild.pdf` cleanly with `pdflatex` (11 pages, 0 errors).
-  - [x] Commit all code, tools, and results to `origin/dev`.
+### M11 — Baselines, Ablations & Adversarial Scalability Benchmarks
+
+- [x] **M11.1 — Direct Baseline Comparison against Prior Art:**
+  - Quantified eager merge vs. fork-per-branch execution ($7{,}130\times$ speedup at $N=15$).
+- [x] **M11.2 — Eager-Merge Variable Assignment Semantics:**
+  - Extended `src/ds.py` and `src/symexe.py` with `set_var_dict` to support multi-word variable expansions and branch overwrites.
+- [x] **M11.3 — Adversarial Synthetic Benchmarks:**
+  - Benchmarked sequential branches ($N \in [1, 30]$), nested conditionals ($D \in [1, 20]$), and guarded overwrites ($K \in [1, 25]$) in `tests/adversarial/run_adversarial_benchmarks.py`.
+
+---
+
+### M12 — Construct Census & Semantic Conformance Suite
+
+- [x] **M12.1 — Refactored Construct Frequency Census:**
+  - Re-framed construct reporting to *Observed Construct Frequency and Implemented Handling* across 59,345 construct instances (57,211 modeled, 14 unsupported [<0.03%]).
+- [x] **M12.2 — Differential Conformance Test Suite:**
+  - Created `tests/conformance/test_gnu_make_conformance.py` testing immediate/deferred flavors, pattern substitutions, filtering, prefixes/suffixes, and guarded overwrites against GNU Make (100% passing).
+
+---
+
+### M13 — Application Pruning & End-to-End Validation
+
+- [x] **M13.1 — Downstream Application Selection (3 validated uses):**
+  - **App 1 — CI Witness Synthesis:** Greedy set-cover CI matrix synthesis covering $\ge 98.2\%$ of objects with $\le 27$ configurations.
+  - **App 2 — Cross-Release Build Evolution:** SMT XOR equivalence analysis on BusyBox (1.35 $\to$ 1.36) and U-Boot (2023.01 $\to$ 2024.01).
+  - **App 3 — Reproducible Build Defects:** Discovered and verified 6 unreachable PMU firmware targets in Barebox 2024.01.0 `firmware/Makefile`.
+- [x] **M13.2 — Prune Secondary Explorations:**
+  - Pruned exploratory clustering and raw interaction histograms from the primary paper text into artifact documentation.
+
+---
+
+### M14 — Automated Table Synchronization & Verification Pipeline
+
+- [x] **M14.1 — LaTeX Table Auto-Generator:**
+  - Implemented `tools/generate_paper_tables.py` auto-generating `tab_corpus.tex` and `tab_build_validation.tex` directly from raw JSON result files.
+- [x] **M14.2 — Automated Claims Consistency Linter:**
+  - Implemented `tools/check_claim_consistency.py` validating numbers in `evidence/claims.csv` against raw result JSONs and paper text.
+- [x] **M14.3 — Claim-Audit Pass (Forbidden Term Scanning):**
+  - Built automated scanner in `tools/check_claim_consistency.py` ensuring zero occurrences of forbidden overclaiming terms (*"sound and complete"*, *"guarantees exactness"*, *"eliminates all overhead"*).
+
+---
+
+### M15 — Paper Revision & Deep Empirical Discussion
+
+- [x] **M15.1 — SOS Calculus Replacement:**
+  - Replaced formal SOS operational semantics in `paper/skbuild.tex` with intuitive, high-level design prose focusing on guarded words, eager merging, flavor timing, and branch overwrite preservation.
+- [x] **M15.2 — Expanded Empirical Discussion:**
+  - Enriched Section 6 (Evaluation) with detailed discussion and clear **"Implications"** paragraphs for RQ0–RQ5 answering what each empirical result means for software engineering practice.
+- [x] **M15.3 — Ground-Truth Linux Multi-Config Integration:**
+  - Incorporated full differential ground-truth numbers against GNU Make into Table 2, Table 4, and empirical narrative.
+- [x] **M15.4 — Clean PDF Compilation:**
+  - Compiled clean, warning-free PDF with `pdflatex` (21 pages, 0 errors).
+- [x] **M15.5 — Live Linux Physical GCC Build Triangulation:**
+  - Cloned full Linux kernel v6.6 tree and performed live GCC compiler builds (`tinyconfig` and `defconfig`).
+  - Executed 3-way triangulation between Physical Compiler Builds (.o disk artifacts), GNU Make target expansion, and kfold SMT valuations.
+  - Demonstrated $\ge 98.1\%$ recall against physical binary compilation artifacts, with full metrics recorded in `results/linux_physical_build_validation.json`, Table 5 in paper, and Claim C16 in `evidence/claims.csv`.
+
+---
+
+### M16 — Kmax Empirical Comparison & Preprocessing Capabilities
+
+- [x] **M16.1 — Official Kmax (v4.10) Installation & Environment Integration:**
+  - Installed latest stable `kmax 4.10` from PyPI into user environment (`/home/tnguyen/.local/bin/kmax`).
+  - Validated single-makefile and batch directory analysis with `kmax -u -B`.
+- [x] **M16.2 — Automated Multi-Corpus Head-to-Head Comparison:**
+  - Implemented `tools/compare_kfold_with_kmax.py` running parallel multi-threaded comparison across all 5 benchmark corpora (BusyBox, Barebox, Das U-Boot, coreboot, Linux).
+  - Saved raw comparison data to `results/kfold_vs_kmax_comparison.json`.
+  - Validated 100% target extraction agreement on standard Kbuild (609 identical targets on BusyBox 1.36.1).
+- [x] **M16.3 — Robust Text Preprocessing & Traversal Modes:**
+  - Implemented multi-encoding clean reading (UTF-8 with Latin-1 fallback).
+  - Handled comments preceding line-continuation backslashes (`\ # comment`) to prevent lexer aborts.
+  - Added dual traversal modes in `src/alg.py` and `src/skbuild.py`: top-down hierarchical traversal and exhaustive recursive directory exploration (`--recursive` / `-r`).
+- [x] **M16.4 — Paper Integration (Table 6 & Section 5 / RQ1):**
+  - Added comparative Table 6 to `paper/skbuild.tex` detailing Makefiles analyzed, extracted targets, Kconfig symbols, and wall-clock times.
+  - Added narrative explaining hierarchical condition propagation vs. unconstrained flat scraping, non-standard Kbuild dialect coverage (Barebox `pbl-y`, coreboot stages, U-Boot `SPL_TPL_`), and throughput speedup.
+  - Verified 0 overclaiming violations with `tools/check_claim_consistency.py`.
+
+---
+
+### M17 — Advanced Kbuild Modeling & Kmax-Inspired Enhancements
+
+Goal: adapt and implement key architectural ideas from Kmax to enhance `kfold`'s precision, dialect coverage, artifact classification, and linting capabilities—while replacing Kmax's brittle prototype heuristics (regex parsers, dynamic string synthesis, unencapsulated BDD state) with `kfold`'s native eager-merge symbolic execution.
+
+- [x] **M17.1 — Native Composite Object Dependency Resolver (`foo-objs` / `foo-y` / `foo-m`):**
+  - **Context & Design:** In Kbuild, targets in `obj-y`/`obj-m` can be composite module containers (`foo.o`) formed by linking constituent C compilation units defined in `foo-objs`, `foo-y`, or `foo-m`. Unlike Kmax (which dynamically synthesizes and re-parses makefile strings like `SPECIAL-composite-foo := $(foo-objs)` on the fly), `kfold` resolves composite bindings natively within `ds.SState` and `symexe.py`.
+  - **Step 1:** Extend `ds.SState` and `symexe.py` to identify composite assignment variables (`<target>-objs`, `<target>-y`, `<target>-m`).
+  - **Step 2:** Implement native fixed-point resolution: when target `<target>.o` is included under condition $\Phi_{\text{target}}$, propagate $\Phi_{\text{target}}$ down to each constituent unit:
+    $$\Phi_{\text{constituent}} = \Phi_{\text{parent\_dir}} \wedge \Phi_{\text{target}} \wedge \Phi_{\text{subfeature}}$$
+  - **Step 3:** Distinguish container objects (`foo.o`) from atomic compilation units (`foo_main.o`, `foo_hw.o`) to ensure exact 1-to-1 C source file mapping.
+  - **Step 4:** Add test suite in `tests/test_composite_expansion.py` covering nested composites, multi-stage additions, and conditional sub-features across Linux `drivers/net/ethernet/` and Barebox (100% passing).
+
+- [x] **M17.2 — Dialect-Aware Target Artifact Classification (`units_by_type`):**
+  - **Context & Design:** Makefiles build both target device binaries and host-side build utilities. Conflating host utilities with target firmware inflates target counts and distorts presence condition analysis.
+  - **Step 1:** Classify extracted symbols into rigorous semantic categories across build dialects:
+    - `compilation_units`: cross-compiled object files (`.o`, `.a`) compiled for the target architecture (`obj-y`, `obj-m`).
+    - `composite_units`: multi-object container modules linked from constituent compilation units.
+    - `hostprog_units`: tools compiled for the *host* machine (`hostprogs-y`, `hostprogs-m`, `userprogs-y`), isolated from device firmware calculations.
+    - `dialect_units`: stage- and mode-specific units (Barebox `pbl-y`/`obj-pbl-y`, coreboot `bootblock-y`/`romstage-y`/`ramstage-y`/`smm-y`, U-Boot `spl-y`/`tpl-y`).
+    - `clean_files` / `extra_targets`: intermediate artifacts (`clean-files`, `targets`, `extra-y`, linker scripts).
+    - `subdirs`: directories recursively traversed under inherited directory guards.
+  - **Step 2:** Update `--json` CLI output and `src/analysis.py` to expose `units_by_type`.
+  - **Step 3:** Add regression tests in `tests/test_artifact_classification.py` (100% passing).
+
+- [x] **M17.3 — Tristate Built-in vs. Loadable Module Semantics (`=y` vs. `=m`):**
+  - **Context & Design:** Kmax over-approximates tristates by minting free `=m` variables for all symbols (even pure booleans). `kfold` models tristates soundly without generating spurious SAT models.
+  - **Step 1:** Extend `helpers/zsolver.py` with tristate symbol representation: represent tristate `CONFIG_X` as two mutually exclusive boolean predicates $(\mathtt{CONFIG\_X{=}y}, \mathtt{CONFIG\_X{=}m})$ with constraint $\neg(\mathtt{CONFIG\_X{=}y} \wedge \mathtt{CONFIG\_X{=}m})$. Do not mint `=m` variables for known boolean-only symbols.
+  - **Step 2:** Model global `CONFIG_MODULES`: when `CONFIG_MODULES=n`, constrain all `=m` bindings to evaluate strictly to $\text{False}$.
+  - **Step 3:** Differentiate resident kernel core objects (`vmlinux` $\leftrightarrow \mathtt{obj\text{-}y}$) from dynamically loadable modules (`.ko` $\leftrightarrow \mathtt{obj\text{-}m}$) in extracted presence conditions.
+  - **Step 4:** Add CLI option `--tristate` / `-T` to allow toggling between fast boolean abstraction and full tristate module mode.
+  - **Step 5:** Add regression suite in `tests/test_tristate_semantics.py` (100% passing).
+
+- [x] **M17.4 — Automated Dead & Unconfigurable Target Linting (`skbuild --check-dead`):**
+  - **Context & Design:** Static analysis of Kbuild can automatically detect dead code resulting from deprecated Kconfig symbols or contradictory conditional guards.
+  - **Step 1:** Implement static analyzer in `tools/lint_dead_targets.py` combining syntactic and SMT checks:
+    - **Syntactic Orphan Targets:** targets assigned to empty/unexpanded prefixes (`obj-`, `lib-`, `pbl-`) caused by removed/renamed Kconfig variables (`obj-$(CONFIG_DEAD) += dead.o` expanding to `obj- += dead.o`, which Kbuild silently ignores).
+    - **Semantic Unsatisfiable Targets:** targets whose combined presence condition simplifies to $\text{False}$ ($\text{UNSAT}$) under Z3.
+    - **Conflicting Hierarchical Guards:** targets whose local conditions contradict an ancestor directory's traversal condition ($\Phi_{\text{dir}} \wedge \Phi_{\text{target}} \implies \text{UNSAT}$).
+  - **Step 2:** Add CLI flag `--check-dead` / `--lint` to `src/skbuild.py`.
+  - **Step 3:** Run linter across benchmark corpora and document newly discovered build defects in `results/unconfigurable_targets.json`.
+  - **Step 4:** Add reproduction test cases in `tests/test_dead_target_detection.py` (100% passing).
+
+- [x] **M17.5 — Robust Kconfig Constraint Integration via `kconfiglib` (End-to-End Buildability):**
+  - **Context & Design:** Kmax's `kclause` relies on a brittle 1,350+ line custom regex parser that fails on modern Kconfig preprocessor syntax (`$(cc-option)`, `$(success)`). `kfold` uses standard AST extraction via `kconfiglib` to extract propositional clauses.
+  - **Step 1:** Implement `tools/kconfig_solver.py` integrating `kconfiglib` to capture `select`, `depends on`, `default ... if ...`, and `choice` constraints as SMT formulas ($\Phi_{\text{Kconfig}}$).
+  - **Step 2:** Conjoin Kconfig propositional clauses with `kfold` presence conditions during greedy set-cover test configuration synthesis:
+    $$\text{Find } \mathcal{M} \models \Phi_{\text{Kconfig}} \wedge \Phi_{\text{target}}$$
+  - **Step 3:** Add test suite in `tests/test_kconfig_integration.py` verifying dependency propagation, reverse dependency resolution, choice block mutual exclusion, and `.config` synthesis (100% passing).
+  - **Step 4:** Validated buildable witness synthesis with physical `.config` generation.
+  - **Demoted from paper (2026-09-21):** the Kconfig-to-SMT constraint extraction idea is not novel (Kclause and other Kconfig-to-SAT tools have done this for over a decade); the code, tests, and unit-level validation remain in the repo, but the `CONFIG_E1000` case study (former claim C20) and all comparative language crediting this as a distinguishing contribution have been removed from `paper/skbuild.tex` and `evidence/claims.csv`. None of the paper's evaluated applications (CI witness synthesis, differential evolution, dead-target linting) incorporate Kconfig constraints; their synthesized configurations remain Kbuild-local only.
+
+

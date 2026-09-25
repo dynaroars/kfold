@@ -20,3 +20,9 @@
 /src/out.1
 /src/out1
 /results/workspaces/
+/results/revalidation_builds/
+/results/tmp/
+/evidence/physical_builds/
+/results/kconfig_aware_ci_witness_synthesis.json
+/TAGS
+*.fls

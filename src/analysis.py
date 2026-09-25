@@ -253,3 +253,54 @@ class Analysis:
 
         mlog.debug("{} config vars, {} undefs".format(len(myconfigs), nundefs))
         return constraint
+
+    def get_units_by_type(self):
+        """Aggregate semantic artifact categories across all analyzed kbuilds."""
+        units_by_type_aggregated = {
+            "compilation_units": {},
+            "composite_units": {},
+            "composite_map": {},
+            "hostprog_units": {},
+            "dialect_units": {},
+            "clean_files": {},
+            "extra_targets": {},
+            "unconfigurable_units": {},
+            "subdirs": [],
+        }
+        for kbuild in self.kbuilds:
+            state = kbuild.state
+            parent = kbuild.makefile.parent
+            solver = kbuild.solver
+            kb_units = state.get_units_by_type(solver=solver)
+
+            for k in ["compilation_units", "composite_units", "hostprog_units", "dialect_units", "clean_files", "extra_targets", "unconfigurable_units"]:
+                for word, cond in kb_units[k].items():
+                    try:
+                        rel = str((parent / word).relative_to(self.main_dir))
+                    except ValueError:
+                        rel = str(word)
+                    if rel in units_by_type_aggregated[k]:
+                        units_by_type_aggregated[k][rel] = zsolver.disj(units_by_type_aggregated[k][rel], cond)
+                    else:
+                        units_by_type_aggregated[k][rel] = cond
+
+            for comp, consts in kb_units["composite_map"].items():
+                try:
+                    rel_comp = str((parent / comp).relative_to(self.main_dir))
+                except ValueError:
+                    rel_comp = str(comp)
+                units_by_type_aggregated["composite_map"][rel_comp] = {
+                    str((parent / cw).relative_to(self.main_dir)) if not str(cw).startswith('/') else str(cw): cc
+                    for cw, cc in consts.items()
+                }
+
+            for sd in kb_units["subdirs"]:
+                try:
+                    rel_sd = str((parent / sd).relative_to(self.main_dir))
+                except ValueError:
+                    rel_sd = str(sd)
+                if rel_sd not in units_by_type_aggregated["subdirs"]:
+                    units_by_type_aggregated["subdirs"].append(rel_sd)
+
+        return units_by_type_aggregated
+

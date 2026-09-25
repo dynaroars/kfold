@@ -1,6 +1,8 @@
 from abc import ABC
 import itertools
 import pdb
+import re
+import copy
 
 import z3
 
@@ -229,7 +231,8 @@ class StatementList(Statement):
             stmt.sexe(state, guard, ddb)
 
 
-def _merge_branch_states(dest_state, then_state, then_guard, else_state, else_guard):
+def _merge_branch_states(dest_state, then_state, then_guard, else_state, else_guard,
+                         guard):
     """Fold ``then_state``/``else_state`` (each a full clone of the
     pre-conditional state that a branch's statements executed against under
     their own ambient guard) back into ``dest_state``.
@@ -271,14 +274,22 @@ def _merge_branch_states(dest_state, then_state, then_guard, else_state, else_gu
 
         merged = {}
         for word in words:
+            if (then_v is not None and else_v is not None
+                    and word in then_v.valconds and word in else_v.valconds
+                    and then_v.valconds[word].eq(else_v.valconds[word])):
+                # Neither arm changed this word's guard phi, and
+                # (g & k & phi) | (g & ~k & phi) == g & phi. Building the
+                # disjunction instead would double the formula at every
+                # conditional that leaves the word untouched.
+                merged[word] = zsolver.conj(guard, then_v.valconds[word])
+                continue
             parts = []
             if then_v is not None and word in then_v.valconds:
                 parts.append(zsolver.conj(then_guard, then_v.valconds[word]))
             if else_v is not None and word in else_v.valconds:
                 parts.append(zsolver.conj(else_guard, else_v.valconds[word]))
             cond = zsolver.mdisj(parts)
-            if not z3.is_false(cond):  # drop words no reachable branch keeps
-                merged[word] = cond
+            merged[word] = cond
 
         flavor = (then_v or else_v).flavor
         mysettings = (then_v or else_v).mysettings
@@ -297,10 +308,13 @@ class ConditionBlock(Statement):
         if_cond, then_stmts = stmt[0]  # if/then branch
         if len(stmt) == 1:  # no else branch, treats as else: empty
             else_stmts = None
-        elif len(stmt) == 2:  # else branch
+        elif len(stmt) == 2 and isinstance(stmt[1][0], parserdata.ElseCondition):
             _, else_stmts = stmt[1]
         else:
-            raise NotImplementedError("{} stmts".format(len(stmt)))
+            # GNU Make's `else ifeq` is the else arm of the preceding
+            # condition, followed by another conditional group. Keep the
+            # remaining groups together so only the first matching arm runs.
+            else_stmts = stmt[1:]
 
         return if_cond, then_stmts, else_stmts
 
@@ -312,7 +326,12 @@ class ConditionBlock(Statement):
             return StatementList.create(stmts, mid) if stmts else None
 
         then_stmts = f(then_stmts, tuple(list(sid) + [0, ]))
-        else_stmts = f(else_stmts, tuple(list(sid) + [1, ]))
+        if else_stmts and isinstance(else_stmts, list) and isinstance(else_stmts[0], tuple):
+            remaining = copy.copy(stmt)
+            remaining._groups = else_stmts
+            else_stmts = cls.create(remaining, tuple(list(sid) + [1, ]))
+        else:
+            else_stmts = f(else_stmts, tuple(list(sid) + [1, ]))
         mystmt = cls(if_cond, then_stmts, else_stmts, stmt, sid)
         return mystmt
 
@@ -376,14 +395,15 @@ class ConditionBlock(Statement):
         else_guard = zsolver.conj(guard, not_if_cond)
 
         then_state = state.clone()
-        if self.then_stmts and self.solver.is_sat(then_guard):
+        if self.then_stmts:
             self.then_stmts.sexe(then_state, then_guard, ddb)
 
         else_state = state.clone()
-        if self.else_stmts and self.solver.is_sat(else_guard):
+        if self.else_stmts:
             self.else_stmts.sexe(else_state, else_guard, ddb)
 
-        _merge_branch_states(state, then_state, then_guard, else_state, else_guard)
+        _merge_branch_states(state, then_state, then_guard, else_state, else_guard,
+                             guard)
 
     def eval_condition(self, cond, state, myeval):
         """
@@ -518,10 +538,10 @@ class SetVariable(Statement):
 
         names_ = []
         for name, cond in names:
-            if name in ddb.used_vars:
+            if name in ddb.used_vars or name.endswith('-') or any(name.startswith(x) for x in ddb.ARTIFACT_PREFIXES):
                 names_.append((name, cond))
             else:
-                mlog.warn("Ignoring var (likely unused) '{}'".format(name))
+                mlog.warning("Ignoring var (likely unused) '{}'".format(name))
         names = names_
 
         if not names:
@@ -530,27 +550,145 @@ class SetVariable(Statement):
         token = self.stmt.token   # :=
         val = self.stmt.value.strip()
 
-        unexpanded = token in ("=", "?=")
-        if unexpanded:
-            vals = [(val, zsolver.T)]
-        else:
-            vals = myeval.do_val(val, state.states)
+        raw = [(val, zsolver.T)]
+        expanded = None
 
         for name, ncond in names:
-            for val, vcond in vals:
-                new_cond = zsolver.mconj([guard, ncond, vcond])
-                if self.solver.is_sat(new_cond):
-                    state.set_var(name, token, val, new_cond, self.solver)
+            # GNU Make defers the right-hand side of =, ?=, and of += on a
+            # variable that is undefined or recursively expanded.
+            old = state.states.get(name)
+            unexpanded = token in ("=", "?=") or (
+                token == "+=" and (old is None or old.is_recurse))
+            if unexpanded:
+                vals = raw
+            else:
+                if expanded is None:
+                    expanded = myeval.do_val(val, state.states)
+                vals = expanded
+            name_guard = zsolver.conj(guard, ncond)
+            valconds_dict = {}
+            for val_str, vcond in vals:
+                # A deferred value keeps its text for later expansion; when
+                # it contains no reference, expansion cannot change it, so it
+                # is split into words like an immediate value.
+                words = ([val_str] if unexpanded and "$" in val_str
+                         else val_str.split())
+                for w in words:
+                    if w in valconds_dict:
+                        valconds_dict[w] = zsolver.disj(valconds_dict[w], vcond)
+                    else:
+                        valconds_dict[w] = vcond
+            state.set_var_dict(name, token, valconds_dict, name_guard, self.solver)
+
+
+SUBMAKE = re.compile(r"\$\(MAKE\)\s+\$\(build\)=(\S+)(?:\s+(\S+))?")
+
+
+def rule_name(sid):
+    return "__rule" + "_".join(map(str, sid))
 
 
 class Rule(Statement):
+    """A rule's targets and prerequisites, recorded as guarded lists
+    (__rule<sid>_t, __rule<sid>_p) so that the objects Kbuild builds only to
+    satisfy prerequisites can be followed after the traversal. A static
+    pattern rule is instantiated per target."""
+
+    def _texts(self):
+        st = self.stmt
+        pattern = st.patternexp.to_source() if isinstance(st, parserdata.StaticPatternRule) else None
+        return st.targetexp.to_source(), pattern, st.depexp.to_source()
+
+    def dexe(self, state, deps):
+        myeval = expansion.ExpansionDExe(self.solver)
+        targets, pattern, prereqs = self._texts()
+        for text in (targets, pattern, prereqs):
+            if text:
+                myeval.do_val(text, state.states)
+        state.ddb.extra_roots |= set(myeval.deps)
+
     def myreduce(self, ddb):
-        return None
+        return self
+
+    def sexe(self, state, guard, ddb):
+        myeval = expansion.ExpansionSExe(self.solver)
+        targets, pattern, prereqs = self._texts()
+        tvals = myeval.do_val(targets, state.states)
+        pvals = myeval.do_val(prereqs, state.states) if prereqs.strip() else []
+        name = rule_name(self.sid)
+        pairs = []
+        if pattern is not None:
+            pat = pattern.strip()
+            for t, tc in tvals:
+                for tw in t.split():
+                    stem = _pattern_stem(pat, tw)
+                    if stem is None:
+                        continue
+                    pwords = {}
+                    for p, pc in pvals:
+                        for pw in p.split():
+                            w = pw.replace("%", stem, 1)
+                            pwords[w] = zsolver.disj(pwords[w], pc) if w in pwords else pc
+                    pairs.append(({tw: tc}, pwords))
+        else:
+            twords, pwords = {}, {}
+            for t, tc in tvals:
+                for tw in t.split():
+                    twords[tw] = zsolver.disj(twords[tw], tc) if tw in twords else tc
+            for p, pc in pvals:
+                for pw in p.split():
+                    pwords[pw] = zsolver.disj(pwords[pw], pc) if pw in pwords else pc
+            pairs.append((twords, pwords))
+        for i, (twords, pwords) in enumerate(pairs):
+            n = f"{name}_{i}"
+            state.set_var_dict(n + "_t", ":=", twords, guard, self.solver)
+            if pwords:
+                state.set_var_dict(n + "_p", ":=", pwords, guard, self.solver)
+        state.last_rule = [(f"{name}_{i}", twords) for i, (twords, _) in enumerate(pairs)]
+
+
+def _pattern_stem(pattern, word):
+    if "%" not in pattern:
+        return "" if pattern == word else None
+    pre, _, post = pattern.partition("%")
+    if word.startswith(pre) and word.endswith(post) and len(word) >= len(pre) + len(post):
+        return word[len(pre):len(word) - len(post)]
+    return None
 
 
 class Command(Statement):
+    """A recipe line. A sub-make, $(MAKE) $(build)=DIR GOAL, is recorded on
+    the preceding rule (__rule<sid>_m) as DIR|GOAL words, with $@ replaced by
+    the rule's target."""
+
+    def dexe(self, state, deps):
+        m = SUBMAKE.search(self.stmt.exp.to_source())
+        if m:
+            myeval = expansion.ExpansionDExe(self.solver)
+            myeval.do_fake_expansion(m.group(1), state.states)
+            state.ddb.extra_roots |= set(myeval.deps)
+
     def myreduce(self, ddb):
-        return None
+        return self if SUBMAKE.search(self.stmt.exp.to_source()) else None
+
+    def sexe(self, state, guard, ddb):
+        m = SUBMAKE.search(self.stmt.exp.to_source())
+        rules = getattr(state, "last_rule", None)
+        if not m or not rules:
+            return
+        myeval = expansion.ExpansionSExe(self.solver)
+        dirs = myeval.do_fake_expansion(m.group(1), state.states)
+        goal = m.group(2) or ""
+        for n, twords in rules:
+            words = {}
+            for t, tc in twords.items():
+                g = goal.replace("$@", t)
+                for d, dc in dirs:
+                    w = f"{d.strip()}|{g}"
+                    c = zsolver.conj(tc, dc)
+                    words[w] = zsolver.disj(words[w], c) if w in words else c
+            if words:
+                state.set_var_dict(n + "_m", ":=", words, guard, self.solver)
 
 
 class Include(Statement):

@@ -47,7 +47,7 @@ def evaluate_corpus(name, version, dialect, root_dir, ini_file=None):
             if mysettings and v.name in mysettings.target_vars:
                 continue
             for word, wcond in v.valconds.items():
-                if isinstance(word, str) and (word.endswith('.o') or word.endswith('.a')):
+                if isinstance(word, str) and word.endswith(('.o', '.c', '.s', '.S', '.a', '.ads', '.adb')):
                     try:
                         rel = str((parent / word).relative_to(main_dir))
                     except ValueError:

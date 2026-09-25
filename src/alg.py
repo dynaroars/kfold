@@ -19,28 +19,66 @@ DBG = pdb.set_trace
 class Run:
     default_cond = None
 
-    def __init__(self, path):
+    def __init__(self, path, recursive: bool = False, use_tristate: bool = False):
         """
         paths is a list of paths to either makefiles or directories
         """
         self.path = path.resolve()
         self.maindir = self.path.parent if self.path.is_file() else self.path
-        self.mysettings = settings.Settings(self.maindir)
+        self.mysettings = settings.Settings(self.maindir, use_tristate=use_tristate)
+        self.recursive = recursive
 
         if self.path.is_file():  # explicit Makefile input
             makefiles = [(self.path, self.default_cond)]
+        elif recursive:
+            discovered = []
+            for p in sorted(self.maindir.rglob("*")):
+                if p.is_file() and (p.name in ("Makefile", "Kbuild", "Makefile.inc") or p.name.startswith("Kbuild") or p.name.startswith("Makefile")):
+                    if not p.name.endswith(".o") and not p.name.endswith(".cmd") and not p.name.endswith(".d"):
+                        discovered.append(p)
+            makefiles = [(mk, self.default_cond) for mk in discovered]
         else:
             if self.mysettings.topdirs:
-                topdirs = [self.maindir /
-                           d for d in sorted(self.mysettings.topdirs)]
-                topdirs = [d for d in topdirs if d.is_dir()]
+                # Entries may be globs, mirroring $(wildcard src/drivers/*).
+                names, patterns = [], {}
+                for d in sorted(self.mysettings.topdirs):
+                    matches = ([str(p.relative_to(self.maindir))
+                                for p in sorted(self.maindir.glob(d)) if p.is_dir()]
+                               if any(c in d for c in "*?[") else
+                               ([d] if (self.maindir / d).is_dir() else []))
+                    for m in matches:
+                        if m not in patterns:
+                            names.append(m)
+                            patterns[m] = d
             else:
-                topdirs = [self.maindir]
+                names, patterns = ["."], {".": "."}
 
-            makefiles = [(makefile, self.default_cond) for makefile in
-                         self.get_makefiles(topdirs, self.mysettings)]
+            solver = zsolver.ZSolver(self.mysettings)
+            makefiles = []
+            for d in names:
+                guard = self.default_cond
+                syms = self.mysettings.topdir_guards.get(patterns[d])
+                if syms:
+                    guards = []
+                    # Top-level lists such as drivers-$(CONFIG_X) enter the
+                    # directory when the option is y or m.
+                    for sym in syms:
+                        zvar, values = solver.get_sort(sym)
+                        guards.append(zvar != values[''])
+                    guard = zsolver.mdisj(guards)
+                for makefile in self.get_makefiles([self.maindir / d], self.mysettings):
+                    makefiles.append((makefile, guard))
 
-        assert makefiles
+            if not makefiles:
+                # Fallback: discover all makefile candidates in directory
+                discovered = []
+                for p in sorted(self.maindir.rglob("*")):
+                    if p.is_file() and (p.name in ("Makefile", "Kbuild", "Makefile.inc") or p.name.startswith("Kbuild") or p.name.startswith("Makefile")):
+                        if not p.name.endswith(".o") and not p.name.endswith(".cmd") and not p.name.endswith(".d"):
+                            discovered.append(p)
+                makefiles = [(mk, self.default_cond) for mk in discovered]
+
+        assert makefiles, f"No Makefiles found in {self.path}"
         self.makefiles = makefiles
 
     def go(self):
@@ -56,11 +94,24 @@ class Run:
 
         nkbuilds = 0  # number of created kbuilds
         cache = {}  # makefile -> kbuild file
+        reached = {}  # makefile -> union of conditions already propagated
+        skipped_revisits = 0
+        reach_solver = zsolver.ZSolver(self.mysettings)
         self.all_kbuilds = []
         makefiles = self.makefiles
         while makefiles:
             tmp_kbuilds = []
             for makefile, cond in makefiles:
+                incoming = zsolver.T if cond is self.default_cond else cond
+                previous = reached.get(makefile, zsolver.F)
+                # Propagate only configurations that have not reached this
+                # Makefile before. A back edge in the directory graph then
+                # contributes no new work once its guard is covered.
+                delta = zsolver.conj(incoming, zsolver.neg(previous))
+                if not reach_solver.is_sat(delta):
+                    skipped_revisits += 1
+                    continue
+                reached[makefile] = zsolver.disj(previous, incoming)
                 nkbuilds += 1
 
                 if makefile in cache:
@@ -74,8 +125,8 @@ class Run:
                     kbuild.save(saved_file)
                     cache[makefile] = saved_file
 
-                if cond is not self.default_cond:
-                    kbuild = kbuild.fork(cond)
+                if delta is not zsolver.T:
+                    kbuild = kbuild.fork(delta)
 
                 tmp_kbuilds.append(kbuild)
                 kbuild.save(self.tmpdir / 'kbuild_{}'.format(nkbuilds))
@@ -83,8 +134,10 @@ class Run:
             self.all_kbuilds.extend(tmp_kbuilds)
             makefiles = self.get_makefiles_from_kbuilds(tmp_kbuilds, self.mysettings)
 
-        mlog.info("analyzed {} kbuilds from {} makefiles in {:.2f}s".format(
-            nkbuilds, len(cache), time() - st))
+        self.reached_conditions = reached
+        self.skipped_revisits = skipped_revisits
+        mlog.info("analyzed {} kbuilds from {} makefiles; skipped {} covered revisits in {:.2f}s".format(
+            nkbuilds, len(cache), skipped_revisits, time() - st))
 
         return self.tmpdir
 

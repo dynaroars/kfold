@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>kfold: object-selection conditions for Kbuild Makefiles</title>
+<link rel="stylesheet" type="text/css" href="https://roars.dev/files/org.css">
+<style>
+  :root { color-scheme: light dark; }
+  textarea, input, select, button, tt, code { font-family: "Courier New", Courier, monospace; }
+  @media (prefers-color-scheme: dark) {
+    textarea, input, select, button { background: #073642; color: #93a1a1; border: 1px solid #586e75; }
+  }
+  pre { overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+  textarea { width: 100%; box-sizing: border-box; padding: 6px; font-size: 13px; line-height: 1.35;
+             border: 1px solid #999; tab-size: 8; resize: vertical; }
+  #makefile { height: 18em; white-space: pre; overflow: auto; }
+  .config-box { height: 7em; }
+  #search { width: 36em; max-width: 100%; font-size: 1.05em; padding: 3px 6px; }
+  #matches { margin: 0.3em 0; padding-left: 1.2em; }
+  #matches li { cursor: pointer; }
+  #matches li:hover { text-decoration: underline; }
+  table.res { border-collapse: collapse; margin: 0.4em 0 1em 0; }
+  table.res td, table.res th { border: 1px solid #666; padding: 2px 8px; text-align: left; vertical-align: top; }
+  .yes { color: #2e7d32; font-weight: bold; }
+  .no { color: #c62828; font-weight: bold; }
+  .small { font-size: smaller; }
+  .kind { font-size: smaller; padding: 0 5px; border: 1px solid #888; border-radius: 3px; }
+  button.primary { font-size: 1.1em; padding: 0.3em 1.2em; }
+  summary { cursor: pointer; }
+  summary h2 { display: inline; }
+  .err { color: #c62828; }
+</style>
+</head>
+<body>
+
+<h1>kfold: object-selection conditions for Kbuild Makefiles</h1>
+<p>
+<b>kfold</b> computes, for every object that a Kbuild tree can build, the configuration condition under
+which Kbuild builds it. It executes Kbuild Makefiles symbolically with a guard on every word of every
+variable, merges conditional branches into one state, and follows directories, composite objects,
+included fragments, host programs, and rule prerequisites. On Linux v6.6, its predictions match the
+objects of real builds exactly for <tt>tinyconfig</tt>, <tt>defconfig</tt>, a Debian configuration,
+and <tt>allmodconfig</tt>.
+</p>
+<p class="small" id="linux-meta"></p>
+<hr>
+
+<h2>1. Explore Linux v6.6</h2>
+<p>Search for an object path, e.g. <tt>fs/ext2/xattr.o</tt>, <tt>i915</tt>, or <tt>arch/x86/boot/</tt>.</p>
+<p><input id="search" type="text" placeholder="object path or part of it" autocomplete="off">
+<span id="match-count" class="small"></span></p>
+<ul id="matches"></ul>
+<div id="object"></div>
+
+<details>
+<summary><h2>2. What does a configuration build?</h2></summary>
+<p>Choose one of the evaluated configurations or paste a <tt>.config</tt>; kfold lists every object
+whose condition holds.</p>
+<p>
+<select id="eval-profile"><option value="">-- paste a .config below --</option></select>
+&nbsp; only paths starting with <input id="eval-prefix" type="text" size="24" placeholder="e.g. drivers/usb/">
+</p>
+<textarea id="eval-config" class="config-box" placeholder="CONFIG_MODULES=y&#10;CONFIG_EXT2_FS=m&#10;..."></textarea>
+<p><button class="primary" id="eval-btn">List built objects</button> <span id="eval-status" class="small"></span></p>
+<div id="eval-result"></div>
+</details>
+
+<details>
+<summary><h2>3. Try your own Makefile</h2></summary>
+<p>
+<b>Load example:</b> <select id="example-select"><option value="">-- select an example --</option></select>
+&nbsp;<label><input type="checkbox" id="tristate" checked> tristate options (<tt>y</tt>/<tt>m</tt>/unset)</label>
+</p>
+<textarea id="makefile" placeholder="obj-$(CONFIG_FOO) += foo.o&#10;foo-y := core.o&#10;foo-$(CONFIG_FOO_EXTRA) += extra.o"></textarea>
+<p class="small">Optional assignment to evaluate the conditions under:</p>
+<textarea id="mk-config" class="config-box" placeholder="CONFIG_FOO=y"></textarea>
+<p><button class="primary" id="mk-btn">Analyze</button> <span id="mk-status" class="small"></span></p>
+<div id="mk-result"></div>
+<p class="small">Submitted Makefiles are analyzed in a sandbox: <tt>$(shell ...)</tt> expands to nothing and
+<tt>include</tt> cannot leave the submitted file's directory.</p>
+</details>
+
+<hr>
+<p class="small">
+Conditions range over option values <tt>y</tt>, <tt>m</tt>, and <tt>undef</tt> (unset). An
+<tt>m</tt> alternative also requires <tt>CONFIG_MODULES=y</tt>. Conditions describe Kbuild's selection
+only: they do not include Kconfig's <tt>depends on</tt> and <tt>select</tt> rules, so a satisfying
+assignment must still pass <tt>make olddefconfig</tt>.
+Object kinds: <b>target</b> (listed in <tt>obj-y</tt>, <tt>lib-y</tt>, &hellip;), <b>member</b> (of a
+composite such as <tt>ext2-y</tt>), <b>program</b> (object of a host or user program), <b>rule</b>
+(built as a rule prerequisite, e.g. the boot image and vDSO), <b>extra</b> (final link).
+</p>
+
+<script>
+const API = (window.KFOLD_API || "");
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+async function api(path, body) {
+  const r = await fetch(API + path, body ? {method: "POST", headers: {"Content-Type": "application/json"},
+                                             body: JSON.stringify(body)} : {});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+// --- Linux explorer -------------------------------------------------------
+let profiles = [];
+api("/api/linux/info").then(info => {
+  profiles = info.profiles;
+  $("linux-meta").textContent = `Loaded ${info.tree} at ${info.commit.slice(0, 12)}: ${info.objects} object paths ` +
+    `from ${info.makefile_instances} Makefile instances (analysis ${info.analysis_seconds}s).`;
+  for (const p of profiles) $("eval-profile").add(new Option(p, p));
+  const linked = new URLSearchParams(location.search).get("path");
+  if (linked) { $("search").value = linked; showObject(linked); }
+}).catch(e => { $("linux-meta").innerHTML = `<span class="err">${esc(e.message)}</span>`; });
+
+let searchTimer = null;
+$("search").addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    const q = $("search").value.trim();
+    if (q.length < 2) { $("matches").innerHTML = ""; $("match-count").textContent = ""; return; }
+    const r = await api("/api/linux/search?q=" + encodeURIComponent(q));
+    $("match-count").textContent = r.total > r.matches.length ? `(${r.matches.length} of ${r.total})` : `(${r.total})`;
+    $("matches").innerHTML = r.matches.map(p => `<li data-p="${esc(p)}"><tt>${esc(p)}</tt></li>`).join("");
+    if (r.matches.length === 1) showObject(r.matches[0]);
+  }, 200);
+});
+$("matches").addEventListener("click", e => { const li = e.target.closest("li"); if (li) showObject(li.dataset.p); });
+
+async function showObject(path) {
+  const o = await api("/api/linux/object?path=" + encodeURIComponent(path));
+  history.replaceState(null, "", "?path=" + encodeURIComponent(path));
+  const prof = Object.entries(o.profiles).map(([n, b]) =>
+    `<tr><td>${esc(n)}</td><td class="${b ? "yes" : "no"}">${b ? "built" : "not built"}</td></tr>`).join("");
+  $("object").innerHTML = `
+    <h3><tt>${esc(o.path)}</tt> <span class="kind">${esc(o.kind)}</span></h3>
+    <p><b>Selected by:</b> ${o.origins.map(x => `<tt>${esc(x)}</tt>`).join("; ") || "&mdash;"}</p>
+    <p><b>Condition</b> (includes the guards for reaching its directory):</p>
+    <pre>${esc(o.condition)}</pre>
+    <p class="small">Options: ${o.options.map(x => `<tt>${esc(x)}</tt>`).join(", ") || "none (always built)"}</p>
+    <table class="res"><tr><th>Configuration</th><th>kfold</th></tr>${prof}</table>
+    <p class="small">Check against your own configuration:</p>
+    <textarea id="obj-config" class="config-box" placeholder="paste a .config"></textarea>
+    <p><button id="obj-btn">Is it built?</button> <span id="obj-res"></span></p>`;
+  $("obj-btn").onclick = async () => {
+    try {
+      const r = await api("/api/linux/evaluate", {path: o.path, config: $("obj-config").value});
+      const vals = Object.entries(r.values).map(([k, v]) => `<tt>${esc(k)}=${esc(v)}</tt>`).join(", ");
+      $("obj-res").innerHTML = `<span class="${r.built ? "yes" : "no"}">${r.built ? "built" : "not built"}</span>` +
+        (vals ? ` <span class="small">(${vals})</span>` : "");
+    } catch (e) { $("obj-res").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  };
+}
+
+$("eval-btn").onclick = async () => {
+  $("eval-status").textContent = "evaluating...";
+  try {
+    const body = {prefix: $("eval-prefix").value.trim()};
+    if ($("eval-profile").value) body.profile = $("eval-profile").value; else body.config = $("eval-config").value;
+    const r = await api("/api/linux/evaluate", body);
+    $("eval-status").textContent = "";
+    const dirs = Object.entries(r.by_directory).map(([d, n]) => `<tr><td><tt>${esc(d)}</tt></td><td>${n}</td></tr>`).join("");
+    const list = r.objects.slice(0, 2000).map(esc).join("\n");
+    $("eval-result").innerHTML = `
+      <p><b>${r.built}</b> of ${r.of} object paths are built.</p>
+      <table class="res"><tr><th>Top directory</th><th>Objects</th></tr>${dirs}</table>
+      <p>${r.objects.length} shown${r.objects.length > 2000 ? " (first 2000)" : ""}:
+         <a href="#" id="dl">download all</a></p><pre>${list}</pre>`;
+    $("dl").onclick = e => {
+      e.preventDefault();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([r.objects.join("\n") + "\n"], {type: "text/plain"}));
+      a.download = "kfold-objects.txt"; a.click();
+    };
+  } catch (e) { $("eval-status").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+};
+
+// --- Makefile analysis ----------------------------------------------------
+api("/api/examples").then(items => {
+  for (const it of items) $("example-select").add(new Option(it.description, it.id));
+});
+$("example-select").onchange = async () => {
+  const id = $("example-select").value;
+  if (id) $("makefile").value = (await api("/api/example/" + id)).makefile;
+};
+$("mk-btn").onclick = async () => {
+  $("mk-status").textContent = "analyzing...";
+  $("mk-result").innerHTML = "";
+  try {
+    const r = await api("/api/makefile", {makefile: $("makefile").value, tristate: $("tristate").checked,
+                                          config: $("mk-config").value});
+    $("mk-status").textContent = `done in ${r.seconds}s`;
+    const built = r.evaluation ? new Set(r.evaluation.built) : null;
+    const rows = r.objects.map(o => `<tr><td><tt>${esc(o.path)}</tt></td><td><span class="kind">${esc(o.kind)}</span></td>
+        <td><tt>${esc(o.cond)}</tt></td>${built ? `<td class="${built.has(o.path) ? "yes" : "no"}">${built.has(o.path) ? "built" : "not built"}</td>` : ""}</tr>`).join("");
+    const vars = Object.entries(r.variables).map(([n, ws]) =>
+      `<tr><td><tt>${esc(n)}</tt></td><td>${ws.map(([w, c]) => `<tt>${esc(w)}</tt> &larr; <tt>${esc(c)}</tt>`).join("<br>")}</td></tr>`).join("");
+    $("mk-result").innerHTML = `
+      ${r.parse_error ? `<p class="err">Parse error: ${esc(r.parse_error)}</p>` : ""}
+      <h3>Objects</h3>
+      <table class="res"><tr><th>Object</th><th>Kind</th><th>Condition</th>${built ? "<th>Under the assignment</th>" : ""}</tr>${rows}</table>
+      <h3>Guarded variables</h3>
+      <table class="res"><tr><th>Variable</th><th>Words and their guards</th></tr>${vars}</table>`;
+  } catch (e) { $("mk-status").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+};
+</script>
+</body>
+</html>

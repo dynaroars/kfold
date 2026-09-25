@@ -1,0 +1,112 @@
+{
+  "BusyBox": {
+    "corpus": "BusyBox",
+    "kfold": {
+      "makefiles": 30,
+      "objects": 609,
+      "symbols": 513,
+      "time_s": 0.67
+    },
+    "kmax_4_10": {
+      "makefiles": 77,
+      "objects": 609,
+      "symbols": 513,
+      "time_s": 9.2,
+      "failed_makefiles": 0
+    },
+    "target_comparison": {
+      "common_objects": 609,
+      "kfold_only_objects": 0,
+      "kmax_only_objects": 0,
+      "kfold_coverage_advantage": 0
+    }
+  },
+  "Barebox": {
+    "corpus": "Barebox",
+    "kfold": {
+      "makefiles": 155,
+      "objects": 1343,
+      "symbols": 1002,
+      "time_s": 2.12
+    },
+    "kmax_4_10": {
+      "makefiles": 491,
+      "objects": 1918,
+      "symbols": 1037,
+      "time_s": 54.88,
+      "failed_makefiles": 0
+    },
+    "target_comparison": {
+      "common_objects": 1269,
+      "kfold_only_objects": 74,
+      "kmax_only_objects": 649,
+      "kfold_coverage_advantage": -575
+    }
+  },
+  "Das U-Boot": {
+    "corpus": "Das U-Boot",
+    "kfold": {
+      "makefiles": 271,
+      "objects": 3031,
+      "symbols": 2261,
+      "time_s": 7.99
+    },
+    "kmax_4_10": {
+      "makefiles": 1130,
+      "objects": 5606,
+      "symbols": 2364,
+      "time_s": 129.95,
+      "failed_makefiles": 4
+    },
+    "target_comparison": {
+      "common_objects": 3019,
+      "kfold_only_objects": 12,
+      "kmax_only_objects": 2587,
+      "kfold_coverage_advantage": -2575
+    }
+  },
+  "coreboot": {
+    "corpus": "coreboot",
+    "kfold": {
+      "makefiles": 29,
+      "objects": 222,
+      "symbols": 101,
+      "time_s": 1.06
+    },
+    "kmax_4_10": {
+      "makefiles": 1697,
+      "objects": 3,
+      "symbols": 0,
+      "time_s": 189.45,
+      "failed_makefiles": 5
+    },
+    "target_comparison": {
+      "common_objects": 0,
+      "kfold_only_objects": 222,
+      "kmax_only_objects": 3,
+      "kfold_coverage_advantage": 219
+    }
+  },
+  "Linux Kernel": {
+    "corpus": "Linux Kernel",
+    "kfold": {
+      "makefiles": 1565,
+      "objects": 11292,
+      "symbols": 10135,
+      "time_s": 38.37
+    },
+    "kmax_4_10": {
+      "makefiles": 2056,
+      "objects": 26969,
+      "symbols": 12302,
+      "time_s": 162.79,
+      "failed_makefiles": 2
+    },
+    "target_comparison": {
+      "common_objects": 11287,
+      "kfold_only_objects": 5,
+      "kmax_only_objects": 15682,
+      "kfold_coverage_advantage": -15677
+    }
+  }
+}

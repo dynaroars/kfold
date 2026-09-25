@@ -1,5 +1,69 @@
 # skbuild paper notes
 
+## Updated outline revision (2026-09-24)
+
+The current `skbuild.tex` follows the updated
+`~/git/mydocs/priv/outline.md`. Its first technical section is an Overview
+with the pipeline and a worked Makefile trace. The Technique section opens
+with the selection model and a numbered end-to-end algorithm covering guarded
+state execution, conditional directory traversal, and formula aggregation.
+The prose refers to its actual line numbers and gives intermediate guards for
+both the assignment and shared-directory examples. The introduction previews
+the physical-path results, and the abstract uses the exact overlap range.
+
+The principal evidence remains the September 24 JSON and manifest named in
+the claim record below. This revision adds no new experiment or build claim.
+The algorithm summarizes the runner plus its extraction interface: the runner
+persists restricted Makefile instances, and the interface aggregates paths.
+The manuscript now states that file-read errors may result in empty parsed
+content. The source has been mirrored to `paper.tex` with its matching
+bibliography. Both PDFs render to 20 pages under
+`acmsmall,screen,review`.
+
+## Long manuscript handoff (2026-09-24)
+
+`skbuild.tex` is the 20-page manuscript; `skbuild.bib` and
+`skbuild.pdf` match it. `paper.tex` is a second copy of the long draft.
+The manuscript follows `~/git/mydocs/priv/outline.md`.
+
+The expanded paper adds the concrete guard and directory examples, a pipeline
+figure, implementation and semantic-boundary details, a reproducible evaluation
+protocol, separate physical and local GNU Make comparisons, discrepancy case
+analysis, related work, and a two-part appendix. It uses the September 24 rerun
+JSON files and manifest listed below. No new build result is introduced by the
+expansion. The most consequential implementation qualifications are that
+symbolic `include` execution is absent, `$(shell ...)` executes a host command,
+`+=` expands immediately even for recursive variables, and the guarded word
+map loses order and duplicates.
+
+Author review should focus on the target-unit interpretation of the large
+Linux/coreboot outside-universe sets, the incomplete U-Boot/coreboot builds,
+the unvalidated Kconfig witness work, and whether the venue's page convention
+counts the appendix and bibliography. The rendered document is 20 pages under
+the current `acmsmall,screen,review` class.
+
+## Rerun and manuscript handoff (2026-09-24)
+
+The manuscript follows `~/git/mydocs/priv/outline.md`. The current claim record
+is below. The remaining notes after this section are historical brainstorming;
+they do not describe the Python implementation or current results reliably.
+
+| Manuscript claim | Evidence | Scope |
+| --- | --- | --- |
+| Linux physical-object comparison across four profiles | `results/linux_four_profile_revalidation_20260924.json` | 13,841 extracted target paths. Tinyconfig is i386; defconfig is x86-64. Both physical archives were exactly reproduced by clean GCC 12 builds. Debian and allmodconfig objects remain archived data, without a fresh build this turn. The table separates observed paths outside the extracted set. |
+| Non-Linux physical-object comparison | `results/archived_build_revalidation_20260924.json` | The corrected validator substitutes all formula variables. The previous 18.3% and 1.1% Barebox and U-Boot recalls were caused largely by incomplete substitution. Fresh Barebox output exactly reproduced 406 archive objects. Fresh U-Boot compilation reproduced 1,123 archived objects and 81 more before packaging failed. Coreboot's archived ROM build is partial. |
+| Linux local GNU Make comparison | `results/linux_four_profile_revalidation_20260924.json` | Per-file expansion is not a whole-build oracle; tinyconfig recall is 30.7% because files in unreachable directories are evaluated locally. |
+| Five-corpus traversal, census, and timing | `results/all_corpora_results.json`, `results/linux_tristate_revalidation_20260924.json`, `evidence/manifest.json` | Linux commit and two Makefile edits recorded. 71,292 syntactic construct occurrences; classifications are not semantic validation. No controlled cross-tool speed claim. |
+
+Remaining work before a strong whole-build claim: classify the 313--14,436
+Linux physical paths outside the extracted set by artifact type; integrate
+top-level U-Boot `libs-y` selection (the 12 within-set USB misses); triage
+U-Boot's other 231 outside-set paths and the 430 coreboot outside-set paths;
+rebuild Debian/allmodconfig and complete U-Boot/coreboot final artifacts; and
+validate Kconfig-aware witnesses through real configurators and builds.
+The Barebox firmware anomaly remains unverified and is not a paper claim.
+
+
 ## One-sentence summary
 
 skbuild symbolically executes the Kbuild-relevant subset of GNU Make to infer

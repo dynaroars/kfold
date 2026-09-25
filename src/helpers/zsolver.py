@@ -105,7 +105,6 @@ def _get_enum_sort(name, names, ctx=None):
 
 
 class ZSolver:
-    __config_vars__ = OrderedDict()
     __instances__ = {}
 
     def __new__(cls, mysettings):
@@ -123,6 +122,7 @@ class ZSolver:
             return
         self._initialized = True
 
+        self.__config_vars__ = OrderedDict()
         self.typs = {}
         zstate = mysettings.zstate  # tristate or twostate config options
 
