@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kfold"
+version = "0.1.0"
+description = "Variability-aware Kbuild analyzer (Python + Z3)"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["z3-solver"]
+
+[project.scripts]
+kfold = "cli.main:main"
+
+# The analyzer's modules live flat in src/ and import each other by top-level
+# name (alg, objects, settings, helpers, pymake3, ...). The CLI package
+# (src/cli) puts src/ and tools/ on sys.path when imported, so an editable
+# install (`pip install -e .`) only needs to expose `cli`; src/ as the package
+# dir also makes the flat modules importable from the editable path entry.
+[tool.setuptools]
+package-dir = {"" = "src"}
+py-modules = ["alg", "analysis", "census", "ds", "expansion", "kbuild", "objects",
+              "settings", "skbuild", "symexe"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["cli", "cli.*", "helpers", "pymake3"]

@@ -16,12 +16,12 @@ Ground rules for all phases
 - Test tree: `results/workspaces/linux` (v6.6). Tests go in `tests/test_cli_*.py`.
 
 ## Phase 1 — Foundation (sequential)
-- [ ] 1.1 `pyproject.toml` with a `kfold` console entry point; `pip install -e .` works
-- [ ] 1.2 `src/cli/main.py`: argparse dispatcher that auto-discovers `src/cli/commands/*.py`
-- [ ] 1.3 `src/cli/cache.py`: analyze a tree once, persist conditions / kinds / origins
+- [x] 1.1 `pyproject.toml` with a `kfold` console entry point; `pip install -e .` works
+- [x] 1.2 `src/cli/main.py`: argparse dispatcher that auto-discovers `src/cli/commands/*.py`
+- [x] 1.3 `src/cli/cache.py`: analyze a tree once, persist conditions / kinds / origins
       (Z3 serialized as SMT-LIB), keyed by tree digest + kfold version; load in <1 s
-- [ ] 1.4 `kfold analyze <tree>` and `kfold query <obj> [--config .config] [--json]`
-- [ ] 1.5 Tests on `tests/paper_example` + a Linux smoke test
+- [x] 1.4 `kfold analyze <tree>` and `kfold query <obj> [--config .config] [--json]`
+- [x] 1.5 Tests on `tests/paper_example` + a Linux smoke test
 - **Checkpoint 1:** `kfold analyze results/workspaces/linux` builds the cache;
   `kfold query fs/ext2/xattr.o` answers from cache in <1 s; conditions loaded
   from cache are Z3-equivalent to fresh ones; all tests pass.
@@ -68,3 +68,4 @@ Ground rules for all phases
 - [ ] 4.2 User sends to linux-kbuild / subsystem lists (not done by agents)
 
 ## Status log
+- 2026-09-25 Checkpoint 1 PASSED: Linux cache 29,245 objects (93 s build), query 0.32 s, all conditions Z3-equivalent to fresh run, 56/56 tests pass. Use `PYTHONPATH=src python3 -m cli` or `pip install -e .`; API documented in src/cli/commands/__init__.py, common.py, cache.py.

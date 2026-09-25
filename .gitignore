@@ -26,3 +26,4 @@
 /results/kconfig_aware_ci_witness_synthesis.json
 /TAGS
 *.fls
+/src/*.egg-info/
