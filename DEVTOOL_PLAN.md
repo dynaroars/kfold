@@ -53,8 +53,8 @@ Ground rules for all phases
   class has ≥5 manually verified true positives, false positives are listed with the cause.
 
 ### 2D `kfold blindspots [--configs ...]` — untested code by maintainer
-- [ ] Parse `MAINTAINERS` F:/X: patterns; group objects per subsystem
-- [ ] Objects never built by allmodconfig / allyesconfig / defconfig (on x86)
+- [x] Parse `MAINTAINERS` F:/X: patterns; group objects per subsystem
+- [x] Objects never built by allmodconfig / allyesconfig / defconfig (on x86)
 - **Checkpoint 2D:** report on v6.6 in `evidence/blindspots_v6.6.json`; top findings
   verified against `make allmodconfig` output (or an archived build).
 
@@ -69,3 +69,4 @@ Ground rules for all phases
 
 ## Status log
 - 2026-09-25 Checkpoint 1 PASSED: Linux cache 29,245 objects (93 s build), query 0.32 s, all conditions Z3-equivalent to fresh run, 56/56 tests pass. Use `PYTHONPATH=src python3 -m cli` or `pip install -e .`; API documented in src/cli/commands/__init__.py, common.py, cache.py.
+- 2026-09-25 Checkpoint 2D PASSED: 3,242/29,245 objects (11.1%) are blind spots under x86_64 allmod/allyes/defconfig across 493 MAINTAINERS entries; 50/50 sampled verdicts agree with archived builds. Follow-ups: allyesconfig lives only in /tmp/kfold-blind (not durable); X86_32-only and ARM-only (via Kconfig `if ARCH_*` menus) objects land in 'other' instead of 'arch' — needs KconfigSMT per blocking symbol; multi-symbol conditions (732) unexplained.
