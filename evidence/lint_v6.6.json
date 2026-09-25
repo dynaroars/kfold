@@ -1,0 +1,323 @@
+{
+ "tree": "results/workspaces/linux",
+ "arch": "x86",
+ "kernel_version": "6.6",
+ "status": "final: zombie, orphan, and dead checks run on the whole v6.6 tree with the shared tristate Kconfig solver (tools/kconfig_solver.py, commit d61cc5d); every error-level dead finding rechecked under 19 other architectures' Kconfig (tools/lint_multiarch_recheck.py) and the 50 that remain classified by reading Kconfig",
+ "counts": {
+  "zombie": 4,
+  "zombie_arch_only": 199,
+  "orphan": 24,
+  "dead": 316,
+  "dead_container": 67,
+  "dead_arch": 2184,
+  "dead_incomplete": 95
+ },
+ "zombie": {
+  "method": "CONFIG_X referenced in an analyzed Makefile/Kbuild condition (obj-$(CONFIG_X), ifeq/ifneq guards folded into object or directory-reach conditions) or hardcoded as a literal '-DCONFIG_X' compiler flag, cross-checked against a regex scan of every in-scope Kconfig file's 'config'/'menuconfig' declarations.",
+  "ground_truth_check": "Ran upstream scripts/checkkconfigsymbols.py (read-only, default mode, no --commit/--diff so it never touches git) on the full tree. Of its 809 flagged symbols, only 9 had any Makefile reference at all (the rest are matches inside .c/.h files it also scans, e.g. GPU register-field enum names like CONFIG_128B_SWAPS, out of scope for a Kbuild-conditions checker). Of those 9: 3 are under other-arch Makefiles (arch/s390, arch/arm64, arch/microblaze) so out of scope for this x86 analysis; 1 (CONFIG_SHELL) is a false positive of checkkconfigsymbols itself (it is Make's own $(CONFIG_SHELL) bootstrap variable, unrelated to Kconfig); 1 (CONFIG_DRM_AMD_DC_DCE11_0) is inside a Make comment ('ifdef 0#CONFIG_...', i.e. an 'ifdef 0' with the rest commented out) so not really 'used'; the remaining 4 are exactly the 4 true positives kfold found below. This is a full match: kfold found every genuine Makefile-scope zombie that upstream's own checker also flags.",
+  "why_the_guard_based_scan_alone_found_zero": "checkkconfigsymbols' 4 real hits are all literal '-DCONFIG_X' compiler flags baked into ccflags-y/CFLAGS_x.o (e.g. 'ccflags-y += -DCONFIG_CAAM_QI'), not '$(CONFIG_X)' variable expansions -- so they never become a condition atom kfold's Kbuild analyzer tracks, and a scan of only object/reachability conditions genuinely cannot see them. Fixed by adding a second, complementary scan (kind: hardcoded_define) for literal -D flags, over the same declared-symbol table.",
+  "true_positives": [
+   {
+    "symbol": "CONFIG_CAAM_QI",
+    "file": "drivers/crypto/caam/Makefile",
+    "line": 29,
+    "reasoning": "Makefile line 29: 'ccflags-y += -DCONFIG_CAAM_QI', unconditional (no $(CONFIG_...) expansion, no ifeq guard). CONFIG_CAAM_QI is not declared in any Kconfig file in the tree (confirmed by both kfold's declared_symbols scan and upstream checkkconfigsymbols.py). drivers/crypto/caam/ctrl.c, debugfs.c, debugfs.h and intern.h all guard real code with '#ifdef CONFIG_CAAM_QI' / '#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_CAAM_QI)', expecting a real Kconfig-controlled option. Since the macro is always defined regardless of any .config, that code path is unconditionally compiled in on every build -- a genuine, upstream-worthy 'always-on ifdef' bug."
+   },
+   {
+    "symbol": "CONFIG_NCR53C8XX_PREFETCH",
+    "file": "drivers/scsi/Makefile",
+    "line": 179,
+    "reasoning": "Makefile lines 179-180: 'CFLAGS_ncr53c8xx.o := -DCONFIG_NCR53C8XX_PREFETCH -DSCSI_NCR_BIG_ENDIAN -DCONFIG_SCSI_NCR53C8XX_NO_WORD_TRANSFERS', hardcoded. Not declared in any Kconfig file. drivers/scsi/ncr53c8xx.c:1779 guards a real code block with '#ifdef CONFIG_NCR53C8XX_PREFETCH'. Same always-on-ifdef bug class as CAAM_QI."
+   },
+   {
+    "symbol": "CONFIG_SCSI_NCR53C8XX_NO_WORD_TRANSFERS",
+    "file": "drivers/scsi/Makefile",
+    "line": 180,
+    "reasoning": "Same CFLAGS_ncr53c8xx.o line as above. drivers/scsi/ncr53c8xx.h:400,408 guards real code with '#ifdef CONFIG_SCSI_NCR53C8XX_NO_WORD_TRANSFERS'. Not declared in any Kconfig file. Always-on-ifdef bug."
+   },
+   {
+    "symbol": "CONFIG_FORCE_HARD_FLOAT",
+    "file": "drivers/staging/rtl8192u/Makefile",
+    "line": 4,
+    "reasoning": "Makefile line 4: 'ccflags-y += -DCONFIG_FORCE_HARD_FLOAT=y', hardcoded and unconditional. drivers/staging/rtl8192u/r8192U_core.c:13 guards code with '#ifndef CONFIG_FORCE_HARD_FLOAT'. Not declared in any Kconfig file. Always-on-ifdef bug (here always taking the '#ifndef' false branch)."
+   }
+  ],
+  "false_positives_found": [],
+  "arch_only_sample_verified": [
+   {
+    "symbol": "CONFIG_ASSABET_NEPONSET",
+    "file": "drivers/pcmcia/Makefile:38",
+    "reasoning": "Gates 'sa1111_cs-$(CONFIG_ASSABET_NEPONSET) += sa1111_neponset.o'; ASSABET_NEPONSET is a real Kconfig symbol declared only under an ARM (StrongARM/SA1100) board Kconfig. Correctly not-a-zombie (declared, just for arm)."
+   },
+   {
+    "symbol": "CONFIG_ARCH_MA35",
+    "file": "drivers/clk/nuvoton/Makefile (via parent guard)",
+    "reasoning": "Not referenced in drivers/clk/nuvoton/Makefile itself; found via the directory-reach scan because drivers/clk/Makefile has 'obj-$(CONFIG_ARCH_MA35) += nuvoton/'. ARCH_MA35 is declared for arm64 only. Correct: a real directory guard, correctly arch_only, and it demonstrates the directory-reach ('analysis.reached'/'analysis.builtin') half of the scan is finding real guards an object-only scan would miss."
+   },
+   {
+    "symbol": "CONFIG_HAVE_IMX_GPC",
+    "file": "drivers/pmdomain/imx/Makefile:2",
+    "reasoning": "'obj-$(CONFIG_HAVE_IMX_GPC) += gpc.o'; HAVE_IMX_GPC declared under arch/arm's imx platform Kconfig. Correct arch_only."
+   },
+   {
+    "symbol": "CONFIG_SBUSCHAR",
+    "file": "drivers/sbus/Makefile (parent guard of drivers/sbus/char/)",
+    "reasoning": "'obj-$(CONFIG_SBUSCHAR) += char/' in drivers/sbus/Makefile; SBUSCHAR is declared under arch/sparc. Correct arch_only, again found only via the directory-reach scan."
+   },
+   {
+    "symbol": "CONFIG_ARCH_BCM2835",
+    "file": "drivers/mfd/Makefile:12",
+    "reasoning": "'obj-$(CONFIG_ARCH_BCM2835) += bcm2835-pm.o'; declared under arm/arm64 Kconfig for the BCM2835 (Raspberry Pi) SoC. Correct arch_only."
+   }
+  ],
+  "precision_estimate": "4/4 true positives verified by reading the referenced .c/.h source and independently cross-checked against upstream scripts/checkkconfigsymbols.py's own (much noisier, whole-file-corpus) output: 100% overlap, no misses, no false positives in the reported set. 5/5 arch_only sample verified correct. A real bug was found and fixed during this verification: arch_of() mis-labeled arch/Kconfig (~220 architecture-independent symbols: SMP, KPROBES, HOTPLUG_*, ...) as belonging to a bogus pseudo-arch 'Kconfig'; fixed to recognize arch/Kconfig* as common."
+ },
+ "orphan": {
+  "method": ".c/.S files on disk with no obj-y/lib-y/rule reference in the cached analysis, supplemented by several text-level heuristics for Makefile idioms kfold's own analyzer does not model (see src/cli/commands/_lint_sources.py docstrings for each).",
+  "raw_count_before_fixes": 4279,
+  "final_count": 24,
+  "reduction_by_cause": {
+   "*.mod.c stale build artifacts (Kbuild's own modpost output, left in this workspace from a prior real build)": 4114,
+   "arch/x86/um/* (User-Mode-Linux's x86 overlay, reached only from arch/um/Makefile when ARCH=um, never from arch/x86/Makefile)": 35,
+   "obj-y assigned via an intermediate plain variable, e.g. arch/x86/math-emu's 'obj-y = $(C_OBJS) $(A_OBJS)'": 25,
+   "lib/test_fortify's $(wildcard .../test_fortify/*-*.c) dynamic per-testcase harness (compiles to .log via a script, never to .o)": 25,
+   "*.lds.S linker-script sources (never compiled to .o, only preprocessed to .lds)": 6,
+   "#include \"foo.S\" assembly glue (extended the existing .c-only #include scan to .S)": 5,
+   "single-file hostprogs/userprogs (e.g. arch/x86/boot/Makefile's 'hostprogs := tools/build'; also needed scanning every physically-present Makefile, not just ones the cache's reachability graph recorded, since host-program executables with no .o/.a suffix are invisible even to rule_closure)": 6,
+   "composite family member added via 'NAME-$(CONFIG_X) += a.o' instead of plain 'NAME-y' (e.g. crypto/Makefile's aegis128-neon.o/aegis128-neon-inner.o)": 2,
+   "nested tools/ and Documentation/ directories (previously only excluded at the top level)": 3,
+   "*.bpf.c eBPF skeleton sources (their own small non-Kbuild clang/bpftool Makefile)": 2
+  },
+  "true_positives": [
+   {
+    "file": "drivers/dax/pmem/pmem.c",
+    "reasoning": "drivers/dax/Makefile does not recurse into pmem/ at all; the real dax_pmem driver is drivers/dax/pmem.c (a flat file in drivers/dax/, confirmed present) via 'dax_pmem-y := pmem.o'. The drivers/dax/pmem/ subdirectory (its own Makefile + pmem.c) is unreferenced by anything; its own Makefile even lists 'dax_pmem_core-y := core.o' and 'dax_pmem_compat-y := compat.o' for core.c/compat.c that do not exist in that directory (git ls-files drivers/dax/pmem/ shows only Makefile and pmem.c). Verified this is not a local artifact: 'git status --porcelain -- drivers/dax/' is clean and both files are tracked -- a genuine stale/dead subdirectory in the real upstream v6.6 tree."
+   },
+   {
+    "file": "drivers/s390/crypto/zcrypt_cex2a.c",
+    "reasoning": "drivers/s390/crypto/Makefile's zcrypt-objs list (zcrypt_api.o, zcrypt_card.o, zcrypt_queue.o, zcrypt_msgtype6.o, zcrypt_msgtype50.o, zcrypt_ccamisc.o, zcrypt_ep11misc.o) and obj-$(CONFIG_ZCRYPT) entries do not mention zcrypt_cex2a.o anywhere; grep confirms no reference in the whole driver Makefile."
+   },
+   {
+    "file": "drivers/s390/crypto/zcrypt_cex2c.c",
+    "reasoning": "Same Makefile, same check: zcrypt_cex2c.o is not referenced anywhere."
+   },
+   {
+    "file": "drivers/gpu/drm/amd/amdgpu/dimgrey_cavefish_reg_init.c",
+    "reasoning": "No Makefile under drivers/gpu/drm/amd/ references dimgrey_cavefish_reg_init.o (checked via 'find ... -iname Makefile | xargs grep -l')."
+   },
+   {
+    "file": "drivers/gpu/drm/amd/display/dc/clk_mgr/dcn10/rv1_clk_mgr_clk.c",
+    "reasoning": "clk_mgr/Makefile's CLK_MGR_DCN10 list is 'rv1_clk_mgr.o rv1_clk_mgr_vbios_smu.o rv2_clk_mgr.o' -- rv1_clk_mgr_clk.o is not in it."
+   },
+   {
+    "file": "drivers/gpu/drm/amd/display/dc/dce/dce_clk_mgr.c",
+    "reasoning": "dce/Makefile's object list has no dce_clk_mgr.o (verified with an exact-token grep, not just a substring match)."
+   },
+   {
+    "file": "drivers/gpu/drm/amd/display/dc/dce/dce_scl_filters_old.c",
+    "reasoning": "dce/Makefile references 'dce_scl_filters.o' but never 'dce_scl_filters_old.o' -- an old/superseded variant left in tree, common in this actively-refactored driver."
+   },
+   {
+    "file": "drivers/gpu/drm/amd/display/dc/dcn10/dcn10_dwb.c",
+    "reasoning": "No exact reference to dcn10_dwb.o anywhere under drivers/gpu/drm/amd/display; dcn20/Makefile and dcn30/Makefile reference dcn20_dwb.o/dcn20_dwb_scl.o instead, a different, unrelated file (verified with an exact-token grep after an initial substring-match false lead)."
+   },
+   {
+    "file": "drivers/gpu/drm/amd/display/dc/link/link_hwss_hpo_frl.c",
+    "reasoning": "No exact reference to link_hwss_hpo_frl.o anywhere under drivers/gpu/drm/amd/display (dc/link/Makefile and dc/virtual/Makefile reference 'link_hwss.o' etc., not this file)."
+   },
+   {
+    "file": "drivers/gpu/drm/amd/display/modules/vmid/vmid.c",
+    "reasoning": "No exact reference to vmid.o anywhere under drivers/gpu/drm/amd/display; dcn20/Makefile references the unrelated 'dcn20_vmid.o'."
+   },
+   {
+    "file": "drivers/gpu/drm/vmwgfx/vmwgfx_ttm_glue.c",
+    "reasoning": "No Makefile under drivers/gpu/drm/vmwgfx references ttm_glue.o."
+   },
+   {
+    "file": "drivers/net/wireless/realtek/rtlwifi/btcoexist/halbtc8822bwifionly.c",
+    "reasoning": "No Makefile under drivers/net/wireless/realtek/rtlwifi references halbtc8822bwifionly.o."
+   },
+   {
+    "file": "drivers/net/wireless/realtek/rtw89/mac_be.c",
+    "reasoning": "No Makefile under drivers/net/wireless/realtek/rtw89 references mac_be.o."
+   },
+   {
+    "file": "drivers/net/wireless/realtek/rtw89/phy_be.c",
+    "reasoning": "Same directory, phy_be.o also unreferenced."
+   },
+   {
+    "file": "drivers/vhost/test.c",
+    "reasoning": "drivers/vhost/Makefile has no reference to test.o at all (no CONFIG_VHOST_TEST wiring); a leftover test module source."
+   },
+   {
+    "file": "drivers/staging/greybus/audio_manager_sysfs.c",
+    "reasoning": "drivers/staging/greybus/Makefile line 39 literally reads '#gb-audio-manager-y += audio_manager_sysfs.o' -- explicitly commented out, deliberately disabled but the source kept."
+   },
+   {
+    "file": "drivers/acpi/acpica/hwtimer.c",
+    "reasoning": "Part of the imported ACPICA vendor codebase; Linux's drivers/acpi/acpica/Makefile builds only a curated subset of upstream ACPICA sources, and hwtimer.c is not in that subset (not referenced anywhere in the Makefile)."
+   },
+   {
+    "file": "drivers/acpi/acpica/nsdumpdv.c",
+    "reasoning": "Same ACPICA-subset reasoning as hwtimer.c."
+   },
+   {
+    "file": "drivers/firmware/efi/libstub/zboot-header.S",
+    "reasoning": "No reference to 'zboot-header' anywhere in any Makefile in the tree (checked tree-wide, not just x86 scope, in case another arch's Makefile pulled it in). Lower-confidence than the others since a from-scratch grep for an unusual computed reference could miss something, but no such reference was found."
+   },
+   {
+    "file": "drivers/usb/usb-skeleton.c",
+    "reasoning": "A deliberately-unbuilt example/template driver (well-known convention); true per the check's literal definition (no Makefile builds it) but low actionability."
+   },
+   {
+    "file": "drivers/video/fbdev/skeletonfb.c",
+    "reasoning": "Same skeleton-example convention as usb-skeleton.c."
+   }
+  ],
+  "false_positives_found": [
+   {
+    "file": "drivers/scsi/aic7xxx/aicasm/aicasm.c",
+    "cause": "Built via a raw '$(MAKE) -C $(srctree)/$(src)/aicasm OUTDIR=...' recipe command in the parent drivers/scsi/aic7xxx/Makefile (line 87), not the standard '$(build)=DIR' Kbuild submake idiom kfold's rule_closure follows (drivers/scsi/aic7xxx/Makefile also marks 'subdir- += aicasm', explicitly opting this subdirectory out of the normal recursive-descent obj-y model). A real, if narrow, analyzer gap; not fixed (would require modeling arbitrary recipe-line sub-makes, out of scope for a text-level orphan heuristic)."
+   },
+   {
+    "file": "drivers/scsi/aic7xxx/aicasm/aicasm_symbol.c",
+    "cause": "Same cause as aicasm.c (built by the same nested, non-standard sub-make)."
+   },
+   {
+    "file": "lib/raid6/test/test.c",
+    "cause": "lib/raid6/test/Makefile is a completely separate, non-Kbuild, BSD-style userspace test harness ('CC = gcc', its own CFLAGS, invoked manually by a developer, not from any parent obj-y/hostprogs entry) -- the same 'unmodeled nested non-Kbuild sub-build' cause as aicasm."
+   }
+  ],
+  "precision_estimate": "21/24 (87.5%) of the final residual findings verified as true positives by reading the actual Makefiles (and, for aicasm/raid6-test, confirming a documented non-Kbuild-submake cause for the 3 false positives). This is after fixing the systematic false-positive classes listed in reduction_by_cause, which accounted for 4255 of the original 4279 (99.4%) -- almost all of the raw count. Two of the 21 true positives (usb-skeleton.c, skeletonfb.c) are intentional, low-value example code rather than bugs; the rest (especially drivers/dax/pmem/, the AMD display driver leftovers, and the two s390 zcrypt files) look like genuine, previously-unnoticed dead code."
+ },
+ "dead": {
+  "method": "Phi_Kbuild(o) AND Phi_Kconfig(dependency cone of o's symbols) unsatisfiable, with the shared KconfigSMT encoding; undefined-on-x86 symbols pinned to n and then freed to split arch-dead from dead-everywhere",
+  "history": {
+   "first_run_INVALID": 2909,
+   "cause": "kconfiglib reports every tristate as bool when no .config is loaded; the local encoding used .type instead of .orig_type, forbidding m everywhere",
+   "local_encoding_after_fix": 76,
+   "shared_solver": 2662
+  },
+  "whole_tree": {
+   "arch_dead_info": 2184,
+   "bool_composite_container_info": 67,
+   "incomplete_parse_info": 95,
+   "dead_everywhere_error_on_x86": 316
+  },
+  "bool_composite_container": "a composite family's combined object exists only for obj-m; if the family's symbol is bool the container (e.g. net/unix/unix.o) never exists while its members are built. Verified: net/unix/unix.o, fs/iomap/iomap.o absent from the archived defconfig build. Flag now requires the object to have members and only obj-m origins (first heuristic also caught plain obj-$(CONFIG_BOOL) objects: 306 -> 67).",
+  "cross_check_predicted": "0 of all dead objects are predicted built under defconfig, allmodconfig, or allyesconfig",
+  "multiarch_recheck": {
+   "checked": 316,
+   "alive_on_another_arch": 266,
+   "by_arch": {
+    "arc": 3,
+    "arm": 54,
+    "arm64": 166,
+    "csky": 1,
+    "loongarch": 1,
+    "mips": 12,
+    "openrisc": 2,
+    "powerpc": 1,
+    "riscv": 13,
+    "sh": 1,
+    "sparc": 10,
+    "xtensa": 2
+   },
+   "dead_on_all_arches": 50
+  },
+  "dead_on_all_arches_classified": {
+   "depends_on_BROKEN": [
+    "drivers/edac/i5000_edac.o",
+    "drivers/edac/i82443bxgx_edac.o",
+    "drivers/leds/leds-clevo-mail.o",
+    "drivers/leds/trigger/ledtrig-gpio.o",
+    "drivers/net/wireless/broadcom/b43/phy_ac.o",
+    "drivers/net/wireless/broadcom/b43/phy_lcn.o",
+    "drivers/net/wireless/broadcom/b43/tables_phy_lcn.o",
+    "drivers/net/wireless/intel/iwlwifi/mei/main.o",
+    "drivers/net/wireless/intel/iwlwifi/mei/net.o",
+    "drivers/net/wireless/intel/iwlwifi/mei/trace.o",
+    "drivers/net/wireless/intel/iwlwifi/mvm/vendor-cmd.o",
+    "drivers/pps/generators/pps_gen_parport.o",
+    "drivers/staging/greybus/camera.o",
+    "drivers/staging/olpc_dcon/olpc_dcon.o",
+    "drivers/staging/olpc_dcon/olpc_dcon_xo_1.o",
+    "drivers/staging/olpc_dcon/olpc_dcon_xo_1_5.o",
+    "drivers/tty/synclink_gt.o"
+   ],
+   "promptless_symbol_never_selected": [
+    "drivers/base/regmap/regmap-fsi.o",
+    "drivers/base/regmap/regmap-mdio.o",
+    "drivers/gpu/trace/trace_gpu_mem.o",
+    "drivers/irqchip/irq-idt3243x.o",
+    "drivers/irqchip/irq-imgpdc.o",
+    "drivers/media/v4l2-core/videobuf-dma-contig.o",
+    "drivers/media/v4l2-core/videobuf-dma-sg.o",
+    "drivers/media/v4l2-core/videobuf-vmalloc.o",
+    "drivers/mfd/tps65911-comparator.o",
+    "drivers/net/ethernet/qlogic/qed/qed_nvmetcp.o",
+    "drivers/net/ethernet/qlogic/qed/qed_nvmetcp_fw_funcs.o",
+    "drivers/pcmcia/rsrc_iodyn.o",
+    "kernel/irq/timings.o",
+    "lib/crypto/aesgcm.o",
+    "lib/crypto/libaesgcm.o",
+    "mm/io-mapping.o",
+    "sound/soc/au1x/i2sc.o",
+    "sound/soc/au1x/snd-soc-au1x-i2sc.o",
+    "sound/soc/sh/snd-soc-ssi.o",
+    "sound/soc/sh/ssi.o",
+    "sound/soc/spear/snd-soc-spear-pcm.o",
+    "sound/soc/spear/snd-soc-spear-spdif-in.o",
+    "sound/soc/spear/snd-soc-spear-spdif-out.o",
+    "sound/soc/spear/spdif_in.o",
+    "sound/soc/spear/spdif_out.o",
+    "sound/soc/spear/spear_pcm.o"
+   ],
+   "enabler_never_selected (PREEMPT_RT needs ARCH_SUPPORTS_RT, selected by no arch in v6.6)": [
+    "kernel/locking/spinlock_rt.o",
+    "kernel/locking/ww_rt_mutex.o"
+   ],
+   "toolchain_dependent_not_dead (CFI_CLANG needs clang; GCC_PLUGIN_STACKLEAK needs the GCC plugin probe)": [
+    "arch/x86/kernel/cfi.o",
+    "kernel/cfi.o",
+    "kernel/stackleak.o"
+   ],
+   "arch_dead_um_only (kconfiglib cannot parse arch/um/Kconfig)": [
+    "lib/logic_iomem.o"
+   ],
+   "kfold_phantom_object (efi_thunk_$(BITS).o expanded to 32 under EFI_MIXED, which requires X86_64)": [
+    "arch/x86/platform/efi/efi_thunk_32.o"
+   ]
+  },
+  "precision": {
+   "x86_error_level_as_dead_code": "45/316 (14%) -- most x86 errors are enabled from another architecture's Kconfig; use tools/lint_multiarch_recheck.py",
+   "after_multiarch_recheck": "45/50 (90%) unbuildable in v6.6 on any architecture; 3 toolchain-dependent, 1 UML-only, 1 kfold phantom object"
+  }
+ },
+ "diff_tests": {
+  "note": "See tests/test_cli_lint.py::test_diff_new_zombie_object and ::test_diff_guard_change_fixes_dead_object for the 2 required crafted-patch --diff tests (both pass): one adds 'obj-$(CONFIG_NOPE) += x.o' to a Makefile and confirms x.o is reported 'added' with a new CONFIG_NOPE zombie finding at the exact patched line; the other changes a nested ifeq guard and confirms the previously-dead kbdead.o's condition changes from 'false' to a real satisfiable condition and drops out of the dead findings, while an untouched dead.o stays flagged."
+ },
+ "best_upstream_candidates": [
+  {
+   "what": "hard-coded -DCONFIG_CAAM_QI (no Kconfig symbol; #ifdef CONFIG_CAAM_QI always true)",
+   "where": "drivers/crypto/caam/Makefile:29"
+  },
+  {
+   "what": "hard-coded -DCONFIG_NCR53C8XX_PREFETCH / -DCONFIG_SCSI_NCR53C8XX_NO_WORD_TRANSFERS",
+   "where": "drivers/scsi/Makefile:179-180"
+  },
+  {
+   "what": "promptless Kconfig symbols selected by nothing, so their code can never build: IO_MAPPING (mm/io-mapping.o), IRQ_TIMINGS (kernel/irq/timings.o), CRYPTO_LIB_AESGCM (lib/crypto/aesgcm.o), QED_NVMETCP, REGMAP_MDIO/FSI, VIDEOBUF_* (videobuf1; removed upstream in 6.8), SPEAr/au1x/SH4 sound",
+   "where": "see dead.dead_on_all_arches_classified"
+  },
+  {
+   "what": "stale duplicate source directory never referenced by its Makefile",
+   "where": "drivers/dax/pmem/pmem.c"
+  },
+  {
+   "what": "zcrypt_cex2a.c / zcrypt_cex2c.c not in zcrypt-objs",
+   "where": "drivers/s390/crypto/"
+  }
+ ],
+ "caveat": "v6.6 (2023); recheck every candidate against current mainline before proposing a patch"
+}

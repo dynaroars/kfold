@@ -45,10 +45,10 @@ Ground rules for all phases
   touched object is built; spot-check ≥3 with a real `make <path>.o`.
 
 ### 2C `kfold lint [--diff PATCH]` — checkpatch for Makefiles/Kconfig
-- [ ] Zombie symbols: `CONFIG_X` in Makefiles with no Kconfig definition
-- [ ] Orphan sources: `.c` files referenced by no Makefile
-- [ ] Dead objects: Φ_Kbuild ∧ Φ_Kconfig unsatisfiable
-- [ ] `--diff`: before/after condition change for each object a patch touches
+- [x] Zombie symbols: `CONFIG_X` in Makefiles with no Kconfig definition
+- [x] Orphan sources: `.c` files referenced by no Makefile
+- [x] Dead objects: Φ_Kbuild ∧ Φ_Kconfig unsatisfiable
+- [x] `--diff`: before/after condition change for each object a patch touches
 - **Checkpoint 2C:** whole-tree run on v6.6 writes `evidence/lint_v6.6.json`; each finding
   class has ≥5 manually verified true positives, false positives are listed with the cause.
 
@@ -59,7 +59,8 @@ Ground rules for all phases
   verified against `make allmodconfig` output (or an archived build).
 
 ## Phase 3 — Reach (sequential, later)
-- [ ] 3.1 Multi-arch: arm64 and riscv analysis (ARCH-dependent conditions, `arch/$(SRCARCH)`)
+- [ ] 3.1 Multi-arch: arm64 and riscv analysis (ARCH-dependent conditions, `arch/$(SRCARCH)`); fold
+      tools/lint_multiarch_recheck.py into `kfold lint` (x86-only dead errors are 14% precise, 90% after recheck)
 - [ ] 3.2 Editor: generate compile_commands entries / suggest configs for unindexed files
 - **Checkpoint 3:** arm64 predictions validated against one real arm64 build.
 
@@ -73,3 +74,4 @@ Ground rules for all phases
 - 2026-09-25 Checkpoint 2A PASSED: 28/28 built/not-built verdicts match archived defconfig/tinyconfig_i386 builds; for 6 not-built defconfig objects the suggested changes survive olddefconfig unchanged and enable the object (2 compiled for real). Fixed after review: parent-Makefile line lookup matched comments and `hfs` in `hfsplus/`, and the location label named the child Makefile. Follow-ups: `KconfigSMT.get_constraints` treats only =y as active (why works around it locally); add public `Analysis.truth(expr, config)`; kconfiglib load once failed transiently under load ('assembler is not supported').
 - 2026-09-25 Checkpoint 2B PASSED: 16 file sets over 15 subsystems + 3 patch files; all generated configs survive olddefconfig with 0 lost symbols and kfold predicts every touched object built; 6/6 real compiles succeed; mutually exclusive objects (entry_32/entry_64) are reported with the conflict. ~2 s per call (kconfiglib parse). --verify scratch copy lives in ~/.cache/kfold-configfor (1.5 GB). Follow-ups: Kconfig cone ignores `select` fan-in for speed; three commands each work around KconfigSMT's y-only/bool-m issues — fix once in tools/kconfig_solver.py and share a per-symbol clause index (from lint) / cone builder (from config-for).
 - 2026-09-25 Shared Kconfig solver fixed (d61cc5d): tristate pair encoding in tools/kconfig_solver.py; all 6 real x86 configs satisfy it. why/config-for switched to it; why suggestions now list only hand-set symbols (8/8 survive olddefconfig and build); config-for --verify reuses one copy. lint switch pending with 2C.
+- 2026-09-25 Checkpoint 2C PASSED (evidence/lint_v6.6.json): zombie 4 (= upstream checkkconfigsymbols.py's Makefile hits, all -DCONFIG_ flags) + 199 arch-only; orphan 24 (21 TP by hand); dead on x86: 2184 arch-dead + 67 bool-composite containers (info) + 316 errors, 0 predicted built by any real config. Rechecking the 316 under 19 other arches' Kconfig leaves 50: 45 unbuildable in v6.6 anywhere (17 BROKEN, 26 promptless never-selected, 2 PREEMPT_RT), 3 toolchain-dependent, 1 UML, 1 kfold phantom (efi_thunk_32.o). Phase 2 COMPLETE.

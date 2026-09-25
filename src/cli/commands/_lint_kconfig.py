@@ -10,6 +10,7 @@ import pathlib
 import re
 import sys
 
+import kconfiglib
 import z3
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -182,15 +183,87 @@ class KconfigConstraints:
             return True
         return config_symbol[len("CONFIG_"):] in self.known_names
 
+    def undefined_here(self, name):
+        """True if kconfiglib has no real declaration node for CONFIG_<name>
+        under this arch's Kconfig parse -- the exact condition
+        ``symbol_clauses`` uses to pin a symbol to n. Independent of
+        directory-naming heuristics (which miss cases like
+        drivers/acpi/arm64/Kconfig's ACPI_APMT, declared outside any arch/
+        directory)."""
+        sym = self.ksmt.kconf.syms.get(name)
+        return sym is None or not sym.nodes
+
+    _M_ATOM_RE = re.compile(r"CONFIG_(\w+) == m")
+
+    def classify_dead(self, cond, seed, timeout_ms=10000):
+        """("arch-dead" | "dead-everywhere", extra) for an object already
+        found Kconfig-unsatisfiable (``dead_check``'s "kconfig" status).
+
+        arch-dead: unsatisfiable only because some symbol in the object's
+        Kconfig dependency cone is undefined under this arch's parse (a
+        foreign-arch symbol, e.g. ARCH_ROCKCHIP, or one declared outside
+        arch/ entirely but still arch-specific, e.g. ACPI_APMT); confirmed
+        by re-checking SAT with exactly those symbols freed (unconstrained)
+        rather than pinned to n. Some cases stay unsat even after freeing
+        them (e.g. a symbol whose *only* "select" lives in a foreign arch's
+        Kconfig file, which single-arch parsing cannot see at all -- e.g.
+        ACPI_APMT is select'd only by "config ARM64 ... select ACPI_APMT if
+        ACPI" in arch/arm64/Kconfig); those are classified dead-everywhere
+        even though they are, in spirit, still an arch-scope limitation
+        rather than genuine dead code -- documented, not auto-detected.
+
+        extra["bool_composite_container"]: the object's own condition
+        requires some symbol declared ``bool`` (never modular) to equal
+        "m". This is not a real dead-code bug: kfold's Kbuild analyzer
+        writes a composite family's own combined object only under the
+        family's obj-m branch (Linux links a built-in composite's members
+        directly into built-in.a without a combined object of its own), so
+        for a family whose top Kconfig symbol happens to be bool (can never
+        be "m"), the predicted container object path is structurally
+        unreachable even though the member source files are compiled fine
+        under a different (obj-y) path. Confirmed to be the dominant
+        dead-everywhere sub-cause on v6.6 (net/unix/unix.o needing
+        CONFIG_UNIX=m when UNIX is bool, fs/iomap/iomap.o needing
+        CONFIG_FS_IOMAP=m when FS_IOMAP is bool, etc.)."""
+        cone = self.ksmt.dependency_cone(seed, follow_selects=self.follow_selects)
+        undef = sorted(n for n in cone if self.undefined_here(n))
+        bool_container = False
+        for name in set(self._M_ATOM_RE.findall(str(cond))):
+            sym = self.ksmt.kconf.syms.get(name)
+            if sym is not None and sym.orig_type == kconfiglib.BOOL:
+                bool_container = True
+                break
+        extra = {"undef_syms": undef, "bool_composite_container": bool_container}
+        if not undef:
+            return "dead-everywhere", extra
+        clauses = []
+        for n in cone:
+            if n in undef:
+                continue
+            clauses.extend(self._clauses_for(n))
+            sym = self.ksmt.kconf.syms.get(n)
+            if sym is not None and sym.choice is not None:
+                clauses.extend(self._choice_clauses_for(sym.choice))
+        s = z3.Solver()
+        s.set("timeout", timeout_ms)
+        s.add(cond, *clauses)
+        return ("arch-dead" if s.check() == z3.sat else "dead-everywhere"), extra
+
 
 def dead_check(analysis, kconfig, paths=None, timeout_ms=15000, limit=None):
-    """[(path, status, incomplete)] for objects whose Kbuild condition
-    (``status="kbuild"``) or Kbuild-and-Kconfig conjunction
+    """[(path, status, incomplete, cause, extra)] for objects whose Kbuild
+    condition (``status="kbuild"``) or Kbuild-and-Kconfig conjunction
     (``status="kconfig"``) is unsatisfiable. ``paths`` restricts the objects
     checked (default: every cached object). Each Kconfig check conjoins only
     the closure of Kconfig clauses relevant to the object's own symbols
     (``KconfigConstraints.constraints_for``), not the whole tree's Kconfig
-    constraints, so this scales to tens of thousands of objects."""
+    constraints, so this scales to tens of thousands of objects.
+
+    ``cause`` (only meaningful for ``status="kconfig"``; "dead-everywhere"
+    for ``status="kbuild"``, which has nothing to do with Kconfig/arch at
+    all) is ``KconfigConstraints.classify_dead``'s "arch-dead" or
+    "dead-everywhere" split; ``extra`` is its accompanying detail dict
+    (``undef_syms``, ``bool_composite_container``)."""
     paths = sorted(paths if paths is not None else analysis.conds)
     if limit:
         paths = paths[:limit]
@@ -208,7 +281,7 @@ def dead_check(analysis, kconfig, paths=None, timeout_ms=15000, limit=None):
         r = solo.check()
         solo.pop()
         if r == z3.unsat:
-            out.append((p, "kbuild", False))
+            out.append((p, "kbuild", False, "dead-everywhere", {}))
             continue
         if r == z3.unknown:
             continue  # timed out on Kbuild alone; do not risk a false "dead"
@@ -223,5 +296,6 @@ def dead_check(analysis, kconfig, paths=None, timeout_ms=15000, limit=None):
         r2 = s2.check()
         if r2 == z3.unsat:
             incomplete = any(not kconfig.declared(s) for s in seed)
-            out.append((p, "kconfig", incomplete))
+            cause, extra = kconfig.classify_dead(cond, bare)
+            out.append((p, "kconfig", incomplete, cause, extra))
     return out

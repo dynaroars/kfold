@@ -162,16 +162,19 @@ def run(before, args, tree):
     try:
         kc = _lint_kconfig.KconfigConstraints(dest, kconfig_rel=args.kconfig,
                                               solver=after.solver())
-        for p, status, incomplete in _lint_kconfig.dead_check(after, kc, paths=impacted):
+        for p, status, incomplete, cause, extra in _lint_kconfig.dead_check(after, kc, paths=impacted):
+            arch_dead = cause == "arch-dead"
             findings.append({
                 "class": "dead", "file": p, "line": None,
                 "message": f"{p} is unsatisfiable under Kbuild" +
-                           ("" if status == "kbuild" else " and Kconfig") +
+                           ("" if status == "kbuild" else f" and Kconfig ({cause})") +
                            " in the patched tree" +
                            (" (Kconfig parse incomplete; verify independently)"
                             if incomplete else ""),
-                "severity": "info" if incomplete else "error",
-                "status": status, "incomplete": incomplete})
+                "severity": "info" if (incomplete or arch_dead) else "error",
+                "status": status, "incomplete": incomplete, "cause": cause,
+                "arch_dead": arch_dead,
+                "bool_composite_container": extra.get("bool_composite_container", False)})
     except FileNotFoundError:
         pass
 

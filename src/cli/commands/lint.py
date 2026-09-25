@@ -237,18 +237,54 @@ def run_whole_tree(analysis, tree, only=None, path_prefix=None, kconfig_rel="Kco
                                                   solver=analysis.solver())
             paths = [p for p in analysis.conds if not path_prefix or p.startswith(path_prefix)]
             df = _lint_kconfig.dead_check(analysis, kc, paths=paths, limit=dead_limit)
-            for p, status, incomplete in df:
+            # A composite family's combined object exists only for obj-m (a
+            # built-in composite's members link straight into built-in.a), so
+            # a container reachable only via obj-m is not dead code when its
+            # family's symbol is bool: its members are still built.
+            containers = set()
+            for member, origins in analysis.origins.items():
+                for mk, what in origins:
+                    if what.startswith("member of "):
+                        d = str(pathlib.PurePosixPath(mk).parent)
+                        containers.add(what[len("member of "):] if d == "." else f"{d}/{what[len('member of '):]}")
+            for i, (p, status, incomplete, cause, extra) in enumerate(df):
+                extra = dict(extra, bool_composite_container=(
+                    extra.get("bool_composite_container", False) and p in containers
+                    and all(what == "obj-m" for _, what in analysis.origins.get(p, ()))))
+                df[i] = (p, status, incomplete, cause, extra)
+            for p, status, incomplete, cause, extra in df:
+                arch_dead = cause == "arch-dead"
                 msg = (f"{p} is unsatisfiable under Kbuild" +
                       ("" if status == "kbuild" else " and Kconfig") +
+                      (f" ({cause}" +
+                       (": needs " + ", ".join("CONFIG_" + s for s in extra["undef_syms"][:4])
+                        if arch_dead else "") + ")" if status == "kconfig" else "") +
+                      (" [container object of a bool (never-modular) composite family; "
+                       "the source is still built, under a different obj-y path]"
+                       if extra.get("bool_composite_container") else "") +
                       (" (Kconfig parse incomplete for a referenced symbol; "
                        "verify independently)" if incomplete else ""))
+                # arch-dead is expected/correct for a single-arch analysis, and
+                # the container of a bool composite never exists as a file
+                # while its members are still built, so both are
+                # informational; a real dead-everywhere finding (or one this
+                # check cannot yet explain, e.g. Kbuild-only unsat) is an
+                # error, unless the Kconfig parse itself was incomplete.
+                container = extra.get("bool_composite_container", False)
+                severity = "info" if (incomplete or arch_dead or container) else "error"
                 findings.append({
                     "class": "dead", "file": p, "line": None, "message": msg,
-                    "severity": "info" if incomplete else "error",
-                    "status": status, "incomplete": incomplete,
+                    "severity": severity, "status": status, "incomplete": incomplete,
+                    "cause": cause, "arch_dead": arch_dead,
+                    "bool_composite_container": extra.get("bool_composite_container", False),
+                    "undef_syms": extra.get("undef_syms", []),
                 })
-            counts["dead"] = sum(1 for _, _, i in df if not i)
-            counts["dead_incomplete"] = sum(1 for _, _, i in df if i)
+            counts["dead"] = sum(1 for _, _, i, c, x in df
+                                 if not i and c != "arch-dead" and not x.get("bool_composite_container"))
+            counts["dead_container"] = sum(1 for _, _, i, c, x in df
+                                           if not i and c != "arch-dead" and x.get("bool_composite_container"))
+            counts["dead_arch"] = sum(1 for _, _, i, c, _ in df if not i and c == "arch-dead")
+            counts["dead_incomplete"] = sum(1 for _, _, i, _, _ in df if i)
         except FileNotFoundError as e:
             findings.append({"class": "dead", "file": kconfig_rel, "line": None,
                              "message": f"cannot run the dead-object check: {e} not found",
