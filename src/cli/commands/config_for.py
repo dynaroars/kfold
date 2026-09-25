@@ -10,7 +10,7 @@ import sys
 import time
 
 import z3
-from z3.z3util import get_vars
+from kconfig_solver import formula_vars
 
 import helpers.zsolver as zsolver
 from cli import common
@@ -146,7 +146,7 @@ def minimize_config(solver, phi_kconfig, target_cond, base_values, timeout_ms):
     else undef; falls back to an unminimized model if Optimize times out.
     Returns ({CONFIG_X: y|m|""} for every symbol in scope}, minimized: bool)."""
     combined = z3.And(phi_kconfig, target_cond)
-    scope = sorted({str(v) for v in get_vars(combined) if str(v).startswith("CONFIG_")})
+    scope = sorted({str(v) for v in formula_vars(combined) if str(v).startswith("CONFIG_")})
 
     opt = z3.Optimize()
     opt.set("timeout", timeout_ms)
@@ -156,7 +156,11 @@ def minimize_config(solver, phi_kconfig, target_cond, base_values, timeout_ms):
         zvar, optd = solver.get_sort(name)
         want = base_values.get(name, "")
         val_expr = optd.get(want, optd[""])
-        opt.add_soft(zvar == val_expr, 1)
+        opt.add_soft(zvar == val_expr, 2)
+        # Among equally small changes, prefer m to y (a module is enough to
+        # compile-test, and what it selects then follows by itself).
+        if "m" in optd:
+            opt.add_soft(zvar != optd["y"], 1)
 
     minimized = True
     if opt.check() != z3.sat:
@@ -248,7 +252,7 @@ def run(args):
     solver = a.solver()
     seed_names = set()
     for cond in objs_conds.values():
-        for v in get_vars(cond):
+        for v in formula_vars(cond):
             n = str(v)
             if n.startswith("CONFIG_"):
                 seed_names.add(n[len("CONFIG_"):])
@@ -258,7 +262,8 @@ def run(args):
     used_kconfig = ksmt is not None
     if ksmt is not None:
         phi_kconfig, closure = kc.restricted_constraints(ksmt, solver, seed_names,
-                                                          max_symbols=args.max_kconfig_symbols)
+                                                          max_symbols=args.max_kconfig_symbols,
+                                                          base_values=base_values)
     else:
         phi_kconfig, closure = zsolver.T, set()
     kconfig_seconds = round(time.monotonic() - t0, 2)

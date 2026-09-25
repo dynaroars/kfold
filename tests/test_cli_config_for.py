@@ -58,7 +58,8 @@ def test_maps_source_file_and_emits_fragment(run, tree):
     rc, d, err = run_json(run, "config-for", tree / "1.c", "--tree", tree, "--json")
     assert rc == 0
     assert d["mapped"] == {str(tree / "1.c"): "1.o"}
-    assert d["fragment"] == {"CONFIG_1": "y"}
+    # obj-$(CONFIG_1) and obj-$(CONFIG_A) both add 1.o: either is one change.
+    assert d["fragment"] in ({"CONFIG_1": "y"}, {"CONFIG_A": "y"})
     assert d["predicted_built"] == ["1.o"]
     assert d["predicted_not_built"] == []
     assert d["used_kconfig"] is False  # paper_example has no Kconfig file
@@ -209,7 +210,11 @@ def test_ext2_xattr_needs_non_default_symbols(linux_analysis, linux_run):
                            "--base", str(DEFCONFIG), "--json")
     assert rc == 0
     assert d["mapped"] == {"fs/ext2/xattr.c": "fs/ext2/xattr.o"}
-    assert d["fragment"] == {"CONFIG_EXT2_FS": "y", "CONFIG_EXT2_FS_XATTR": "y"}
+    # EXT2_FS is tristate and defconfig has MODULES=y, so y and m are equally
+    # small changes; EXT2_FS_XATTR is bool, so it is y either way.
+    assert set(d["fragment"]) == {"CONFIG_EXT2_FS", "CONFIG_EXT2_FS_XATTR"}
+    assert d["fragment"]["CONFIG_EXT2_FS"] in ("y", "m")
+    assert d["fragment"]["CONFIG_EXT2_FS_XATTR"] == "y"
     assert d["predicted_built"] == ["fs/ext2/xattr.o"]
     assert d["used_kconfig"] is True
 

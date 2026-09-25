@@ -14,7 +14,7 @@ import pathlib
 import sys
 
 import z3
-from z3.z3util import get_vars
+from kconfig_solver import formula_vars
 
 import helpers.zsolver as zsolver
 
@@ -121,74 +121,11 @@ def closure(ksmt, kconfiglib, seed_names, max_iters=5, cap=4000):
     return scope
 
 
-def _active_z3(ksmt, kconfiglib, expr, solver):
-    """Like KconfigSMT.expr_to_z3, but a bare Symbol leaf means "on" (y or
-    m), not just "y": KconfigSMT.get_constraints treats "depends on"/
-    "select" as if only CONFIG_X=y satisfies them, so a dependency of a
-    module (CONFIG_X=m) is left unconstrained there. That under-constrains
-    exactly the common case this command's suggestions land on (enabling
-    something as a module), so this module recurses itself instead of
-    calling ksmt.expr_to_z3, changing only the Symbol-leaf case; local to
-    kfold's own why.py, tools/kconfig_solver.py is untouched."""
-    if expr is None or expr == ksmt.kconf.n:
-        return zsolver.F
-    if expr == ksmt.kconf.y:
-        return zsolver.T
-    if isinstance(expr, kconfiglib.Symbol):
-        name = f"CONFIG_{expr.name}"
-        sym, optd = solver.get_sort(name)
-        if expr.type not in (kconfiglib.BOOL, kconfiglib.TRISTATE):
-            return sym == optd["y"]
-        return sym != optd[""]
-    if isinstance(expr, tuple):
-        op = expr[0]
-        if op == kconfiglib.AND:
-            return zsolver.conj(_active_z3(ksmt, kconfiglib, expr[1], solver),
-                                _active_z3(ksmt, kconfiglib, expr[2], solver))
-        if op == kconfiglib.OR:
-            return zsolver.disj(_active_z3(ksmt, kconfiglib, expr[1], solver),
-                                _active_z3(ksmt, kconfiglib, expr[2], solver))
-        if op == kconfiglib.NOT:
-            return zsolver.neg(_active_z3(ksmt, kconfiglib, expr[1], solver))
-        if op in (kconfiglib.EQUAL, kconfiglib.UNEQUAL):
-            return ksmt.expr_to_z3(expr, solver)
-    return zsolver.T
-
-
 def scoped_constraints(ksmt, kconfiglib, names, solver):
-    """Phi_Kconfig restricted to ``names`` (bare symbol names): per-symbol
-    direct-dependency / reverse-dependency (select) implications and choice
-    mutual-exclusion clauses, built only for this neighborhood so Z3 stays
-    fast on a whole-kernel Kconfig (~17k symbols), and using tri-state
-    "on" = y-or-m (see ``_active_z3``) rather than KconfigSMT's y-only
-    notion of "active"."""
-    clauses = []
-    name_set = set(names)
-    for name in name_set:
-        sym = ksmt.kconf.syms.get(name)
-        if sym is None or sym.type not in (kconfiglib.BOOL, kconfiglib.TRISTATE):
-            continue
-        config_name = f"CONFIG_{name}"
-        z3_sym, optd = solver.get_sort(config_name)
-        sym_active = (z3_sym != optd[""])
-        if sym.direct_dep is not None and sym.direct_dep != ksmt.kconf.y:
-            dep_z3 = _active_z3(ksmt, kconfiglib, sym.direct_dep, solver)
-            rev_z3 = (_active_z3(ksmt, kconfiglib, sym.rev_dep, solver)
-                      if sym.rev_dep is not None and sym.rev_dep != ksmt.kconf.n else zsolver.F)
-            clauses.append(z3.Implies(sym_active, zsolver.disj(dep_z3, rev_z3)))
-        if sym.rev_dep is not None and sym.rev_dep != ksmt.kconf.n:
-            select_z3 = _active_z3(ksmt, kconfiglib, sym.rev_dep, solver)
-            clauses.append(z3.Implies(select_z3, sym_active))
-    for choice in ksmt.kconf.choices:
-        members = [s for s in choice.syms if s.name in name_set]
-        if len(members) > 1:
-            zs = [_active_z3(ksmt, kconfiglib, s, solver) for s in members]
-            for i in range(len(zs)):
-                for j in range(i + 1, len(zs)):
-                    clauses.append(z3.Not(z3.And(zs[i], zs[j])))
-    if not clauses:
-        return zsolver.T
-    return z3.And(*clauses)
+    """Phi_Kconfig restricted to ``names`` (bare symbol names), so Z3 stays
+    fast on a whole-kernel Kconfig (~17k symbols); see
+    ``KconfigSMT.symbol_clauses`` for the y/m/n semantics."""
+    return ksmt.get_constraints(solver, names)
 
 
 def explain_symbol(ksmt, kconfiglib, name, config_values):
@@ -218,7 +155,7 @@ def explain_symbol(ksmt, kconfiglib, name, config_values):
         if leaf.is_constant or not leaf.name or leaf.name in seen:
             continue
         seen.add(leaf.name)
-        if leaf.type in (kconfiglib.BOOL, kconfiglib.TRISTATE) and cur_value(config_values, leaf.name) != "y":
+        if leaf.orig_type in (kconfiglib.BOOL, kconfiglib.TRISTATE) and cur_value(config_values, leaf.name) == "n":
             unmet.append({"name": f"CONFIG_{leaf.name}", "value": cur_value(config_values, leaf.name)})
     out["unmet_deps"] = unmet
 
@@ -270,7 +207,19 @@ def minimal_changes(a, ksmt, kconfiglib, path, config_values, timeout_ms=20000):
         scope = closure(ksmt, kconfiglib, seed, max_iters=max_iters, cap=cap)
         phi = scoped_constraints(ksmt, kconfiglib, scope, solver)
         combined = zsolver.conj(phi, full_cond)
-        allvars = [v for v in get_vars(combined) if str(v).startswith("CONFIG_")]
+        allvars = [v for v in formula_vars(combined) if str(v).startswith("CONFIG_")]
+        # Symbols outside the neighborhood that the constraints mention
+        # (mostly selectors of widely selected symbols such as BLOCK) keep
+        # their current value, so the search stays small and cannot flip an
+        # unconstrained selector to bypass a "depends on".
+        pins = []
+        for v in allvars:
+            name = str(v)
+            if name[len("CONFIG_"):] not in scope:
+                _, optd = solver.get_sort(name)
+                pins.append(v == optd[zkey(cur_value(config_values, name[len("CONFIG_"):]))])
+        if pins:
+            combined = z3.And(combined, *pins)
         opt = z3.Optimize()
         try:
             opt.set("timeout", timeout_ms)
@@ -279,25 +228,15 @@ def minimal_changes(a, ksmt, kconfiglib, path, config_values, timeout_ms=20000):
         opt.add(combined)
         for v in allvars:
             name = str(v)
-            bare0 = name[len("CONFIG_"):]
-            sym0 = ksmt.kconf.syms.get(bare0)
-            if sym0 is not None and sym0.type == kconfiglib.BOOL:
-                # kfold's z3 model is uniformly tri-state (see cache.py's
-                # use_tristate), but a real bool Kconfig symbol has no valid
-                # "m" value; olddefconfig silently drops an "m" assignment
-                # to a bool symbol, which can undo a suggested change. Keep
-                # the search from ever proposing "m" for a symbol Kconfig
-                # itself declares bool.
-                _, optd0 = solver.get_sort(name)
-                if "m" in optd0:
-                    opt.add(v != optd0["m"])
-        for v in allvars:
-            name = str(v)
             _, optd = solver.get_sort(name)
             bare = name[len("CONFIG_"):]
             cur = cur_value(config_values, bare)
             cur_const = optd[zkey(cur)]
-            opt.add_soft(v == cur_const, weight=1)
+            opt.add_soft(v == cur_const, weight=2)
+            # Among equally small changes, prefer m to y: a symbol a module
+            # selects then follows by itself and need not be listed.
+            if "m" in optd:
+                opt.add_soft(v != optd["y"], weight=1)
         result = opt.check()
         if result != z3.sat:
             continue
@@ -311,5 +250,26 @@ def minimal_changes(a, ksmt, kconfiglib, path, config_values, timeout_ms=20000):
             cur = cur_value(config_values, bare)
             if new_val != cur:
                 diff[name] = new_val
-        return diff, f"solved in a {len(scope)}-symbol Kconfig neighborhood"
+        # Leave out what olddefconfig derives by itself: symbols without a
+        # prompt (set only by select/imply) and symbols whose new value is
+        # already forced by a select in the solved configuration.
+        def follows(n):
+            sym = ksmt.kconf.syms.get(n[len("CONFIG_"):])
+            if sym is None or not sym.nodes:
+                return False
+            if not any(node.prompt for node in sym.nodes):
+                return True
+            rm, ry = ksmt.tri(sym.rev_dep, solver)
+            forced = ("y" if z3.is_true(model.eval(ry, model_completion=True)) else
+                      "m" if z3.is_true(model.eval(rm, model_completion=True)) else "n")
+            if forced == "m" and sym.orig_type == kconfiglib.BOOL:
+                forced = "y"   # a bool selected by a module is y
+            return forced != "n" and forced == diff[n]
+        derived = sorted(n for n in diff if follows(n))
+        for n in derived:
+            del diff[n]
+        note = f"solved in a {len(scope)}-symbol Kconfig neighborhood"
+        if derived:
+            note += f"; {len(derived)} more follow via select or olddefconfig"
+        return diff, note
     return None, "no satisfying assignment found (even widening the Kconfig neighborhood, or Z3 timed out)"

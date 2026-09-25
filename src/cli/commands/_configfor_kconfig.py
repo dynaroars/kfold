@@ -54,70 +54,32 @@ def _expr_symbol_names(expr, kconf):
             yield from _expr_symbol_names(e, kconf)
 
 
-def restricted_constraints(ksmt, solver, seed_names, max_symbols=8000):
-    """Phi_Kconfig (Z3), restricted to the transitive cone of Kconfig symbols
-    that ``seed_names`` (bare symbol names, no CONFIG_ prefix) depend on or
-    are depended on by (direct_dep/rev_dep/choice siblings, expanded to a
-    fixpoint) -- exact for questions about whether/how the seeds can be
-    turned on, much smaller than the whole-tree constraint set. Falls back to
-    the whole-tree formula (``ksmt.get_constraints``) if the cone would
-    exceed ``max_symbols``. Returns (formula, closure symbol names)."""
-    import kconfiglib
+def restricted_constraints(ksmt, solver, seed_names, max_symbols=8000, base_values=None):
+    """Phi_Kconfig (Z3) restricted to the cone of Kconfig symbols ``seed_names``
+    (bare names) reach through "depends on" and choice membership
+    (``KconfigSMT.dependency_cone``), much smaller than the whole tree's
+    constraint set. The cone does not follow "select" fan-in: for widely
+    selected symbols (CRC32, USB core, ...) that pulls in much of the tree.
+    Symbols outside the cone that the cone's constraints mention (mostly
+    selectors) are held at their ``base_values`` value when given, so a
+    select from the base config still sets a lower bound and the solver
+    cannot flip an unconstrained selector to bypass a "depends on". Falls
+    back to the whole-tree formula if the cone exceeds ``max_symbols``.
+    Returns (formula, cone symbol names)."""
+    from kconfig_solver import formula_vars
     kconf = ksmt.kconf
-    closure = set()
-    frontier = list(seed_names)
-    overflowed = False
-    while frontier:
-        name = frontier.pop()
-        if name in closure:
-            continue
-        sym = kconf.syms.get(name)
-        if sym is None:
-            continue
-        closure.add(name)
-        if len(closure) > max_symbols:
-            overflowed = True
-            break
-        # Only expand through direct_dep ("depends on"/dependent expressions),
-        # not rev_dep ("select"): rev_dep is every symbol that *selects this
-        # one*, tree-wide, so for a handful of widely-selected symbols (e.g.
-        # CRC32, USB core) it pulls in a large fraction of the whole tree and
-        # their own deps recursively. Dropping it keeps the cone to the
-        # "what must I turn on for my own depends-on chain" question, which
-        # is sound (every witness still satisfies real direct_dep) though not
-        # complete (a config that relies on some unrelated symbol's `select`
-        # to bypass a depends-on it does not itself satisfy is not explored).
-        for dep in _expr_symbol_names(sym.direct_dep, kconf):
-            if dep not in closure:
-                frontier.append(dep)
-        if sym.choice is not None:
-            for s in sym.choice.syms:
-                if s.name and s.name not in closure:
-                    frontier.append(s.name)
-    if overflowed:
+    closure = ksmt.dependency_cone(seed_names)
+    if len(closure) > max_symbols:
         return ksmt.get_constraints(solver), set(kconf.syms)
-
-    clauses = []
-    for name in closure:
-        sym = kconf.syms[name]
-        if sym.type not in (kconfiglib.BOOL, kconfiglib.TRISTATE):
-            continue
-        config_name = f"CONFIG_{name}"
-        z3_sym, optd = solver.get_sort(config_name)
-        sym_active = (z3_sym == optd["y"])
-        if sym.type == kconfiglib.BOOL and "m" in optd:
-            # kfold's config model is tristate-uniform regardless of a
-            # symbol's real Kconfig type; a plain bool can never be "m".
-            clauses.append(z3_sym != optd["m"])
-        if sym.direct_dep and sym.direct_dep != kconf.y:
-            dep_z3 = ksmt.expr_to_z3(sym.direct_dep, solver)
-            clauses.append(z3.Implies(sym_active, dep_z3))
-    for choice in kconf.choices:
-        choice_syms = [s for s in choice.syms if s.name in closure]
-        if len(choice_syms) > 1:
-            zs = [ksmt.expr_to_z3(s, solver) for s in choice_syms]
-            for i in range(len(zs)):
-                for j in range(i + 1, len(zs)):
-                    clauses.append(z3.Not(z3.And(zs[i], zs[j])))
-    formula = z3.And(*clauses) if clauses else zsolver.T
+    formula = ksmt.get_constraints(solver, closure)
+    if base_values is not None:
+        pins = []
+        for v in formula_vars(formula):
+            name = str(v)
+            if not name.startswith("CONFIG_") or name[len("CONFIG_"):] in closure:
+                continue
+            _, optd = solver.get_sort(name)
+            want = base_values.get(name, "")
+            pins.append(v == optd.get(want if want in optd else "", optd[""]))
+        formula = z3.And(formula, *pins) if pins else formula
     return formula, closure

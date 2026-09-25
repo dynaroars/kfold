@@ -8,14 +8,19 @@ Copies the tree with rsync, excluding build artifacts (.o/.a/.cmd/vmlinux*/
 etc: most of a already-built tree's size but none of its source), rather
 than Kbuild's ``O=`` out-of-tree build, because a source tree that already
 has in-tree build state (as ``results/workspaces/linux`` does here) refuses
-``O=`` ("source tree is not clean"). Defaults the scratch root to
+``O=`` ("source tree is not clean"). There is one persistent copy per tree,
+refreshed incrementally by rsync (seconds after the first ~1.5 GB copy)
+and locked while in use, so repeated runs do not pile up copies. Defaults
+the scratch root to
 ``~/.cache/kfold-configfor`` rather than /tmp: a full copy is small once
 build artifacts are excluded (~1-2 GB for Linux), but this host's /tmp is a
 small tmpfs shared with other agents and often nearly full."""
+import fcntl
+import hashlib
 import os
 import pathlib
+import shutil
 import subprocess
-import tempfile
 import time
 
 DEFAULT_VERIFY_ROOT = pathlib.Path.home() / ".cache" / "kfold-configfor"
@@ -62,7 +67,7 @@ def merge_config_text(base_text, fragment):
 
 def _copy_tree(src, dest, timeout):
     dest.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["rsync", "-a", *_EXCLUDES, f"{src}/", f"{dest}/"],
+    subprocess.run(["rsync", "-a", "--delete", *_EXCLUDES, f"{src}/", f"{dest}/"],
                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=timeout)
 
 
@@ -79,13 +84,29 @@ def run_verify(tree, base_config_text, fragment, targets, arch="x86_64", jobs=No
     jobs = jobs or max(1, (os.cpu_count() or 4) // 4)
     root = pathlib.Path(root) if root else verify_root()
     root.mkdir(parents=True, exist_ok=True)
-    workdir = pathlib.Path(tempfile.mkdtemp(prefix=f"run-{os.getpid()}-{int(time.time())}-",
-                                            dir=str(root)))
+    key = hashlib.sha1(str(pathlib.Path(tree).resolve()).encode()).hexdigest()[:12]
+    workdir = root / f"src-{key}"
     dest = workdir / "tree"
     result = {"workdir": str(workdir)}
-    t0 = time.monotonic()
-    _copy_tree(tree, dest, timeout)
-    result["copy_seconds"] = round(time.monotonic() - t0, 1)
+    with open(root / f"src-{key}.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        t0 = time.monotonic()
+        _copy_tree(tree, dest, timeout)
+        result["copy_seconds"] = round(time.monotonic() - t0, 1)
+        result.update(_verify_in(dest, base_config_text, fragment, arch, jobs,
+                                 compile_targets, timeout))
+        # Keep the resulting .config outside the shared copy, which the next
+        # run overwrites.
+        final_path = None
+        if (dest / ".config").is_file():
+            final_path = root / f"last-{key}.config"
+            shutil.copyfile(dest / ".config", final_path)
+    result["final_config"] = str(final_path) if final_path else None
+    return result, final_path
+
+
+def _verify_in(dest, base_config_text, fragment, arch, jobs, compile_targets, timeout):
+    result = {}
     merged = merge_config_text(base_config_text, fragment)
     (dest / ".config").write_text(merged)
     make_base = ["make", f"ARCH={arch}", f"-j{jobs}"]
@@ -94,7 +115,6 @@ def run_verify(tree, base_config_text, fragment, targets, arch="x86_64", jobs=No
     result["olddefconfig_rc"] = proc.returncode
     result["olddefconfig_stderr_tail"] = "\n".join(proc.stderr.splitlines()[-30:])
     final_path = dest / ".config"
-    result["final_config"] = str(final_path)
     if final_path.is_file():
         from objects import config_values
         final_values = config_values(final_path)
@@ -115,4 +135,4 @@ def run_verify(tree, base_config_text, fragment, targets, arch="x86_64", jobs=No
                           "built": (dest / obj).is_file(),
                           "stderr_tail": "\n".join(cp.stderr.splitlines()[-20:])}
         result["compile"] = builds
-    return result, final_path if final_path.is_file() else None
+    return result
