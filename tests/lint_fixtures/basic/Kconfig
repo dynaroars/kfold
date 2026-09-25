@@ -1,0 +1,9 @@
+config MODULES
+	bool "modules"
+
+config FOO
+	bool "foo"
+
+config DEAD
+	bool "dead"
+	depends on FOO && !FOO
