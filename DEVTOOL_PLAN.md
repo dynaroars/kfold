@@ -37,9 +37,9 @@ Ground rules for all phases
   `make olddefconfig`, actually enable the object.
 
 ### 2B `kfold config-for <patch|files...>` — "how do I compile-test this?"
-- [ ] Accept a `git diff`/patch file or paths; map `.c`/`.S` → objects (incl. composite members)
-- [ ] Solve Φ_Kbuild ∧ Φ_Kconfig with a small / defconfig-close assignment; emit a `.config` fragment
-- [ ] Verify: `make olddefconfig` keeps the needed symbols; report any object that can't be enabled and why
+- [x] Accept a `git diff`/patch file or paths; map `.c`/`.S` → objects (incl. composite members)
+- [x] Solve Φ_Kbuild ∧ Φ_Kconfig with a small / defconfig-close assignment; emit a `.config` fragment
+- [x] Verify: `make olddefconfig` keeps the needed symbols; report any object that can't be enabled and why
 - **Checkpoint 2B:** for ≥10 historical patches from the v6.6 tree's git log (or synthetic
   multi-file sets), the generated config survives olddefconfig and kfold predicts every
   touched object is built; spot-check ≥3 with a real `make <path>.o`.
@@ -71,3 +71,4 @@ Ground rules for all phases
 - 2026-09-25 Checkpoint 1 PASSED: Linux cache 29,245 objects (93 s build), query 0.32 s, all conditions Z3-equivalent to fresh run, 56/56 tests pass. Use `PYTHONPATH=src python3 -m cli` or `pip install -e .`; API documented in src/cli/commands/__init__.py, common.py, cache.py.
 - 2026-09-25 Checkpoint 2D PASSED: 3,242/29,245 objects (11.1%) are blind spots under x86_64 allmod/allyes/defconfig across 493 MAINTAINERS entries; 50/50 sampled verdicts agree with archived builds. Follow-ups: allyesconfig lives only in /tmp/kfold-blind (not durable); X86_32-only and ARM-only (via Kconfig `if ARCH_*` menus) objects land in 'other' instead of 'arch' — needs KconfigSMT per blocking symbol; multi-symbol conditions (732) unexplained.
 - 2026-09-25 Checkpoint 2A PASSED: 28/28 built/not-built verdicts match archived defconfig/tinyconfig_i386 builds; for 6 not-built defconfig objects the suggested changes survive olddefconfig unchanged and enable the object (2 compiled for real). Fixed after review: parent-Makefile line lookup matched comments and `hfs` in `hfsplus/`, and the location label named the child Makefile. Follow-ups: `KconfigSMT.get_constraints` treats only =y as active (why works around it locally); add public `Analysis.truth(expr, config)`; kconfiglib load once failed transiently under load ('assembler is not supported').
+- 2026-09-25 Checkpoint 2B PASSED: 16 file sets over 15 subsystems + 3 patch files; all generated configs survive olddefconfig with 0 lost symbols and kfold predicts every touched object built; 6/6 real compiles succeed; mutually exclusive objects (entry_32/entry_64) are reported with the conflict. ~2 s per call (kconfiglib parse). --verify scratch copy lives in ~/.cache/kfold-configfor (1.5 GB). Follow-ups: Kconfig cone ignores `select` fan-in for speed; three commands each work around KconfigSMT's y-only/bool-m issues — fix once in tools/kconfig_solver.py and share a per-symbol clause index (from lint) / cone builder (from config-for).
