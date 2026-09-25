@@ -198,3 +198,59 @@ def test_linux_smoke(capsys):
     for f in d["findings"]:
         assert f["file"].startswith("fs/ext2/") or f["class"] == "zombie"
         assert f["severity"] in ("error", "warning", "info")
+
+
+# ---------------------------------------------------------------- regressions
+#
+# Two bugs were found and fixed while manually verifying the checkpoint 2C
+# findings against the real Linux tree; both are cheap to regress-test
+# without a full Linux cache.
+
+def test_arch_of_does_not_mislabel_arch_kconfig():
+    """arch/Kconfig (and arch/Kconfig.*) is architecture-independent glue
+    sourced by every arch, not a declaration scoped to a pseudo-arch named
+    "Kconfig" -- a real bug found in checkpoint verification that bucketed
+    ~220 common symbols (SMP, KPROBES, HOTPLUG_*, ...) as arch-only."""
+    from cli.commands import _lint_kconfig as lk
+    assert lk.arch_of("arch/Kconfig") is None
+    assert lk.arch_of("arch/Kconfig.debug") is None
+    assert lk.arch_of("arch/x86/Kconfig") == "x86"
+    assert lk.arch_of("arch/x86/Kconfig.cpu") == "x86"
+    assert lk.arch_of("drivers/foo/Kconfig") is None
+
+
+def test_dead_check_uses_orig_type_not_degraded_type(tmp_path):
+    """KconfigConstraints forbids "=m" for bool-typed symbols (a supplement
+    to tools/kconfig_solver.KconfigSMT, which does not itself constrain a
+    symbol's value away from "m"). kconfiglib dynamically downgrades every
+    *declared* tristate symbol's ``.type`` to BOOL once MODULES evaluates to
+    not-y, which it always does here (no .config is loaded, so MODULES
+    defaults to its unset value) -- checked directly against the real tree
+    during checkpoint verification: 16,672 tristate-or-bool symbols, 0
+    reporting as TRISTATE via .type. Using .type instead of .orig_type here
+    would forbid "=m" for every real tristate symbol in the tree, which
+    produced ~2,900 false "dead" findings (e.g. ordinary AES-NI-accelerated
+    crypto modules) before the fix."""
+    from cli import cache
+    from cli.commands import _lint_kconfig as lk
+    d = tmp_path / "tree"
+    d.mkdir()
+    (d / "Makefile").write_text("obj-$(CONFIG_FOO) += foo.o\n")
+    (d / "foo.c").write_text("int foo(void) { return 0; }\n")
+    (d / "Kconfig").write_text(
+        "config MODULES\n\tbool \"modules\"\n\toption modules\n\n"
+        "config FOO\n\ttristate \"foo\"\n"
+    )
+    (d / "skbuild.ini").write_text("[COMMON]\nuse_tristate = yes\n")
+    a = cache.analyze(d, tmp_path / "cache")
+    kc = lk.KconfigConstraints(d, solver=a.solver())
+    # FOO is declared tristate (not bool): building as a module ("=m") must
+    # remain satisfiable even though MODULES defaults to unset/off in an
+    # unloaded Kconfig parse.
+    import z3
+    zvar, optd = a.solver().get_sort("CONFIG_FOO")
+    s = z3.Solver()
+    s.add(zvar == optd["m"], *kc.constraints_for({"FOO"}))
+    assert s.check() == z3.sat
+    dead = lk.dead_check(a, kc, paths=["foo.o"])
+    assert dead == []

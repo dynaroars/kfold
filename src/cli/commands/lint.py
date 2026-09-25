@@ -155,10 +155,61 @@ def zombie_check(analysis, tree, path_prefix=None, arch="x86"):
             if arch_only:
                 msg += f" for {arch} (declared only for {sorted(arches - {None})})"
             findings.append({
-                "class": "zombie", "symbol": sym, "file": f, "line": line, "message": msg,
-                "severity": "info" if arch_only else "error", "arch_only": arch_only,
-                "example_objects": sorted(objs)[:3],
+                "class": "zombie", "kind": "guard", "symbol": sym, "file": f, "line": line,
+                "message": msg, "severity": "info" if arch_only else "error",
+                "arch_only": arch_only, "example_objects": sorted(objs)[:3],
             })
+    findings += _hardcoded_define_check(analysis, tree, declared, path_prefix=path_prefix, arch=arch)
+    return findings
+
+
+# Matches a literal "-DCONFIG_X" (and "-DCONFIG_X=value") compiler flag, e.g.
+# "ccflags-y += -DCONFIG_CAAM_QI" or "CFLAGS_foo.o := -DCONFIG_X=y": a symbol
+# baked directly into the flags rather than expanded from $(CONFIG_X). Such a
+# flag is present in every build regardless of any .config, so any "#ifdef
+# CONFIG_X" it feeds in the source is not actually configurable -- and if
+# CONFIG_X is not even a real Kconfig symbol, it is Kbuild-only (kfold's
+# per-object condition machinery never sees it, since it is never a make
+# variable expansion), which is why the guard-based scan above alone found
+# zero true zombies on Linux v6.6 even though upstream's own
+# scripts/checkkconfigsymbols.py flags several of exactly this shape (e.g.
+# CONFIG_CAAM_QI, CONFIG_FORCE_HARD_FLOAT, CONFIG_NCR53C8XX_PREFETCH).
+_HARDCODED_DEFINE_RE = re.compile(r"-D(?!\$\()(CONFIG_[A-Za-z0-9_]+)")
+
+
+def _hardcoded_define_check(analysis, tree, declared, path_prefix=None, arch="x86"):
+    findings = []
+    seen = set()
+    for mk in sorted(set(analysis.reached) | set(analysis.builtin)):
+        if path_prefix and not mk.startswith(path_prefix):
+            continue
+        p = tree / mk
+        try:
+            lines = p.read_text(errors="ignore").splitlines()
+        except OSError:
+            continue
+        for i, line in enumerate(lines, 1):
+            for m in _HARDCODED_DEFINE_RE.finditer(line):
+                sym = m.group(1)
+                if (sym, mk, i) in seen:
+                    continue
+                seen.add((sym, mk, i))
+                arches = declared.get(sym)
+                if arches is not None and _lint_kconfig.is_in_scope(arches, arch):
+                    continue
+                arch_only = arches is not None and bool(arches - {None})
+                msg = (f"{sym} is hardcoded as a compiler -D flag in {mk}:{i} (not "
+                      f"via $(CONFIG_...) expansion), so it has no Kconfig-driven "
+                      f"on/off switch")
+                if arches is None:
+                    msg += " and is not declared in Kconfig at all"
+                elif arch_only:
+                    msg += f"; it is declared in Kconfig only for {sorted(arches - {None})}, not {arch}"
+                findings.append({
+                    "class": "zombie", "kind": "hardcoded_define", "symbol": sym,
+                    "file": mk, "line": i, "message": msg,
+                    "severity": "info" if arch_only else "error", "arch_only": arch_only,
+                })
     return findings
 
 
