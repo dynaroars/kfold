@@ -1,9 +1,0 @@
-claim_id,section,exact_claim,required_evidence,source_file,status,responsible_script
-R01,Abstract,Linux physical-object precision ranges from 87.7% to 99.1% across four profiles,Profile-level physical comparison with outside-set counts,results/linux_four_profile_revalidation_20260924.json,verified,tools/compare_kfold_with_gnu_make.py
-R02,Evaluation,Linux tinyconfig i386 and defconfig x86-64 clean builds reproduce 489 and 2874 archived objects exactly,Fresh GCC12 builds and archived object-path comparison,evidence/manifest.json,verified,manual clean builds
-R03,Evaluation,Barebox sandbox clean build reproduces 406 archived objects exactly,Fresh sandbox build and path comparison,evidence/manifest.json,verified,manual clean build
-R04,Evaluation,"U-Boot archive comparison gives 970 predictions, 880 true positives, 12 misses inside set, and 231 physical paths outside set",Config-complete formula substitution and path inventory,results/archived_build_revalidation_20260924.json,verified,tools/revalidate_archived_builds.py
-R05,Evaluation,"BusyBox and coreboot archive comparison gives 162 and 244 matching object paths, respectively",Config-complete formula substitution and path inventory,results/archived_build_revalidation_20260924.json,verified,tools/revalidate_archived_builds.py
-R06,Evaluation,Non-Linux corpus traversal covers 485 Makefile instances with 5205 target records,Fresh five-corpus experiment results,results/all_corpora_results.json,verified,tools/run_all_experiments.py
-R07,Evaluation,Linux tristate traversal covers 1938 Makefile instances and 13841 unique target paths in 28.4 seconds,Fresh Linux analysis,results/linux_tristate_revalidation_20260924.json,verified,tools/compare_kfold_with_gnu_make.py
-R08,Evaluation,Construct census counts 71292 occurrences across five traversals,Fresh construct censuses,results/all_corpora_results.json,verified,tools/run_all_experiments.py

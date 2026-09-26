@@ -48,6 +48,15 @@ def target_path(word, var_name, parent, source):
 
 
 
+def _suffixed(rel, var_name, suffixes):
+    """Apply a family's object suffix (family_suffixes), e.g. foo.o in pbl-y
+    is written as foo.pbl.o."""
+    suffix = suffixes.get(var_name.rsplit("-", 1)[0])
+    if rel is not None and suffix and rel.endswith(".o"):
+        return rel[:-2] + suffix
+    return rel
+
+
 def _add(targets, kinds, rel, cond, kind):
     if rel in targets:
         targets[rel] = zsolver.disj(targets[rel], cond)
@@ -122,6 +131,16 @@ def object_conditions(runner, include_members=True, origins=None):
                 guard = zvar == values["y"]
             _add(targets, kinds, path, guard, "extra")
             note(path, runner.maindir / "skbuild.ini", "extra_objects")
+    suffixes = getattr(runner.mysettings, "family_suffixes", {})
+    fguards = {}
+    for fam, sym in getattr(runner.mysettings, "family_guards", {}).items():
+        gsolver = zsolver.ZSolver(runner.mysettings)
+        zvar, values = gsolver.get_sort(sym)
+        fguards[fam] = zvar == values["y"]
+
+    def fguard(name, cond):
+        g = fguards.get(name.rsplit("-", 1)[0])
+        return cond if g is None else zsolver.conj(cond, g)
     need_builtin = link_semantics and getattr(runner.mysettings, "need_builtin", False)
     builtin = builtin_guards(runner) if need_builtin else {}
     for kb in runner.all_kbuilds:
@@ -148,9 +167,9 @@ def object_conditions(runner, include_members=True, origins=None):
                              and not var.name.endswith("-m") and word.endswith(".o")
                              and state.composite_members(word[:-2]))
                 for name in names:
-                    rel = target_path(word, name, parent, runner.maindir)
+                    rel = _suffixed(target_path(word, name, parent, runner.maindir), name, suffixes)
                     if rel is not None and not unwritten:
-                        _add(targets, kinds, rel, cond, "target")
+                        _add(targets, kinds, rel, fguard(name, cond), "target")
                         note(rel, kb.makefile, var.name)
                 rel = target_path(word, names[0], parent, runner.maindir)
                 if rel is None:
@@ -169,9 +188,10 @@ def object_conditions(runner, include_members=True, origins=None):
                             continue
                         eff = zsolver.conj(obj_cond, mcond)
                         for name in names:
-                            mrel = target_path(member, name, parent, runner.maindir)
+                            mrel = _suffixed(target_path(member, name, parent, runner.maindir),
+                                             name, suffixes)
                             if mrel is not None:
-                                _add(targets, kinds, mrel, eff, "member")
+                                _add(targets, kinds, mrel, fguard(name, eff), "member")
                                 note(mrel, kb.makefile, f"member of {obj}")
                         if member not in seen:
                             seen.add(member)
@@ -264,6 +284,15 @@ class _RuleIndex:
                     pp = _norm(parent, p.replace("%", stem, 1), self.maindir)
                     if pp:
                         inst.append((pp, pc))
+                # A match-anything rule (target "%" or "dir/%", such as
+                # Kbuild's "$(obj)/%:: $(src)/%_shipped") never chains in GNU
+                # Make: terminal ones need existing prerequisites, and
+                # nonterminal ones do not apply to prerequisites of other
+                # implicit rules. Following them would build x_shipped,
+                # x_shipped_shipped, ... without end.
+                if post == "" and (pre == "" or pre.endswith("/")) and not all(
+                        (self.maindir / pp).exists() or pp in self.explicit for pp, _ in inst):
+                    continue
                 yield inst
 
     def makeable(self, path, depth=0):
@@ -332,7 +361,12 @@ def rule_closure(runner, targets, kinds, note=None):
             _add(targets, kinds, path, cond, "rule")
             if note is not None:
                 note(path, runner.maindir / via.get(path, "?"), "prerequisite")
-        elif path.endswith(".o") and kinds.get(path) == "rule":
+        elif path.endswith(".o") and path in targets:
+            # Already known (as a rule prerequisite, or as a target or member
+            # under another route): building it as a prerequisite is one more
+            # route. E.g. "obj-y := $(patsubst %.o,%.pi.o,$(obj-y))" leaves
+            # gdt_idt.o only under its obj-m condition, while the rule
+            # "%.pi.o: %.o" builds it whenever gdt_idt.pi.o is built.
             targets[path] = zsolver.disj(targets[path], cond)
         for d, goal, c in index.submakes.get(path, []):
             analyze_dir(d)

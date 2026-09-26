@@ -23,55 +23,9 @@ import settings
 import helpers.zsolver as zsolver
 
 
-class _ModulesPropertyFilter:
-    """Wraps a Kconfig file handle and blanks out standalone 'modules' property
-    lines, a newer Kconfig keyword (kernel >= 6.3, replacing 'option modules')
-    that kconfiglib 14.1.0 does not parse. Blanking (rather than deleting) the
-    line keeps line numbers intact for kconfiglib's own error reporting."""
-
-    def __init__(self, f):
-        self._f = f
-
-    def readline(self, *args):
-        line = self._f.readline(*args)
-        if line.strip() == "modules":
-            return "\n"
-        return line
-
-    def close(self):
-        return self._f.close()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc_info):
-        self.close()
-        return False
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        line = self.readline()
-        if line == "":
-            raise StopIteration
-        return line
-
-    def __getattr__(self, name):
-        return getattr(self._f, name)
-
-
-_orig_kconfig_open = kconfiglib.Kconfig._open
-
-
-def _patched_kconfig_open(self, filename, mode):
-    f = _orig_kconfig_open(self, filename, mode)
-    if mode != "r":
-        return f
-    return _ModulesPropertyFilter(f)
-
-
-kconfiglib.Kconfig._open = _patched_kconfig_open
+# Kconfig syntax newer than kconfiglib (bare 'modules', 'transitional',
+# conditional 'depends on'): see src/kconfig_compat.py.
+import kconfig_compat  # noqa: E402,F401
 
 
 # Tools the kernel's top-level Makefile exports before running Kconfig, which
@@ -133,6 +87,11 @@ class KconfigSMT:
             os.environ["srctree"] = str(self.srctree)
             for k in added_env:
                 os.environ[k] = TOOLCHAIN_DEFAULTS[k]
+            # The values the top-level Makefile computes from those tools.
+            for k, v in kconfig_compat.makefile_exports(self.srctree).items():
+                if k not in os.environ:
+                    os.environ[k] = v
+                    added_env.append(k)
             if tolerate_missing_glob_sources:
                 kconfiglib._OBL_SOURCE_TOKENS = frozenset()
             self.kconf = kconfiglib.Kconfig(str(kconfig_path.relative_to(self.srctree)), warn=False, warn_to_stderr=False)

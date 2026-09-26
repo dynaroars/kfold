@@ -67,7 +67,9 @@ def merge_config_text(base_text, fragment):
 
 def _copy_tree(src, dest, timeout):
     dest.mkdir(parents=True, exist_ok=True)
-    subprocess.run(["rsync", "-a", "--delete", *_EXCLUDES, f"{src}/", f"{dest}/"],
+    # --chmod: the copy must be writable even when the analyzed tree is
+    # read-only (as experiments/ keeps it), or make cannot write .config.
+    subprocess.run(["rsync", "-a", "--chmod=u+w", "--delete", *_EXCLUDES, f"{src}/", f"{dest}/"],
                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=timeout)
 
 

@@ -223,6 +223,8 @@ def run(args):
         return 0
 
     import kconfiglib
+
+    import kconfig_compat  # noqa: F401  (Kconfig syntax newer than kconfiglib)
     explain_names = ([p["symbol"][len("CONFIG_"):] for p in pivotal] if pivotal
                      else [s[len("CONFIG_"):] for s in a.symbols(path)])
     seen = set()

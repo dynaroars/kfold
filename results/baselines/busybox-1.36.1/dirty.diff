@@ -1,9 +1,0 @@
-diff --git a/.gitignore b/.gitignore
-index 9a2348d..7e2e64d 100644
---- a/.gitignore
-+++ b/.gitignore
-@@ -19,3 +19,4 @@
- /src/unused.py
- /src/out.1
- /src/out1
-+/results/workspaces/

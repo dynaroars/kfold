@@ -27,3 +27,9 @@
 /TAGS
 *.fls
 /src/*.egg-info/
+
+# Canonical pipeline (experiments/): large inputs and build trees
+/work/
+# Superseded results, kept on disk only
+/results/legacy/
+/evidence/legacy/

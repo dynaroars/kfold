@@ -45,8 +45,7 @@ DEFAULT_CONFIGS = ["allmodconfig", "allyesconfig", "defconfig"]
 
 # Where named configs are looked up, in order; {name} is substituted.
 CONFIG_SEARCH = [
-    "results/revalidation_builds/linux_configs/{name}/.config",
-    "results/revalidation_builds/linux_configs/{name}.config",
+    "evidence/configs/linux/{name}.config",   # written by experiments/build.py
 ]
 # A second root (outside the repo) generated configs may be cached under,
 # per DEVTOOL_PLAN's shared-tree rule: build missing configs in a /tmp copy

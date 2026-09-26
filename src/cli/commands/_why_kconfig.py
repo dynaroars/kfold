@@ -25,6 +25,7 @@ if str(ROOT / "tools") not in sys.path:
 
 def _import_kconfiglib_and_solver():
     import kconfiglib
+    import kconfig_compat  # noqa: F401  (Kconfig syntax newer than kconfiglib)
     from kconfig_solver import KconfigSMT
     return kconfiglib, KconfigSMT
 

@@ -11,6 +11,8 @@ import re
 import sys
 
 import kconfiglib
+
+import kconfig_compat  # noqa: F401  (Kconfig syntax newer than kconfiglib)
 import z3
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]

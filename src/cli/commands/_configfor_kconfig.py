@@ -45,6 +45,7 @@ def _expr_symbol_names(expr, kconf):
     if expr is None or expr is kconf.n or expr is kconf.y:
         return
     import kconfiglib
+    import kconfig_compat  # noqa: F401  (Kconfig syntax newer than kconfiglib)
     if isinstance(expr, kconfiglib.Symbol):
         if expr.name:
             yield expr.name

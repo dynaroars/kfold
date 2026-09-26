@@ -87,6 +87,14 @@ class Settings:
         # family_aliases: a family whose objects Make adds to other families,
         # e.g. coreboot's all-y joins bootblock-y, romstage-y, ...
         self.family_aliases = {}
+        # family_suffixes: a family whose objects the build writes under a
+        # different suffix, e.g. Barebox compiles pbl-y's foo.o as foo.pbl.o.
+        self.family_suffixes = {}
+        # family_guards: a family whose objects the build compiles only
+        # under an option (e.g. coreboot links its verstage only with
+        # CONFIG_VBOOT_SEPARATE_VERSTAGE, through rule dependencies of the
+        # final image that the analysis does not follow).
+        self.family_guards = {}
         self.ignore_dirs = frozenset()
         self.ignore_files = frozenset()
         self.ignore_setvar_startswith = frozenset()
@@ -143,6 +151,16 @@ class Settings:
             for entry in myconfig.get('extra_objects').split():
                 path, _, guard = entry.partition('?')
                 self.extra_objects.append((path, guard or None))
+
+        if 'family_guards' in myconfig:
+            for entry in myconfig.get('family_guards').split():
+                name, _, sym = entry.partition(':')
+                self.family_guards[name] = sym
+
+        if 'family_suffixes' in myconfig:
+            for entry in myconfig.get('family_suffixes').split():
+                name, _, suffix = entry.partition(':')
+                self.family_suffixes[name] = suffix
 
         if 'family_aliases' in myconfig:
             for entry in myconfig.get('family_aliases').split():
