@@ -141,12 +141,14 @@ def test_verify(tree, root):
     a = cache.analyze(tree, root)
     fresh = cache.run_analysis(tree)
     v = cache.verify(a, fresh)
-    assert v["ok"] and v["identical"] == v["objects"]
+    # Disjunct order can differ between analyses, so equal conditions are
+    # either syntactically identical or proved equivalent.
+    assert v["ok"] and v["identical"] + v["proved"] == v["objects"]
     # An equivalent but syntactically different condition is proved equal;
     # a different one is reported.
     c = cache._as_expr(fresh["conds"]["probe64.o"])
     fresh["conds"]["probe64.o"] = z3.Not(z3.Not(c))
     fresh["conds"]["probe32.o"] = z3.BoolVal(True)
     v = cache.verify(a, fresh)
-    assert v["proved"] == 1 and v["differ"] == 1 and not v["ok"]
-    assert ("differ", "probe32.o") in v["examples"]
+    assert v["proved"] >= 1 and v["differ"] == 1 and v["unknown"] == 0 and not v["ok"]
+    assert v["examples"] == [("differ", "probe32.o")]

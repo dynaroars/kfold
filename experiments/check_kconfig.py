@@ -6,7 +6,11 @@ Usage: experiments/check_kconfig.py
 kfold's Kconfig reasoning (``why`` explanations, ``config-for``) goes through
 kconfiglib plus src/kconfig_compat.py. For each generated Linux .config, this
 loads the .config into kconfiglib and compares every symbol's value with the
-value scripts/kconfig wrote. The toolchain probes that the kernel Makefile
+value scripts/kconfig wrote. It also checks that the .config satisfies the
+Z3 encoding of Kconfig that ``config-for`` solves (tools/kconfig_solver.py),
+symbol by symbol: the encoding over-approximates Kconfig, so a real .config
+that violates it would mean config-for can call a buildable object
+impossible. The toolchain probes that the kernel Makefile
 exports to Kconfig (CC_VERSION_TEXT, PAHOLE, NM, ...) are set as the Makefile
 sets them. Writes results/kconfig_check.json.
 """
@@ -21,8 +25,33 @@ sys.path.insert(0, str(HERE))
 from subjects import CC, EVIDENCE, RESULTS, ROOT, SUBJECTS, analysis_dir  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "tools"))
 import kconfiglib  # noqa: E402
 import kconfig_compat  # noqa: E402
+import z3  # noqa: E402
+from cli import cache  # noqa: E402
+from kconfig_solver import KconfigSMT, formula_vars  # noqa: E402
+
+
+def smt_violations(tree, want):
+    """Symbols whose clauses in KconfigSMT fail under the .config values."""
+    solver = cache.load(tree, ROOT / "work" / "kfold-cache", check=False).solver()
+    ksmt = KconfigSMT(tree / "Kconfig", srctree=tree)
+    per_sym = [(sym.name, ksmt.symbol_clauses(sym, solver)) for sym in ksmt.kconf.unique_defined_syms]
+    value = {}
+    for name, (var, optd) in solver.__config_vars__.items():
+        v = want.get(name[len("CONFIG_"):], "n")
+        value[var.get_id()] = (var, optd.get(v, optd[solver.mysettings.zstate.undef_val]))
+    bad = []
+    for name, clauses in per_sym:
+        if not clauses:
+            continue
+        c = z3.And(*clauses)
+        pairs = [value[v.get_id()] for v in formula_vars(c) if v.get_id() in value]
+        c = z3.simplify(z3.substitute(c, *pairs)) if pairs else z3.simplify(c)
+        if z3.is_false(c) or (not z3.is_true(c) and z3.Solver().check(c) != z3.sat):
+            bad.append(name)
+    return bad
 
 
 def values(path):
@@ -59,9 +88,11 @@ def main():
             got = sym.str_value
             if got != v and not (v == "n" and got in ("n", "")):
                 bad.append({"symbol": name, "scripts_kconfig": v, "kconfiglib": got})
+        smt = smt_violations(tree, want)
         out[config] = {"symbols_in_config": len(want), "defined_symbols": len(kc.unique_defined_syms),
-                       "mismatches": bad}
-        print(config, len(want), "symbols,", len(bad), "mismatches", bad[:5], flush=True)
+                       "mismatches": bad, "smt_violations": smt}
+        print(config, len(want), "symbols,", len(bad), "mismatches", bad[:5],
+              len(smt), "SMT violations", smt[:10], flush=True)
     (RESULTS / "kconfig_check.json").write_text(json.dumps(out, indent=1, sort_keys=True) + "\n")
 
 

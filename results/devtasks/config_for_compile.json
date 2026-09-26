@@ -1,0 +1,758 @@
+{
+ "all_compiled": 40,
+ "eligible": 384,
+ "rows": [
+  {
+   "all_compiled": true,
+   "commit": "1fe8df0141e2b875d9f27b07df5feb33c6c38605",
+   "compiled": {
+    "drivers/net/ethernet/cadence/macb_ptp.o": true
+   },
+   "fragment": {
+    "CONFIG_COMMON_CLK": "y",
+    "CONFIG_MACB": "m",
+    "CONFIG_MACB_USE_HWSTAMP": "y"
+   },
+   "objects": [
+    "drivers/net/ethernet/cadence/macb_ptp.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 10.0,
+   "stderr_tail": "",
+   "subject": "net: macb: fix ordering around PTP timestamp read"
+  },
+  {
+   "all_compiled": true,
+   "commit": "0bd12e2ab2059550a5b608a251ce9b66fab3089e",
+   "compiled": {
+    "sound/soc/amd/acp/acp-sdw-legacy-mach.o": true,
+    "sound/soc/amd/acp/acp-sdw-sof-mach.o": true
+   },
+   "fragment": {
+    "CONFIG_SND_AMD_ACP_CONFIG": "m",
+    "CONFIG_SND_SOC": "m",
+    "CONFIG_SND_SOC_AMD_ACP_COMMON": "m",
+    "CONFIG_SND_SOC_AMD_LEGACY_SDW_MACH": "m",
+    "CONFIG_SND_SOC_AMD_SOF_SDW_MACH": "m",
+    "CONFIG_SND_SOC_SDCA_OPTIONAL": "m",
+    "CONFIG_SOUNDWIRE": "m"
+   },
+   "objects": [
+    "sound/soc/amd/acp/acp-sdw-legacy-mach.o",
+    "sound/soc/amd/acp/acp-sdw-sof-mach.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.6,
+   "stderr_tail": "",
+   "subject": "ASoC: amd: acp: bounds-check SoundWire link ID in machine drivers"
+  },
+  {
+   "all_compiled": true,
+   "commit": "1e6be99a50e8786c09c3e60e6574ee81682eb57c",
+   "compiled": {
+    "fs/smb/client/smb2ops.o": true
+   },
+   "fragment": {
+    "CONFIG_CIFS": "m",
+    "CONFIG_SMBFS": "m"
+   },
+   "objects": [
+    "fs/smb/client/smb2ops.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 8.3,
+   "stderr_tail": "",
+   "subject": "smb: client: reject short Next offsets in parse_server_interfaces()"
+  },
+  {
+   "all_compiled": true,
+   "commit": "0f6a6beb01c068fcd5274eabf22c260039749fea",
+   "compiled": {
+    "net/ipv4/ip_tunnel_core.o": true
+   },
+   "fragment": {},
+   "objects": [
+    "net/ipv4/ip_tunnel_core.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.1,
+   "stderr_tail": "",
+   "subject": "net: ip_tunnel: initialize `options_len` before referencing options"
+  },
+  {
+   "all_compiled": true,
+   "commit": "3db8afba2d210b7d80cd5cc6b76d7f46daa9b47a",
+   "compiled": {
+    "sound/hda/common/controller.o": true
+   },
+   "fragment": {},
+   "objects": [
+    "sound/hda/common/controller.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.2,
+   "stderr_tail": "",
+   "subject": "ALSA: hda: trace PCM open only after assigning a stream"
+  },
+  {
+   "all_compiled": true,
+   "commit": "1c4bb940c3bb4325bb88ac1b7eaf5faaa39e7d63",
+   "compiled": {
+    "net/ipv4/sysctl_net_ipv4.o": true
+   },
+   "fragment": {},
+   "objects": [
+    "net/ipv4/sysctl_net_ipv4.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.1,
+   "stderr_tail": "",
+   "subject": "tcp: do not let tcp_rmem be set below 4096"
+  },
+  {
+   "all_compiled": true,
+   "commit": "d8eb177632dacda28bc6130c2105afbf5b791eb0",
+   "compiled": {
+    "net/core/dev.o": true
+   },
+   "fragment": {},
+   "objects": [
+    "net/core/dev.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 9.8,
+   "stderr_tail": "",
+   "subject": "net: remove WARN_ON_ONCE() from the dev_fill_forward_path() loop check"
+  },
+  {
+   "all_compiled": true,
+   "commit": "e06c431afd269c2779aa73e6c9fd9aa0b91c3a3e",
+   "compiled": {
+    "drivers/spi/spi-virtio.o": true
+   },
+   "fragment": {
+    "CONFIG_SPI": "y",
+    "CONFIG_SPI_MASTER": "y",
+    "CONFIG_SPI_VIRTIO": "m"
+   },
+   "objects": [
+    "drivers/spi/spi-virtio.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 6.8,
+   "stderr_tail": "",
+   "subject": "spi: virtio: Use the per-transfer bits per word"
+  },
+  {
+   "all_compiled": true,
+   "commit": "54ccc01012a240476edf641bf1a2b8bff54fe6ae",
+   "compiled": {
+    "drivers/dma/mmp_pdma.o": true
+   },
+   "fragment": {
+    "CONFIG_COMPILE_TEST": "y",
+    "CONFIG_MMP_PDMA": "m"
+   },
+   "objects": [
+    "drivers/dma/mmp_pdma.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 6.7,
+   "stderr_tail": "",
+   "subject": "dmaengine: mmp_pdma: fix wrong sg length in mmp_pdma_prep_slave_sg()"
+  },
+  {
+   "all_compiled": true,
+   "commit": "f55d5503a7394b31f19b1df1a238adf2d31f147e",
+   "compiled": {
+    "drivers/input/joystick/xpad.o": true
+   },
+   "fragment": {
+    "CONFIG_JOYSTICK_XPAD": "m"
+   },
+   "objects": [
+    "drivers/input/joystick/xpad.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.0,
+   "stderr_tail": "",
+   "subject": "Input: xpad - add support for Victrix Pro BFG Controller"
+  },
+  {
+   "all_compiled": true,
+   "commit": "d9e6175a3ee48209ee65f294fc567b4e16b29b74",
+   "compiled": {
+    "net/netfilter/nf_flow_table_core.o": true
+   },
+   "fragment": {
+    "CONFIG_NF_FLOW_TABLE": "m",
+    "CONFIG_NF_TABLES": "m"
+   },
+   "objects": [
+    "net/netfilter/nf_flow_table_core.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.1,
+   "stderr_tail": "",
+   "subject": "netfilter: flowtable: hold reference on ct until flow is released"
+  },
+  {
+   "all_compiled": true,
+   "commit": "77c0fade37c80e8aa16ac048a9828249055e3f66",
+   "compiled": {
+    "mm/filemap.o": true
+   },
+   "fragment": {},
+   "objects": [
+    "mm/filemap.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 8.2,
+   "stderr_tail": "",
+   "subject": "mm: filemap: retain mapped dropbehind folios"
+  },
+  {
+   "all_compiled": true,
+   "commit": "c59e4a90780f3b1825e4bc7300820dfb6df51a18",
+   "compiled": {
+    "drivers/gpu/drm/msm/dsi/dsi_host.o": true
+   },
+   "fragment": {
+    "CONFIG_COMMON_CLK": "y",
+    "CONFIG_COMPILE_TEST": "y",
+    "CONFIG_DRM_MSM": "m",
+    "CONFIG_DRM_MSM_DSI": "y",
+    "CONFIG_DRM_MSM_KMS": "y",
+    "CONFIG_DRM_MSM_MDP5": "y",
+    "CONFIG_OF": "y"
+   },
+   "objects": [
+    "drivers/gpu/drm/msm/dsi/dsi_host.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 9.1,
+   "stderr_tail": "",
+   "subject": "drm/msm/dsi: round the byte clock rate after reparenting to the PHY PLL"
+  },
+  {
+   "all_compiled": true,
+   "commit": "ed0406e490f48ed180df140fe2a81be26bccb1a9",
+   "compiled": {
+    "drivers/input/input-compat.o": true
+   },
+   "fragment": {},
+   "objects": [
+    "drivers/input/input-compat.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.3,
+   "stderr_tail": "",
+   "subject": "Input: zero ff_effect before compat copy in input_ff_effect_from_user"
+  },
+  {
+   "all_compiled": true,
+   "commit": "c32490c6d3f3a9f2d177d57c7eb8bbc347561d08",
+   "compiled": {
+    "fs/btrfs/dev-replace.o": true
+   },
+   "fragment": {
+    "CONFIG_BTRFS_FS": "m"
+   },
+   "objects": [
+    "fs/btrfs/dev-replace.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.4,
+   "stderr_tail": "",
+   "subject": "btrfs: take commit root semaphore when iterating in mark_block_group_to_copy()"
+  },
+  {
+   "all_compiled": true,
+   "commit": "a6bb6ad517a0d4db33a0cac9448e3ae9f4008fb4",
+   "compiled": {
+    "drivers/net/wireless/ti/wlcore/main.o": true
+   },
+   "fragment": {
+    "CONFIG_WLCORE": "m"
+   },
+   "objects": [
+    "drivers/net/wireless/ti/wlcore/main.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 8.0,
+   "stderr_tail": "",
+   "subject": "wifi: wlcore: release runtime PM ref on regdomain config failure"
+  },
+  {
+   "all_compiled": true,
+   "commit": "9d83c08dcce808c732988a5291e3ef4f59d09edb",
+   "compiled": {
+    "net/mac80211/main.o": true
+   },
+   "fragment": {},
+   "objects": [
+    "net/mac80211/main.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.3,
+   "stderr_tail": "",
+   "subject": "wifi: mac80211: add HE 6 GHz capability in the scan elems len"
+  },
+  {
+   "all_compiled": true,
+   "commit": "829fec45122da58d77a55a3b7ca514dafab98e77",
+   "compiled": {
+    "drivers/net/wwan/mhi_wwan_mbim.o": true
+   },
+   "fragment": {
+    "CONFIG_MHI_BUS": "m",
+    "CONFIG_MHI_WWAN_MBIM": "m",
+    "CONFIG_WWAN": "m"
+   },
+   "objects": [
+    "drivers/net/wwan/mhi_wwan_mbim.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 6.8,
+   "stderr_tail": "",
+   "subject": "net: wwan: mhi_wwan_mbim: guard against a cyclic NDP chain"
+  },
+  {
+   "all_compiled": true,
+   "commit": "cdc31537012bc7a58c95c6750db321b69dd802bb",
+   "compiled": {
+    "sound/usb/6fire/pcm.o": true
+   },
+   "fragment": {
+    "CONFIG_SND_USB_6FIRE": "m"
+   },
+   "objects": [
+    "sound/usb/6fire/pcm.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 6.7,
+   "stderr_tail": "",
+   "subject": "ALSA: 6fire: fix OOB write from device-reported iso length"
+  },
+  {
+   "all_compiled": true,
+   "commit": "9149e05699f7c7dfe6b83fe2140814ea21d52633",
+   "compiled": {
+    "drivers/infiniband/core/uverbs_flow.o": true
+   },
+   "fragment": {
+    "CONFIG_INFINIBAND": "m",
+    "CONFIG_INFINIBAND_USER_ACCESS": "m"
+   },
+   "objects": [
+    "drivers/infiniband/core/uverbs_flow.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 6.9,
+   "stderr_tail": "",
+   "subject": "RDMA/uverbs: Fix potential leak of resources->collection in flow_resources_alloc()"
+  },
+  {
+   "all_compiled": true,
+   "commit": "1de93785f32b450e9eae1e4fcfb7d03eb49eb27e",
+   "compiled": {
+    "drivers/dma/pxa_dma.o": true
+   },
+   "fragment": {
+    "CONFIG_COMPILE_TEST": "y",
+    "CONFIG_PXA_DMA": "y"
+   },
+   "objects": [
+    "drivers/dma/pxa_dma.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.0,
+   "stderr_tail": "",
+   "subject": "dmaengine: pxa: fix double counting of the hw descriptors"
+  },
+  {
+   "all_compiled": true,
+   "commit": "74607b440aa3a67b7f47399558a5bcbe088667a8",
+   "compiled": {
+    "drivers/input/misc/soc_button_array.o": true
+   },
+   "fragment": {
+    "CONFIG_GPIOLIB": "y",
+    "CONFIG_INPUT_SOC_BUTTON_ARRAY": "m",
+    "CONFIG_KEYBOARD_GPIO": "m"
+   },
+   "objects": [
+    "drivers/input/misc/soc_button_array.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 6.7,
+   "stderr_tail": "",
+   "subject": "Input: soc_button_array - fix MS Surface Pro 11 probe failure"
+  },
+  {
+   "all_compiled": true,
+   "commit": "96bb28b3f28ff2e1be3f9d4d3c691ce56f0502ce",
+   "compiled": {
+    "drivers/soundwire/dmi-quirks.o": true
+   },
+   "fragment": {
+    "CONFIG_SND_SOC": "m",
+    "CONFIG_SND_SOC_SDCA_OPTIONAL": "m",
+    "CONFIG_SOUNDWIRE": "m",
+    "CONFIG_SOUNDWIRE_INTEL": "m"
+   },
+   "objects": [
+    "drivers/soundwire/dmi-quirks.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 6.8,
+   "stderr_tail": "",
+   "subject": "soundwire: dmi-quirks: Disable ghost Realtek on Asus GX651AX"
+  },
+  {
+   "all_compiled": true,
+   "commit": "8dab6ee020b2cd951b670626ba44a95cd4deac3d",
+   "compiled": {
+    "drivers/net/wireless/rsi/rsi_91x_mgmt.o": true
+   },
+   "fragment": {
+    "CONFIG_RSI_91X": "m"
+   },
+   "objects": [
+    "drivers/net/wireless/rsi/rsi_91x_mgmt.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.1,
+   "stderr_tail": "",
+   "subject": "wifi: rsi: fix heap OOB write on key removal"
+  },
+  {
+   "all_compiled": true,
+   "commit": "cc563a59aded6f3b02d75dcc3c0bc5e90755d99e",
+   "compiled": {
+    "drivers/firmware/arm_scpi.o": true
+   },
+   "fragment": {
+    "CONFIG_ARM_SCPI_PROTOCOL": "m",
+    "CONFIG_COMPILE_TEST": "y"
+   },
+   "objects": [
+    "drivers/firmware/arm_scpi.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.7,
+   "stderr_tail": "",
+   "subject": "firmware: arm_scpi: reject DVFS OPP count above MAX_DVFS_OPPS"
+  },
+  {
+   "all_compiled": true,
+   "commit": "ea57100955c1c2a525ba1a98c18d9a05b25aeedb",
+   "compiled": {
+    "drivers/gpu/drm/gud/gud_pipe.o": true
+   },
+   "fragment": {
+    "CONFIG_DRM_GUD": "m"
+   },
+   "objects": [
+    "drivers/gpu/drm/gud/gud_pipe.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.7,
+   "stderr_tail": "",
+   "subject": "drm/gud: fix out-of-bounds write in gud_plane_atomic_check()"
+  },
+  {
+   "all_compiled": true,
+   "commit": "19959fb60228f6dccc40d55507f8b1a751c2dc89",
+   "compiled": {
+    "drivers/net/wireless/intel/ipw2x00/libipw_rx.o": true
+   },
+   "fragment": {
+    "CONFIG_IPW2200": "m",
+    "CONFIG_LIBIPW": "m"
+   },
+   "objects": [
+    "drivers/net/wireless/intel/ipw2x00/libipw_rx.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.0,
+   "stderr_tail": "",
+   "subject": "wifi: libipw: reject too-short beacon and probe responses"
+  },
+  {
+   "all_compiled": true,
+   "commit": "848297e6121e5d424b644c51b3fa60b87114d678",
+   "compiled": {
+    "drivers/pci/controller/dwc/pci-imx6.o": true
+   },
+   "fragment": {
+    "CONFIG_COMPILE_TEST": "y",
+    "CONFIG_PCI_IMX6": "y",
+    "CONFIG_PCI_IMX6_HOST": "y"
+   },
+   "objects": [
+    "drivers/pci/controller/dwc/pci-imx6.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.1,
+   "stderr_tail": "",
+   "subject": "PCI: imx6: Move clock enable after core reset assertion"
+  },
+  {
+   "all_compiled": true,
+   "commit": "82699d1b727ba5980b94f1eb8dc3d346f41b7c67",
+   "compiled": {
+    "net/bluetooth/coredump.o": true,
+    "net/bluetooth/hci_core.o": true
+   },
+   "fragment": {
+    "CONFIG_BT": "m",
+    "CONFIG_DEV_COREDUMP": "y",
+    "CONFIG_DRM_ETNAVIV": "m",
+    "CONFIG_WANT_DEV_COREDUMP": "y"
+   },
+   "objects": [
+    "net/bluetooth/coredump.o",
+    "net/bluetooth/hci_core.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 8.1,
+   "stderr_tail": "",
+   "subject": "Bluetooth: coredump: Quiesce dump work on unregister"
+  },
+  {
+   "all_compiled": true,
+   "commit": "47aa2ab6391d6dbb664f9ea8b410afc0324368bd",
+   "compiled": {
+    "fs/ntfs/mft.o": true,
+    "fs/ntfs/super.o": true
+   },
+   "fragment": {
+    "CONFIG_NTFS_FS": "m"
+   },
+   "objects": [
+    "fs/ntfs/mft.o",
+    "fs/ntfs/super.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 8.1,
+   "stderr_tail": "",
+   "subject": "ntfs: account for MFT records added during allocation"
+  },
+  {
+   "all_compiled": true,
+   "commit": "bb7ae8910cc886885aea95abb7c2e578a2341646",
+   "compiled": {
+    "drivers/net/wireless/intel/ipw2x00/libipw_crypto_tkip.o": true
+   },
+   "fragment": {
+    "CONFIG_IPW2200": "m",
+    "CONFIG_LIBIPW": "m"
+   },
+   "objects": [
+    "drivers/net/wireless/intel/ipw2x00/libipw_crypto_tkip.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 6.8,
+   "stderr_tail": "",
+   "subject": "wifi: libipw: reject TKIP frames without a full MIC"
+  },
+  {
+   "all_compiled": true,
+   "commit": "e8c6f660f3525845ed729916d391bd21fc531e62",
+   "compiled": {
+    "drivers/input/joystick/xpad.o": true
+   },
+   "fragment": {
+    "CONFIG_JOYSTICK_XPAD": "m"
+   },
+   "objects": [
+    "drivers/input/joystick/xpad.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 6.8,
+   "stderr_tail": "",
+   "subject": "Input: xpad - fix PDP Marvel Xbox 360 controller"
+  },
+  {
+   "all_compiled": true,
+   "commit": "22f313e211d58a66786c81487c3905fa5d4b2a8f",
+   "compiled": {
+    "net/netlink/af_netlink.o": true,
+    "net/netlink/diag.o": true
+   },
+   "fragment": {
+    "CONFIG_NETLINK_DIAG": "m"
+   },
+   "objects": [
+    "net/netlink/af_netlink.o",
+    "net/netlink/diag.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.5,
+   "stderr_tail": "",
+   "subject": "netlink: do not free nlk->groups while lockless readers can use it"
+  },
+  {
+   "all_compiled": true,
+   "commit": "00e0cb1c2916893378802282c0a2cdfc1da799da",
+   "compiled": {
+    "arch/x86/kernel/cpu/microcode/intel.o": true
+   },
+   "fragment": {},
+   "objects": [
+    "arch/x86/kernel/cpu/microcode/intel.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 6.9,
+   "stderr_tail": "",
+   "subject": "x86/microcode/intel: Reject problematic loading on Granite Rapids systems"
+  },
+  {
+   "all_compiled": true,
+   "commit": "db1ca0ffc56b30455fa9df5c275942251548146f",
+   "compiled": {
+    "mm/memblock.o": true
+   },
+   "fragment": {},
+   "objects": [
+    "mm/memblock.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.0,
+   "stderr_tail": "",
+   "subject": "mm: memblock: show all region flags in debugfs"
+  },
+  {
+   "all_compiled": true,
+   "commit": "e6660383ebf57723c69119029e36a3be7932bd60",
+   "compiled": {
+    "net/wireless/core.o": true
+   },
+   "fragment": {},
+   "objects": [
+    "net/wireless/core.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.8,
+   "stderr_tail": "",
+   "subject": "wifi: cfg80211: restore netns_immutable on failures"
+  },
+  {
+   "all_compiled": true,
+   "commit": "f1cc745295bc1f8c46fda185e708934c6c65a383",
+   "compiled": {
+    "drivers/i2c/busses/i2c-imx.o": true
+   },
+   "fragment": {
+    "CONFIG_COMPILE_TEST": "y",
+    "CONFIG_I2C_IMX": "m"
+   },
+   "objects": [
+    "drivers/i2c/busses/i2c-imx.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 6.8,
+   "stderr_tail": "",
+   "subject": "i2c: imx: release DMA channels on probe error"
+  },
+  {
+   "all_compiled": true,
+   "commit": "f2d482c6ae1734ca0da9fe71d7b5c04a1693503b",
+   "compiled": {
+    "drivers/phy/mediatek/phy-mtk-hdmi-mt8195.o": true
+   },
+   "fragment": {
+    "CONFIG_COMMON_CLK": "y",
+    "CONFIG_COMPILE_TEST": "y",
+    "CONFIG_GENERIC_PHY": "y",
+    "CONFIG_OF": "y",
+    "CONFIG_PHY_MTK_HDMI": "m",
+    "CONFIG_REGULATOR": "y"
+   },
+   "objects": [
+    "drivers/phy/mediatek/phy-mtk-hdmi-mt8195.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.3,
+   "stderr_tail": "",
+   "subject": "phy: mediatek: phy-mtk-hdmi-mt8195: Fix PLL calc divisor overflow"
+  },
+  {
+   "all_compiled": true,
+   "commit": "f4a621946395ff7d32d23059c9ba2026708d50e4",
+   "compiled": {
+    "net/core/drop_monitor.o": true
+   },
+   "fragment": {
+    "CONFIG_NET_DROP_MONITOR": "m"
+   },
+   "objects": [
+    "net/core/drop_monitor.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.8,
+   "stderr_tail": "",
+   "subject": "drop_monitor: use raw_cpu_ptr() in tracepoint probes"
+  },
+  {
+   "all_compiled": true,
+   "commit": "ec99748122b2b441f062c0f20253d6b31c833172",
+   "compiled": {
+    "drivers/gpu/drm/xe/xe_mmio_gem.o": true
+   },
+   "fragment": {
+    "CONFIG_DRM_XE": "m"
+   },
+   "objects": [
+    "drivers/gpu/drm/xe/xe_mmio_gem.o"
+   ],
+   "rc_make": 0,
+   "rc_olddefconfig": 0,
+   "seconds": 7.2,
+   "stderr_tail": "",
+   "subject": "drm/xe/mmio_gem: use write-back mapping for dummy page"
+  }
+ ],
+ "sampled": 40,
+ "seed": 0
+}

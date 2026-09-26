@@ -13,6 +13,9 @@
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric}
 \newcommand{\tool}{\textsc{kfold}\xspace}
 \newcommand{\kmax}{\textsc{Kmax}\xspace}
+\input{numbers}
+\xspaceaddexceptions{\% \,}
+\makeatletter\newcommand{\tablebody}[1]{\@@input tables/#1.tex }\makeatother
 
 \AtBeginDocument{%
   \providecommand\BibTeX{{Bib\TeX}}}
@@ -47,7 +50,7 @@
 \begin{abstract}
 Kbuild Makefiles decide which objects enter the build of Linux and other configurable systems. A maintainer who asks why a file was not compiled, or which options would compile it, needs the option condition under which each object is built, but running Make reveals only the objects of one configuration. Computing these conditions statically requires following assignments whose destination depends on an option, overwrites that apply in only some configurations, composite objects, included fragments, directories reached along several paths, and objects that Kbuild builds only because a rule needs them. Executing a Makefile symbolically with one state per branch combination does not scale: on a generated Makefile with 16 independent options, a forking executor tracks more than half a million states. We present \tool, which executes Kbuild Makefiles with a Boolean guard on every word of every variable. Appends add guarded words, a conditional overwrite re-guards the words it replaces, and the two arms of a conditional merge into one state at \texttt{endif}, so the state stays linear in the number of words. A directory worklist propagates to each Makefile only the part of an incoming guard not already covered, and a closure over rules adds the objects that selected files depend on.
 
-We evaluate \tool on Linux v6.6 and four other Kbuild-based systems by evaluating its conditions under concrete configurations and comparing the predictions with the objects of real builds and with GNU Make's own expansion of each Makefile. On four Linux configurations, from \texttt{tinyconfig} to \texttt{allmodconfig}, \tool's predicted objects are exactly the compiled objects: 489 to 25,949 objects, with no false positive and no miss. Per Makefile, its target lists match GNU Make for all 922 to 12,605 active targets. \tool analyzes the 2,022 Makefile instances of the Linux x86 tree in 34\,s and 162\,MB, and its time stays flat on generated Makefiles where the forking executor times out. These results show that per-word guards, together with a faithful model of Kbuild's build semantics, yield object-selection conditions that are both scalable and exact at kernel scale.
+We evaluate \tool on Linux \NLinuxVersion and four other Kbuild-based systems by evaluating its conditions under concrete configurations and comparing the predictions with the objects of fresh builds. On four Linux configurations, from \texttt{tinyconfig} to \texttt{allmodconfig}, every object that \tool predicts is compiled and every compiled object that it extracts is predicted: \NLinuxTinyconfigTp to \NLinuxAllmodconfigTp objects, with no false positive and no miss. The same holds for the other four systems. \tool analyzes the \NLinuxInstances Makefile instances of the Linux x86 tree in \NLinuxSeconds\,s and \NLinuxRss\,MB, and its time stays flat on generated Makefiles where the forking executor times out. Its conditions explain the build status of all \NWhyCases sampled Linux objects and, combined with a Kconfig model, yield verified configurations for \NConfigforSelectable of the \NConfigforCommits commits of a Linux stable update that touch C or assembly files. These results show that per-word guards, together with a faithful model of Kbuild's build semantics, yield object-selection conditions that are both scalable and accurate at kernel scale.
 \end{abstract}
 
 \begin{CCSXML}
@@ -69,18 +72,18 @@ Recovering these conditions requires more than collecting the \texttt{CONFIG\_*}
 \end{center}
 The first line appends \texttt{net\_core.o} to \texttt{obj-y} when \texttt{CONFIG\_NET=y}. The second computes its destination from \texttt{CONFIG\_FAST}: when that option is \texttt{y}, it \emph{replaces} \texttt{obj-y}; otherwise it assigns an unselected variable such as \texttt{obj-} and leaves \texttt{obj-y} alone. The correct condition for \texttt{net\_core.o} is therefore $\texttt{CONFIG\_NET}\land\neg\texttt{CONFIG\_FAST}$. Further conditions come from \texttt{ifeq} blocks, from composite objects whose members are listed in other variables, from fragments included with \texttt{include}, from the chain of parent directories through which Kbuild reaches a Makefile, and from rules: the Linux boot image, real-mode trampoline, and vDSO consist of objects that no target list names and that Kbuild builds only because a rule needs them.
 
-Symbolic execution is a natural way to compute such conditions, because it evaluates Make's assignments and expansions as written while tracking the configurations under which each result holds. Its classic form keeps one state per path. An earlier symbolic executor for Kbuild Makefiles~\cite{nguyen2020using} forks a state at each conditional and merges only identical paths. Kbuild Makefiles, however, consist largely of independent conditional assignments, and each one that changes a value can double the number of distinct states. On a generated Makefile with 16 independent \texttt{ifeq} blocks that each append to a helper list, that executor tracks 524,289 states and needs 185\,s and 1.7\,GB; with 20 blocks it does not finish within five minutes (\Cref{sec:eval:scale}). The Linux x86 tree has 2,022 Makefile instances with thousands of such assignments.
+Symbolic execution is a natural way to compute such conditions, because it evaluates Make's assignments and expansions as written while tracking the configurations under which each result holds. Its classic form keeps one state per path. An earlier symbolic executor for Kbuild Makefiles~\cite{nguyen2020using} forks a state at each conditional and merges only identical paths. Kbuild Makefiles, however, consist largely of independent conditional assignments, and each one that changes a value can double the number of distinct states. On a generated Makefile with 16 independent \texttt{ifeq} blocks that each append to a helper list, that executor tracks \NBenchIndirectOSStates states and needs \NBenchIndirectOSSeconds\,s; with 20 blocks it does not finish within five minutes (\Cref{sec:eval:scale}). The Linux x86 tree has \NLinuxInstances Makefile instances with thousands of such assignments.
 
 \tool starts from the observation that Kbuild object lists are used as \emph{sets}: an object is either in \texttt{obj-y} or it is not. \tool therefore attaches a guard to each word rather than keeping one state per configuration. In the example, \texttt{obj-y} holds \texttt{net\_core.o} under $\texttt{CONFIG\_NET}\land\neg\texttt{CONFIG\_FAST}$ and \texttt{fast\_net.o} under \texttt{CONFIG\_FAST}. A conditional overwrite conjoins the negation of its own guard onto the words it may replace. For an \texttt{ifeq} block, \tool executes each arm on a copy of the state and merges the copies at \texttt{endif}, so one state continues after every conditional and $k$ guarded appends yield $k$ guarded words. Across directories, a worklist records for each Makefile the disjunction of guards already propagated to it and processes only the uncovered part of a new guard. On top of this representation, \tool models the parts of Kbuild's build semantics that decide which object files exist: composite members, the rule that built-in objects need a built-in route to their directory, host and user programs, and a closure over rules and sub-makes.
 
-A scalable representation is useful only if its conditions are right, and the strongest evidence for that is agreement with real builds. We therefore evaluate \tool's conditions under concrete configurations against two references: the \texttt{.o} files that a build of that configuration produces, and GNU Make's expansion of the target lists in each traversed Makefile. The subjects are Linux v6.6 under four configurations, BusyBox, coreboot, Barebox, and Das U-Boot. On all four Linux configurations, \tool's predicted set equals the set of compiled objects, from 489 objects for \texttt{tinyconfig} to 25,949 for \texttt{allmodconfig}. Per Makefile, its target lists agree with GNU Make on every one of 922 to 12,605 active targets. \tool analyzes the Linux x86 tree in 34\,s and 162\,MB. On the same tree, \kmax~\cite{gazzillo2017kmax}, a static analysis that also carries configuration conditions on values, needs 86 minutes, fails on three directories that exceed a 12\,GB memory limit, and misses up to 7,902 compiled objects that it extracts.
+A scalable representation is useful only if its conditions are right, and the strongest evidence for that is agreement with real builds. We therefore evaluate \tool's conditions under concrete configurations against the \texttt{.o} files that a fresh build of each configuration produces. The subjects are the current releases of Linux, under four configurations, and of BusyBox, Barebox, Das U-Boot, and coreboot. On all four Linux configurations, every predicted object is compiled and every compiled object that \tool extracts is predicted, from \NLinuxTinyconfigTp objects for \texttt{tinyconfig} to \NLinuxAllmodconfigTp for \texttt{allmodconfig}; the compiled objects that it does not extract are host tools and objects that Makefiles define through \texttt{\$(eval)}. \tool analyzes the Linux x86 tree in \NLinuxSeconds\,s and \NLinuxRss\,MB. On the same tree, \kmax~\cite{gazzillo2017kmax}, a static analysis that also carries configuration conditions on values, needs \NLinuxKmaxSeconds\,s and \NLinuxKmaxRssGb\,GB and misses up to \NLinuxKmaxAllmodconfigWithDirsFn compiled objects that it extracts. Built on these conditions, \tool's \texttt{why} command explains the build status of every sampled object, and its \texttt{config-for} command produces verified configurations for the files that real stable-kernel patches touch.
 
 This paper makes the following contributions:
 \begin{enumerate}
 \item A per-word guarded representation of Make variables, with guarded append, conditional overwrite, and branch merge operations for Kbuild-style assignments with computed names, and an expansion that preserves Make's semantics for word lists, partially defined variables, substitution references, and deferred appends (\Cref{sec:design:assign,sec:design:expand,sec:design:merge}).
 \item A conditional directory worklist that propagates only uncovered guards, static splicing of included fragments, and a model of Kbuild's build semantics, including built-in routes and a closure over rules and sub-makes (\Cref{sec:design:worklist,sec:design:include,sec:design:build}).
-\item \tool, an implementation that supports the target families, composite objects, and top-level entry points of five Kbuild dialects, and a web interface for querying Linux conditions (\Cref{sec:design:targets,sec:implementation}).
-\item An evaluation against physical builds and GNU Make on five systems, with exact agreement on four Linux configurations, a scalability comparison with a forking symbolic executor and with \kmax, and an ablation of each design element (\Cref{sec:eval}).
+\item \tool, an implementation that supports the target families, composite objects, and top-level entry points of five Kbuild dialects, and commands that explain an object's build status, find configurations for a patch, and list code that no given configuration builds (\Cref{sec:design:targets,sec:implementation}).
+\item An evaluation against fresh builds of five systems, with no false positive and no in-set miss on any configuration, a scalability comparison with a forking symbolic executor and with \kmax, an evaluation of the commands on sampled objects and real patches, and an ablation of each design element (\Cref{sec:eval}).
 \end{enumerate}
 
 \section{Overview}
@@ -265,6 +268,7 @@ Text functions and \texttt{call} & Guarded alternatives & Concatenations above 6
 \texttt{include} & Spliced when the path resolves statically & Unresolved paths contribute nothing. \\
 Rules and sub-makes & Prerequisites followed from selected files & Recipes other than sub-makes are not executed. \\
 \texttt{\$(shell ...)} & Concrete subprocess (none in sandbox mode) & Host environment may affect results. \\
+\texttt{\$(eval ...)} & Not executed & Variables and objects it defines are missed. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -305,9 +309,9 @@ The lists say which objects are \emph{selected}; which object files Kbuild write
 
 \emph{Built-in composites.} When a composite is built into the kernel, Kbuild links its members into the directory's archive and writes no object for the container. Only a module's composite, such as \texttt{fs/ext2/ext2.o} under \texttt{CONFIG\_EXT2\_FS=m}, has its own object. \tool therefore reports a container only through \texttt{obj-m}.
 
-\emph{Built-in routes.} Kbuild builds a directory's \texttt{built-in.a}, and with it the directory's \texttt{obj-y} objects, only if the parent reached the directory through \texttt{obj-y} (the \texttt{need-builtin} flag). A directory reached only through \texttt{obj-m} or \texttt{subdir-y} builds its modules, \texttt{lib-y}, and \texttt{extra-y} objects but not its \texttt{obj-y} objects. Under \texttt{allmodconfig}, for example, \texttt{drivers/video/fbdev/mmp/} is entered through \texttt{obj-\$(CONFIG\_MMP\_DISP)} with \texttt{CONFIG\_MMP\_DISP=m}, so its built-in \texttt{mmp\_ctrl.o} is not built even though \texttt{CONFIG\_MMP\_DISP\_CONTROLLER=y}. \tool computes, for every Makefile, the guard under which it is reached through \texttt{obj-y} entries only, as a fixpoint over the analyzed instances starting from the entry directories, and conjoins it with the conditions of \texttt{obj-y} objects.
+\emph{Built-in routes.} Kbuild builds a directory's \texttt{built-in.a}, and with it the directory's \texttt{obj-y} objects, only if the parent reached the directory through \texttt{obj-y} (the \texttt{need-builtin} flag). A directory reached only through \texttt{obj-m} or \texttt{subdir-y} builds its modules, \texttt{lib-y}, and \texttt{extra-y} objects but not its \texttt{obj-y} objects. Under \texttt{allmodconfig}, for example, \texttt{drivers/video/fbdev/mmp/hw/} is entered through \texttt{obj-\$(CONFIG\_MMP\_DISP)} with \texttt{CONFIG\_MMP\_DISP=m}, so its built-in \texttt{mmp\_ctrl.o} is not built even though \texttt{CONFIG\_MMP\_DISP\_CONTROLLER=y}. \tool computes, for every Makefile, the guard under which it is reached through \texttt{obj-y} entries only, as a fixpoint over the analyzed instances starting from the entry directories, and conjoins it with the conditions of \texttt{obj-y} objects.
 
-\emph{Rule prerequisites.} Some objects are in no list and are built only because a rule needs them. In \texttt{arch/x86/entry/vdso/Makefile}, \texttt{vdso-image-64.o} is in \texttt{obj-y}; Kbuild compiles it from the generated \texttt{vdso-image-64.c}, a pattern rule \texttt{\$(obj)/vdso-image-\%.c: \$(obj)/vdso\%.so.dbg} generates that file, and an explicit rule links \texttt{vdso64.so.dbg} from \texttt{\$(vobjs)}, which holds \texttt{vdso-note.o} and the other vDSO objects. \tool records each rule's targets and prerequisites, expanded under their guards, as guarded lists in the state, together with sub-make recipes of the form \texttt{\$(MAKE) \$(build)=\textit{dir} \textit{goal}}. The closure at line~24 then starts from every object in $\Phi$ and every configured goal and follows explicit rules, pattern rules, the implicit steps from \texttt{\%.o} to \texttt{\%.c} and \texttt{\%.S}, and sub-makes, which it analyzes on demand; every object reached is built under the conjunction of the guards along the way. As in GNU Make, a pattern rule applies only if each prerequisite exists or can be made, so \texttt{\$(obj)/\%-x32.o: \$(obj)/\%.o} does not demand a nonexistent \texttt{vdso-image.o}. The boot image, the compressed kernel, the real-mode trampoline, and \texttt{purgatory} are reached this way: the first through the goal \texttt{arch/x86/boot/bzImage}, the others through rules and sub-makes in the Makefiles themselves.
+\emph{Rule prerequisites.} Some objects are in no list and are built only because a rule needs them. In \texttt{arch/x86/entry/vdso/vdso64/}, an included fragment puts \texttt{vdso64-image.o} in \texttt{obj-y}; Kbuild compiles it from the generated \texttt{vdso64-image.c}, a pattern rule \texttt{\$(obj)/\%-image.c: \$(obj)/\%.so.dbg} generates that file, and an explicit rule links \texttt{vdso64.so.dbg} from \texttt{\$(vobjs)}, which holds \texttt{note.o} and the other vDSO objects. \tool records each rule's targets and prerequisites, expanded under their guards, as guarded lists in the state, together with sub-make recipes of the form \texttt{\$(MAKE) \$(build)=\textit{dir} \textit{goal}}. The closure at line~24 then starts from every object in $\Phi$ and every configured goal and follows explicit rules, pattern rules, the implicit steps from \texttt{\%.o} to \texttt{\%.c} and \texttt{\%.S}, and sub-makes, which it analyzes on demand; every object reached is built under the conjunction of the guards along the way. As in GNU Make, a pattern rule applies only if each prerequisite exists or can be made, so \texttt{\$(obj)/\%-x32.o: \$(obj)/\%.o} is not applied to a stem that has no object of its own. The boot image, the compressed kernel, the real-mode trampoline, and \texttt{purgatory} are reached this way: the first through the goal \texttt{arch/x86/boot/bzImage}, the others through rules and sub-makes in the Makefiles themselves.
 
 \emph{Link artifacts.} The final link of the kernel writes \texttt{vmlinux.o}, \texttt{init/version-timestamp.o}, \texttt{.vmlinux.export.o} under \texttt{CONFIG\_MODULES}, and two \texttt{.tmp\_vmlinux.kallsyms} objects under \texttt{CONFIG\_KALLSYMS}; the settings list them, following \texttt{scripts/link-vmlinux.sh}.
 
@@ -320,176 +324,137 @@ A formula ranges over the option values of the run's domain. The Boolean domain 
 
 \tool is written in Python and uses \texttt{pymake3} for parsing and Z3 for guards. Option values are finite Z3 enumeration sorts: a two-value sort or, when a project opts in, a three-value sort for \texttt{y}, \texttt{m}, and unset. Guards are built from equalities on these values with conjunction, disjunction, and negation, simplified after each operation; satisfiability queries drive state restriction and worklist propagation. \tool serializes each Makefile's executed state, including its recorded rules, into a per-run cache keyed by canonical path, so a later directory route can restrict the same state under a new guard without parsing the file again (\Cref{alg:extract}, line~12). The number of analyzed instances can therefore exceed the number of unique Makefiles. The runner also records the includes spliced or left unresolved and the files that failed to parse, and for each object path the Makefiles and variables or rules that contribute it.
 
-The project settings file lists the entry directories and goals, target families, family aliases, fixed definitions, link artifacts, and option domain, and switches the built-in semantics of \Cref{sec:design:build}. For Linux it has eight entry directories (the root, \texttt{lib/}, and six \texttt{arch/x86} directories, four of them guarded), one goal, and the definitions of \texttt{SRCARCH} and \texttt{BITS}. A sandbox mode, used by the web interface, replaces \texttt{\$(shell ...)} by the empty string and keeps include splicing inside the analyzed tree.
+The project settings file lists the entry directories and goals, target families, family aliases, fixed definitions, link artifacts, and option domain, and switches the built-in semantics of \Cref{sec:design:build}. For Linux it has seven entry directories (the root, \texttt{lib/}, and five \texttt{arch/x86} directories, three of them guarded), one goal, and the definitions of \texttt{SRCARCH} and \texttt{BITS}. A sandbox mode, used by the web interface, replaces \texttt{\$(shell ...)} by the empty string and keeps include splicing inside the analyzed tree.
 
-The web interface precomputes the Linux conditions into a table of 74,205 shared formula nodes. A developer can search any of the 29,245 object paths, see its condition and the Makefiles and variables that select it, check it against a pasted \texttt{.config}, list the objects a configuration builds, or analyze a Makefile of their own. On the four evaluated profiles its predictions equal \tool's own.
+\subsection{Developer commands}
+\label{sec:implementation:commands}
+A command-line interface answers questions from a cached whole-tree analysis. The cache stores every object's condition, kind, and contributing Makefiles, keyed by a digest of the analyzer and its options, and records the Makefiles and included files the analysis read, so that editing any of them invalidates it.
+
+\emph{\texttt{why}} takes an object and a \texttt{.config} and reports whether the object is built, together with its condition chain: the directory route by which Kbuild reaches its Makefile, the target-list line or composite that selects it, and each conjunct's value under the configuration. For an object that is not built, it names the first failing conjunct and the options responsible.
+
+\emph{\texttt{config-for}} takes a patch or a list of files, maps the touched \texttt{.c} and \texttt{.S} files to objects, and searches for a configuration that builds all of them. It conjoins the objects' conditions $\Phi_M$ with a Kconfig model $K$ restricted to the cone of options on which they depend, built with \texttt{kconfiglib} and extended for Kconfig syntax newer than that library. $K$ bounds each option from above by its dependencies and from below by its \texttt{select}s, and allows it to be on only through a \texttt{select}, an \texttt{imply}, a visible prompt, or an active default; it over-approximates Kconfig, because it does not decide which default applies. Z3 finds an assignment that changes as few options of a base \texttt{.config} as possible, and \texttt{config-for} emits it as a fragment. An object whose condition is unsatisfiable together with $K$, or that conflicts with another touched object, is reported with the reason. With verification, the fragment is applied with \texttt{make olddefconfig}, and \texttt{config-for} checks that every requested option survives and that \tool predicts every touched object under the result.
+
+\emph{\texttt{blindspots}} evaluates every condition under a set of configurations and reports the objects that none of them builds, grouped by the \texttt{MAINTAINERS} entry that owns the source file and labeled with a likely reason, such as an option of another architecture or an option that none of the configurations enables.
 
 \section{Evaluation}
 \label{sec:eval}
 
-We evaluate whether \tool's conditions predict the objects that concrete builds produce, whether its per-file semantics match GNU Make, how it scales, how it compares with \kmax, and which of its design elements matter. We ask five research questions:
+We evaluate whether \tool's conditions predict the objects that real builds produce, how it scales, whether its conditions support developer tasks, and how it compares with \kmax and with itself when design elements are removed. We ask four research questions:
 \begin{description}
-\item[RQ1 (build agreement)] When the conditions are evaluated under a normalized configuration, how many predicted objects are compiled, and how many compiled objects are predicted?
-\item[RQ2 (Make agreement)] Do \tool's per-file target lists match GNU Make's expansion of the same Makefiles under the same configuration?
-\item[RQ3 (scalability)] How do \tool's time and memory grow with the number of conditional assignments, compared with a forking symbolic executor and with \kmax, and what does a whole tree cost?
-\item[RQ4 (comparison)] How do \kmax's conditions compare with \tool's against the same builds?
-\item[RQ5 (ablation)] How much does each design element contribute to build agreement?
+\item[RQ1 (build agreement)] When the conditions are evaluated under a configuration, how many predicted objects are compiled, and how many compiled objects are predicted?
+\item[RQ2 (scalability)] How do \tool's time and memory grow with the number of conditional assignments, compared with a forking symbolic executor and with \kmax, and what does a whole tree cost?
+\item[RQ3 (developer tasks)] Do the conditions explain why an object is or is not built, produce configurations that compile the files a real patch touches, and find code that standard configurations never build?
+\item[RQ4 (comparison and ablation)] How do \kmax's conditions compare with \tool's against the same builds, and how much does each design element contribute?
 \end{description}
 
-\subsection{Subjects, configurations, and builds}
+\subsection{Subjects, builds, and setup}
 \label{sec:eval:subjects}
-The subjects are Linux v6.6 at commit \texttt{ffc253263a1375a65fa6c9f62a893e9767fbebfa}, BusyBox 1.36.1, coreboot 4.22.01, Barebox 2024.01.0, and Das U-Boot 2024.01. Linux and BusyBox are the two systems in \kmax's evaluation~\cite{gazzillo2017kmax}. Coreboot, Barebox, and U-Boot are firmware and bootloader projects whose Kbuild dialects add families for stages, pre-bootloader code, or special classes. The Linux source has two local edits that add \texttt{-std=gnu11} to Makefile flags; their diff hash is recorded in the artifact manifest. Each subject's entry settings copy the directory lists of its top-level Makefiles: 8 directories and one goal for Linux, 37 directories for U-Boot (the main-build \texttt{libs-y} list and \texttt{arch/sandbox/Makefile}), 15 for Barebox (\texttt{common-y}), 28 for BusyBox (\texttt{core-y} and \texttt{libs-y}), and 40 patterns for coreboot (\texttt{subdirs-y}, with globs for its \texttt{\$(wildcard \ldots)} terms).
+The subjects are the latest releases of five Kbuild-based systems (\Cref{tab:subjects}): Linux \NLinuxVersion, BusyBox \NBusyboxVersion, Barebox \NBareboxVersion, Das U-Boot \NUbootVersion, and coreboot \NCorebootVersion. Linux and BusyBox are the two systems in \kmax's evaluation~\cite{gazzillo2017kmax}; Barebox, U-Boot, and coreboot are bootloader and firmware projects whose Kbuild dialects add families for stages or pre-bootloader code. Each is an unmodified release tarball, checked against the published SHA-256 where the project publishes one. Linux has four configurations: i386 \texttt{tinyconfig}, x86-64 \texttt{defconfig}, the configuration of the Debian kernel package, and x86-64 \texttt{allmodconfig}; the others have one each. Each subject's settings copy the directory lists and goals of its top-level Makefiles, with each entry annotated with the lines it comes from; for Linux they name seven directories, three of them guarded, one goal, and the definitions of \texttt{SRCARCH} and \texttt{BITS}.
 
-\Cref{tab:profiles} lists each configuration and the status of its physical object inventory. Linux \texttt{tinyconfig} is an i386 build; the other Linux profiles are x86-64. Clean GCC 12 rebuilds of the normalized i386 \texttt{tinyconfig} and x86-64 \texttt{defconfig} reproduced their archived object-path sets exactly, with 489 and 2,874 paths. A fresh Barebox sandbox build likewise reproduced all 406 archived paths. A fresh U-Boot build compiled all 1,123 archived objects and 186 more, but final packaging failed because the Python \texttt{libfdt} module was unavailable; we report U-Boot against both inventories. The Debian and \texttt{allmodconfig} Linux profiles, BusyBox, and coreboot use archived inventories. The coreboot QEMU i440fx archive comes from a ROM build that did not complete.
+We built every configuration from scratch with \texttt{make -k}, from \NLinuxTinyconfigBuildMinutes minutes for \texttt{tinyconfig} to \NLinuxAllmodconfigBuildMinutes for \texttt{allmodconfig}, and took as the inventory $B_c$ every \texttt{.o} file in the build tree except the \texttt{*.mod.o} files that \texttt{modpost} generates. The builds deviate from stock only where the current toolchain or a missing external input requires it: the Debian configuration has its trusted-key lists emptied, \texttt{allmodconfig} has \texttt{-Werror} disabled so that new compiler warnings do not abort files, coreboot builds without a payload, and U-Boot's final image step fails after all objects have compiled. BusyBox's \texttt{networking/tc.c} no longer compiles against current kernel headers; objects that \texttt{make} attempted and failed to compile are reported separately from false positives.
 
 \begin{table}[t]
 \centering\footnotesize
-\caption{Configurations and physical inventories. ``Reproduced'' means that a fresh build produced the same set of object paths as the archive, not byte-identical objects.}
-\label{tab:profiles}
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{p{22mm}p{33mm}p{36mm}p{35mm}}
+\caption{Subjects, configurations, and the number of \texttt{.o} files in each fresh build.}
+\label{tab:subjects}
+\begin{tabular}{lllr}
 \toprule
-Subject & Configuration & Fresh build status & Inventory \\
+Subject & Version & Configuration & Objects built \\
 \midrule
-Linux & i386 tinyconfig & Completed with GCC 12 & 489 paths reproduced \\
-Linux & x86-64 defconfig & Completed with GCC 12 & 2,874 paths reproduced \\
-Linux & Debian x86-64 & Not rebuilt & 15,419 archived paths \\
-Linux & x86-64 allmodconfig & Not rebuilt & 25,949 archived paths \\
-Barebox & sandbox\_defconfig & Completed & 406 paths reproduced \\
-U-Boot & sandbox\_defconfig & Compilation completed; packaging failed & 1,123 archived, 1,309 fresh \\
-BusyBox & defconfig & Not rebuilt & 191 archived paths \\
-coreboot & QEMU i440fx & Not rebuilt & 674 paths from partial ROM build \\
+\tablebody{subjects}
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Metrics and reference sets}
-\label{sec:eval:method}
-\tool emits an extracted object-path set $U$ and a condition for each path. For a normalized configuration $c$, evaluating the conditions yields a predicted set $P_c\subseteq U$. The physical inventory $B_c$ is the set of \texttt{.o} paths in the build tree. We define $TP=|P_c\cap B_c|$, $FP=|P_c\setminus B_c|$, $FN_U=|(B_c\cap U)\setminus P_c|$, and $O=|B_c\setminus U|$. We report precision $TP/(TP+FP)$ and overlap $TP/|B_c|$, the fraction of all compiled objects that are predicted. Overlap charges \tool for every compiled object it does not extract, so it is the strict measure of completeness; $FN_U$ separately counts extracted objects whose condition evaluates to false although the object was compiled. The Linux archives hold only the kernel directories, not \texttt{tools/} or \texttt{scripts/}; a prediction under a top-level directory absent from an archive is reported separately rather than counted as a false positive.
+\emph{Metrics.} \tool emits an extracted object-path set $U$ and a condition for each path. For a configuration $c$, evaluating the conditions yields a predicted set $P_c\subseteq U$. We define $TP=|P_c\cap B_c|$, $FP=|P_c\setminus B_c|$, $FN_U=|(B_c\cap U)\setminus P_c|$, and $O=|B_c\setminus U|$, and report precision $TP/(TP+FP)$ and overlap $TP/|B_c|$. Overlap charges \tool for every compiled object it does not extract, including host tools under \texttt{scripts/} and \texttt{tools/}, which the analyzed Makefiles do not select; $FN_U$ separately counts extracted objects whose condition is false although the object was compiled. To evaluate a condition, the evaluator substitutes the value of every option in the \texttt{.config}, treating an option that is absent or ``is not set'' as unset.
 
-The second reference invokes GNU Make on each traversed Makefile from the source root, with \texttt{src} and \texttt{obj} naming its directory, the same fixed definitions, and the options of the same normalized configuration, and reads the expanded target lists. It compares these lists with the lists that \tool computes for that file alone, before directory guards are applied. This reference checks \tool's per-file Make semantics independently of directory reachability and build semantics. To evaluate a formula, the evaluator substitutes the configuration value of every option variable that appears in it, treating an option that is unset or ``is not set'' as \texttt{undef}; GNU Make likewise receives only the options that are set.
-
-\subsection{Setup}
-\label{sec:eval:setup}
-Experiments ran on an Intel Core i7-7700 with eight logical CPUs and 31\,GiB of RAM under Debian Linux, with Python 3.14.7, Z3 4.13.3, and GNU Make 4.4.1; clean Linux builds used GCC 12.5.0. Source revisions, archive hashes where available, configuration hashes, and build statuses are recorded in \texttt{evidence/manifest.json}. Each reported time is a single run, so small differences are descriptive only. The Linux analysis uses the tristate domain; the Debian profile, for example, assigns \texttt{m} to 3,934 options. \kmax v4.10 runs under \texttt{python3 -O}, with its debug mode also disabled in the processes it spawns; \Cref{sec:eval:kmax} describes its setup.
+\emph{Setup.} All runs used an Intel Core i7-7700 with eight logical CPUs and 31\,GiB of RAM under Debian Linux, with Python 3.14.7, Z3 4.13.3, GNU Make 4.4.1, and GCC 16.2.0. The Linux analysis uses the tristate domain. Whole-tree times are the median of three runs on an otherwise idle machine. One script regenerates every result, and every number in this section is generated from its output.
 
 \subsection{RQ1: Build agreement}
-\label{sec:eval:linux}
-On all four Linux profiles, \tool's predicted set is exactly the set of compiled objects (\Cref{tab:linux-physical}): every predicted object is compiled, and every compiled object is predicted. The predicted set grows from 489 paths for \texttt{tinyconfig} to 25,949 for \texttt{allmodconfig}; it includes the boot image, real-mode, vDSO, \texttt{purgatory}, and EFI-stub objects, composite members of modules, and the link artifacts. One further prediction lies outside the archives' scope: under \texttt{allmodconfig}, \texttt{drivers/nvdimm/Makefile} builds \texttt{\$(TEST\_SRC)/iomap.o} with \texttt{TEST\_SRC := ../../tools/testing/nvdimm/test}, whose object lands in \texttt{tools/}, which the archive omits. A fresh build of \texttt{drivers/nvdimm/} under the same configuration produced \texttt{tools/testing/nvdimm/test/iomap.o}, so this prediction is also correct.
+\label{sec:eval:agreement}
+On all four Linux configurations, every object that \tool predicts is compiled, and every compiled object that \tool extracts is predicted (\Cref{tab:linux-physical}): there is no false positive and no in-set miss, from \NLinuxTinyconfigPred predicted objects for \texttt{tinyconfig} to \NLinuxAllmodconfigPred for \texttt{allmodconfig}. The predictions include the boot image, real-mode, vDSO, and EFI-stub objects, composite members of modules, and the link artifacts. Overlap is \NLinuxTinyconfigOverlap--\NLinuxAllmodconfigOverlap\%. Of the compiled objects outside $U$, \NLinuxTinyconfigOuthost, \NLinuxDefconfigOuthost, \NLinuxDebianOuthost, and \NLinuxAllmodconfigOuthost are host tools; without them overlap is \NLinuxTinyconfigOverlapnohost, \NLinuxDefconfigOverlapnohost, \NLinuxDebianOverlapnohost, and \NLinuxAllmodconfigOverlapnohost\%. The remaining \NLinuxDefconfigOuttarget, \NLinuxDebianOuttarget, and \NLinuxAllmodconfigOuttarget objects on the three x86-64 configurations come, with one exception, from Makefiles that define their objects with \texttt{\$(eval \$(call \ldots))}, such as the Intel and Lenovo platform drivers, which \tool does not model (\Cref{sec:discussion:constructs}); the exception, \texttt{kernel/trace/undefsyms\_base.o}, is built only by a recipe. The last column shows that composite members are essential: counting only the words of target lists, \tool covers \NLinuxDebianTargetsoverlap--\NLinuxTinyconfigTargetsoverlap\% of each inventory.
 
 \begin{table}[t]
 \centering\footnotesize
-\caption{Predicted paths versus compiled Linux \texttt{.o} paths. $FN_U$ counts compiled extracted paths that are not predicted; $O$ counts compiled paths outside $U$.}
+\caption{Predicted versus compiled Linux \NLinuxVersion objects. $O$ counts compiled objects outside $U$, with host tools in parentheses. ``Targets'' is the overlap when composite members are not resolved.}
 \label{tab:linux-physical}
-\begin{tabular}{lrrrrrrr}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lrrrrrrrrr}
 \toprule
-Configuration & Pred. & TP & FP & $FN_U$ & $O$ & Prec. & Overlap \\
+Configuration & Built & Pred. & TP & FP & $FN_U$ & $O$ (host) & Prec. & Overlap & Targets \\
 \midrule
-\texttt{tinyconfig} (i386) & 489 & 489 & 0 & 0 & 0 & 100.0\% & 100.0\% \\
-\texttt{defconfig} (x86-64) & 2,874 & 2,874 & 0 & 0 & 0 & 100.0\% & 100.0\% \\
-Debian (x86-64) & 15,419 & 15,419 & 0 & 0 & 0 & 100.0\% & 100.0\% \\
-\texttt{allmodconfig} (x86-64) & 25,949 & 25,949 & 0 & 0 & 0 & 100.0\% & 100.0\% \\
+\tablebody{linux_agreement}
 \bottomrule
 \end{tabular}
 \end{table}
 
 \begin{table}[t]
 \centering\footnotesize
-\caption{Physical-path comparison for one configuration per non-Linux subject. U-Boot is shown against the archived and the fresh inventory; coreboot's archive is from a partial ROM build.}
+\caption{Predicted versus compiled objects for the other subjects. ``Failed'' counts predicted objects that \texttt{make} attempted but could not compile; they are not counted as false positives.}
 \label{tab:firmware-physical}
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lrrrrrrrr}
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lrrrrrrrrr}
 \toprule
-Subject & $|U|$ & Pred. & TP & FP & $FN_U$ & $O$ & Prec. & Overlap \\
+Subject & Built & Pred. & TP & FP & Failed & $FN_U$ & $O$ (host) & Prec. & Overlap \\
 \midrule
-BusyBox & 609 & 162 & 162 & 0 & 0 & 29 & 100.0\% & 84.8\% \\
-coreboot & 4,581 & 540 & 437 & 103 & 0 & 237 & 80.9\% & 64.8\% \\
-Barebox & 1,384 & 406 & 402 & 4 & 0 & 4 & 99.0\% & 99.0\% \\
-Das U-Boot (archived) & 3,148 & 1,029 & 952 & 77 & 0 & 171 & 92.5\% & 84.8\% \\
-Das U-Boot (fresh) & 3,150 & 1,029 & 1,029 & 0 & 0 & 280 & 100.0\% & 78.6\% \\
+\tablebody{other_agreement}
 \bottomrule
 \end{tabular}
 \end{table}
 
-The other dialects show high agreement with fewer build rules modeled (\Cref{tab:firmware-physical}); their settings do not enable the Linux semantics of \Cref{sec:design:build}. No subject has an extracted object that is compiled but not predicted. All 162 BusyBox predictions are compiled, and its 29 objects outside $U$ are \texttt{built-in.o} intermediates. Barebox reaches 99.0\% precision and overlap; its four outside objects are generated default-environment blobs and an image-metadata object. For U-Boot, all 77 predictions missing from the archived inventory appear in the fresh build, so against that build precision is 100\%; its outside objects there are 167 \texttt{built-in.o} intermediates, 96 host tools under \texttt{tools/} and \texttt{scripts/}, and 17 others. Coreboot is the hardest subject. Of its 237 outside objects, 115 are host utilities under \texttt{build/util/} and 104 belong to the SeaBIOS payload, an external project, so \tool predicts 437 of the 455 firmware objects. Its 103 false positives lie in the \texttt{verstage}, \texttt{smm}, and \texttt{decompressor} stages, which the top-level Makefile builds only for boards that need them and which this incomplete ROM build never produced.
+The other dialects agree as closely (\Cref{tab:firmware-physical}): no subject has a false positive or an in-set miss. The one BusyBox prediction that is not compiled is \texttt{networking/tc.o}, whose compilation fails. Without host tools, overlap is \NBusyboxDefconfigOverlapnohost\% for BusyBox, \NBareboxSandboxDefconfigOverlapnohost\% for Barebox, \NUbootSandboxDefconfigOverlapnohost\% for U-Boot, and \NCorebootQemuIFFZfxOverlapnohost\% for coreboot. The rest are BusyBox's \texttt{built-in.o} archives, which its older Kbuild writes as \texttt{.o} files; Barebox's link intermediates and generated blobs, such as its default environment; U-Boot's EFI example applications, which dedicated rules build; and coreboot's mainboard and SPI-driver objects, which its top-level Makefile adds through variables that our entry settings do not copy.
 
-\subsection{RQ2: Agreement with GNU Make}
-\label{sec:eval:gmake}
-Per Makefile, \tool's target lists agree exactly with GNU Make (\Cref{tab:linux-gmake}). Across the traversed Linux Makefiles, GNU Make reports 922, 1,837, 6,201, and 12,605 active targets for the four profiles, and \tool predicts exactly these. The agreement covers overwrites with computed names, nested conditionals, \texttt{\$(BITS)}-dependent names, word lists built from partially defined variables, substitution references, deferred appends, and the 118 spliced includes. It does not cover directory reachability or build semantics, which RQ1 tests.
-
-\begin{table}[t]
-\centering\footnotesize
-\caption{Linux per-file target lists: \tool versus GNU Make under the same normalized configurations. Each traversed Makefile is evaluated on its own.}
-\label{tab:linux-gmake}
-\begin{tabular}{lrrrrr}
-\toprule
-Profile & \tool active & Make active & TP & FP & FN \\
-\midrule
-Tiny i386 & 922 & 922 & 922 & 0 & 0 \\
-Defconfig & 1,837 & 1,837 & 1,837 & 0 & 0 \\
-Debian & 6,201 & 6,201 & 6,201 & 0 & 0 \\
-Allmodconfig & 12,605 & 12,605 & 12,605 & 0 & 0 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{RQ3: Scalability}
+\subsection{RQ2: Scalability}
 \label{sec:eval:scale}
-\emph{Controlled growth.} To isolate the effect of the representation, we generated Makefiles with $k$ independent options in four families: $k$ computed-name appends (\texttt{obj-\$(CONFIG\_A$_i$) += a$_i$.o}); $k$ \texttt{ifeq} blocks that each append to \texttt{obj-y}; $k$ \texttt{ifeq}/\texttt{else} blocks that set a variable used in an object name; and $k$ \texttt{ifeq} blocks that append to a helper list later appended to \texttt{obj-y}. For $k$ from 1 to 128 we ran \tool, the forking executor that \tool's per-word representation replaced (the same code base before that change, which forks at each conditional and merges identical paths), and \kmax with both of its output modes. Each run had a five-minute limit.
+\emph{Controlled growth.} To isolate the effect of the representation, we generated Makefiles with $k$ independent options in four families: $k$ computed-name appends (\texttt{obj-\$(CONFIG\_A$_i$) += a$_i$.o}); $k$ \texttt{ifeq} blocks that each append to \texttt{obj-y}; $k$ \texttt{ifeq}/\texttt{else} blocks that set a variable used in an object name (\emph{value}); and $k$ \texttt{ifeq} blocks that append to a helper list later appended to \texttt{obj-y} (\emph{indirect}). For $k$ from 1 to \NBenchMaxk we ran \tool, the forking executor that \tool's per-word representation replaced (the same code base before that change, which forks at each conditional and merges identical paths), and \kmax in both of its output modes, with a limit of \NBenchTimeout\,s per run.
 
-\Cref{tab:scale} shows that \tool's cost does not grow with $k$ in any family: every run takes 0.61--0.73\,s, most of it interpreter start-up, and 65--67\,MB, and every run reports exactly the expected objects. The forking executor's cost depends on how many distinct values the conditionals create. When conditionals only append distinct words to one list (\emph{ifeq}), it merges them into $k+1$ states, yet its time still grows to 266\,s at $k=64$ and exceeds the limit at $k=128$. When each conditional sets a value used in a name (\emph{value}) or extends a helper list (\emph{indirect}), the states multiply: 49,152 states and 76\,s at $k=12$ for \emph{value}, and 524,289 states, 185\,s, and 1.7\,GB at $k=16$ for \emph{indirect}; the next sizes time out. On \emph{append} its paths are cheap, because each computed-name assignment forks only on one option. \kmax stays below one second in its text output mode (\texttt{-u}), and its SMT output mode, which \texttt{kmaxall} uses, grows to 6.7\,s at $k=128$ on \emph{append}. On \emph{value}, both modes report $k$ objects that no build can produce, such as \texttt{c0\_\$(V0).o} with condition true, besides the $2k$ correct ones.
+\Cref{tab:scale} shows that \tool's cost does not grow with $k$: all \NBenchKfoldRuns runs take \NBenchKfoldMinSeconds--\NBenchKfoldMaxSeconds\,s, most of it interpreter start-up, and at most \NBenchKfoldMaxRss\,MB, and every run reports exactly the expected objects. The forking executor's cost depends on how many distinct values the conditionals create. On \emph{append}, each computed-name assignment forks on one option only, and on \emph{ifeq} it merges the arms into $k+1$ states, yet its time still grows to \NBenchIfeqSFSeconds\,s at $k=64$ and exceeds the limit at $k=128$. When each conditional sets a value used in a name or extends a helper list, the states multiply: \NBenchValueOTStates states at $k=12$ for \emph{value}, and \NBenchIndirectOSStates states and \NBenchIndirectOSSeconds\,s at $k=16$ for \emph{indirect}; the next sizes time out. \kmax stays below \NBenchKmaxMaxSeconds\,s in its text output mode and below \NBenchKmaxSmtMaxSeconds\,s in the SMT mode that \texttt{kmaxall} uses, so this benchmark separates per-word guards from path forking rather than \tool from \kmax. On \emph{value}, both \kmax modes report $k$ objects that no build can produce, such as \texttt{c0\_\$(V0).o}, besides the $2k$ correct ones.
 
 \begin{table}[t]
 \centering\footnotesize
-\caption{Controlled growth: wall time in seconds on generated Makefiles with $k$ independent options, one run each, five-minute limit (``---''). The forking column also gives the number of states. $^*$\kmax additionally reports $k$ objects with unexpanded names.}
+\caption{Controlled growth on generated Makefiles with $k$ independent options: states and seconds of the forking executor per family, and the slowest \tool and \kmax (text mode) run over all four families. Times include about 0.5\,s of start-up. ``t/o'' marks the \NBenchTimeout\,s limit and ``--'' a run skipped after a smaller $k$ timed out.}
 \label{tab:scale}
-\begin{tabular}{lrrrrr}
+\begin{tabular}{rrrrrr}
 \toprule
-Family & $k$ & \tool & Forking (states) & \kmax \texttt{-u} & \kmax SMT \\
+& \multicolumn{3}{c}{Forking: states / time (s)} & \tool & \kmax \\
+\cmidrule(lr){2-4}
+$k$ & \emph{ifeq} & \emph{value} & \emph{indirect} & time (s) & time (s) \\
 \midrule
-append & 8 & 0.63 & 0.51 (16) & 0.68 & 0.71 \\
-append & 32 & 0.62 & 0.55 (64) & 0.70 & 0.99 \\
-append & 128 & 0.63 & 0.62 (256) & 0.80 & 6.73 \\
-\midrule
-ifeq & 16 & 0.62 & 1.50 (17) & 0.70 & 0.71 \\
-ifeq & 64 & 0.62 & 265.79 (65) & 0.75 & 0.82 \\
-ifeq & 128 & 0.62 & --- & 0.81 & 0.94 \\
-\midrule
-value & 8 & 0.62 & 3.18 (2,048) & 0.69$^*$ & 0.71$^*$ \\
-value & 12 & 0.62 & 75.51 (49,152) & 0.70$^*$ & 0.72$^*$ \\
-value & 128 & 0.73 & --- & 0.90$^*$ & 1.10$^*$ \\
-\midrule
-indirect & 12 & 0.62 & 8.65 (24,577) & 0.68 & 0.70 \\
-indirect & 16 & 0.62 & 184.59 (524,289) & 0.69 & 0.71 \\
-indirect & 128 & 0.62 & --- & 0.82 & 0.93 \\
+\tablebody{scaling}
 \bottomrule
 \end{tabular}
 \end{table}
 
-\emph{Whole trees.} \Cref{tab:corpus} gives \tool's cost on the five subjects. The Linux x86 analysis traverses 2,022 Makefile instances, splices 118 includes, and yields 29,245 object paths in 34.0\,s with a peak resident size of 162\,MB and 82,405 Z3 checks; the rule closure and built-in routes are included. The four other subjects take 0.27--8.0\,s. For comparison, \kmax needed 5,174\,s for the same Linux tree and exceeded a 12\,GB memory limit on three directories (\Cref{sec:eval:kmax}).
+\emph{Whole trees.} \Cref{tab:corpus} gives \tool's cost on the five subjects. For Linux, it analyzes \NLinuxInstances Makefile instances and extracts \NLinuxObjects object paths (\NLinuxTargets target words and \NLinuxMembers composite members, plus programs and rule prerequisites) in \NLinuxSeconds\,s with \NLinuxRss\,MB and \NLinuxZTchecks Z3 checks; the rule closure and built-in routes are included. The other subjects take \NBusyboxSeconds--\NCorebootSeconds\,s. The analysis runs once per tree revision; the developer commands of RQ3 reuse its cached result. On the same Linux tree, \kmax takes \NLinuxKmaxSeconds\,s and \NLinuxKmaxRssGb\,GB (\Cref{sec:eval:kmax}).
 
 \begin{table}[t]
 \centering\footnotesize
-\caption{\tool runs on the five subjects. Paths include composite members, program objects, and rule prerequisites. Each time is one run on the machine of \Cref{sec:eval:setup}; memory is peak resident size.}
+\caption{Whole-tree analysis: median time of three runs and peak resident memory. Object paths include composite members, programs, and rule prerequisites.}
 \label{tab:corpus}
-\begin{tabular}{lrrrrr}
+\begin{tabular}{lrrrr}
 \toprule
-Subject & Makefile instances & Object paths & Includes spliced & Time (s) & Memory (MB) \\
+Subject & Makefile instances & Object paths & Time (s) & Memory (MB) \\
 \midrule
-BusyBox & 29 & 609 & 0 & 0.27 & 66 \\
-coreboot & 458 & 4,594 & 0 & 7.98 & 90 \\
-Barebox & 160 & 1,436 & 0 & 0.96 & 92 \\
-Das U-Boot & 289 & 3,209 & 0 & 3.02 & 95 \\
-Linux v6.6 x86 & 2,022 & 29,245 & 118 & 34.05 & 162 \\
+\tablebody{timing}
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{RQ4: Comparison with \kmax}
-\label{sec:eval:kmax}
-We ran \kmax v4.10 the way it analyzes a whole tree: \texttt{kmaxall} in tristate mode from Linux's root \texttt{Kbuild} with \texttt{SRCARCH=x86}, plus \texttt{lib/}. As distributed, \texttt{kmaxall} stops the whole run with a Python~3 \texttt{TypeError} when any directory fails; it did so after 37 directories, at \texttt{fs/hostfs/}. We ran a copy with that one error-reporting call fixed. \kmax then analyzed 2,016 directories in 5,174\,s. Three directories, \texttt{sound/soc/codecs/}, \texttt{drivers/mfd/}, and \texttt{drivers/i2c/busses/}, raised \texttt{MemoryError} under a 12\,GB address-space limit that we set to protect the machine, and \texttt{fs/hostfs/} failed with an internal \texttt{KeyError}; their objects are absent from \kmax's output. \kmax reports 28,377 object paths and 29 further paths with unexpanded references, such as \texttt{arch/x86/kernel/apic/probe\_\$(BITS).o}, which no build can produce. Its output gives each object a condition relative to its own Makefile and records each subdirectory's condition separately; we evaluated both the local conditions and conditions conjoined with every ancestor directory's recorded condition.
+\subsection{RQ3: Developer tasks}
+\label{sec:eval:developer}
+We ran the three commands of \Cref{sec:implementation:commands} on Linux, using the cached whole-tree analysis.
 
-\Cref{tab:kmax} compares the two tools on the same four Linux builds. \kmax's local conditions predict too many objects on small configurations: on \texttt{tinyconfig}, 855 of its 1,252 predictions are not compiled, most of them in directories that the build never enters. Conjoining the directory conditions removes most of these false positives but loses the whole \texttt{arch/x86/} subtree, because \kmax records a condition for \texttt{arch/x86/} that is a disjunction of \texttt{=m} values of unrelated options such as \texttt{CONFIG\_BLOCK} and is false in all four configurations. In both variants, \kmax misses between 21 and 7,902 compiled objects that it extracts. We checked which of these are composite members in \tool's analysis: 882 of 918, 5,425 of 5,472, and 7,428 of 7,479 on the three x86-64 profiles with local conditions. \kmax gives a composite's members the condition that the container's option is \texttt{y}, so members of a composite built as a module are never predicted; \texttt{fs/ext2/symlink.o}, for example, requires \texttt{CONFIG\_EXT2\_FS=y}, while \texttt{allmodconfig} sets it to \texttt{m}. On BusyBox, the two tools agree exactly: both extract 609 objects and predict the same 162 compiled objects with no false positive; \kmax takes 25.6\,s and \tool 0.27\,s.
+\emph{Explaining a build (\texttt{why}).} For each of the four built configurations, we drew a seeded random sample of \NWhyPerSide extracted objects that the build produced and \NWhyPerSide that it did not. For all \NWhyCorrect of \NWhyCases objects, the verdict of \texttt{why} matches the build. For an object that is not built, \texttt{why} names the first part of the condition chain that fails: a directory route in \NWhyFailDirectoryRoute cases, the target-list line in \NWhyFailTargetListLine, and composite membership in \NWhyFailCompositeMembership. A directory route explains, for instance, the objects under \texttt{drivers/net/wireless/} under \texttt{tinyconfig}, where the build never enters that directory whatever the objects' own lines say.
+
+\emph{Configurations for real patches (\texttt{config-for}).} We used every commit of the Linux 7.2.7-to-7.2.8 stable update that touches a \texttt{.c} or \texttt{.S} file, \NConfigforCommits commits, and ran \texttt{config-for} on each as a patch against \texttt{defconfig}, with verification: the fragment is applied with \texttt{make olddefconfig} and every requested option is checked in the result. For \NConfigforSelectable commits, \texttt{config-for} produces a verified configuration under which \tool predicts every touched object. In \NConfigforUnmapped commits no touched file is an object of the x86 tree (for example, selftests and other architectures). In the remaining \NConfigforExcluded commits, \texttt{config-for} reports a touched object as impossible under Kconfig and Kbuild together; each of these objects needs an option of another architecture, such as \texttt{ARCH\_K3} on arm64 or \texttt{SPARC}. In every verified configuration, each option that the fragment sets survives \texttt{olddefconfig}. The median query takes \NConfigforMedianSeconds\,s including verification. From the \NConfigforSelectable selectable commits we drew \NCompileSampled at random, applied each verified configuration to a copy of the \texttt{defconfig} build tree, and compiled the touched objects: they compiled for \NCompileOk of the \NCompileSampled commits. The Kconfig model used by \texttt{config-for} is checked separately on \texttt{tinyconfig}, \texttt{defconfig}, Debian, \texttt{allmodconfig}, and \texttt{allyesconfig}: the values that \texttt{kconfiglib} computes agree with those that \texttt{scripts/kconfig} wrote for all \NKconfigDefined options except \NKconfigMismatches under \texttt{allmodconfig}, and each of the five configurations satisfies $K$, so $K$ does not exclude any of them.
+
+\emph{Blind spots.} We asked which extracted objects none of x86-64 \texttt{allmodconfig}, \texttt{allyesconfig}, and \texttt{defconfig} builds. \tool finds \NBlindBlindSpots of \NBlindObjectsConsidered objects, owned by \NBlindEntriesWithBlindSpots \texttt{MAINTAINERS} entries. Of these, \NBlindArch need an option of another architecture, such as \texttt{CONFIG\_S390}; \NBlindNotenabled need an option that none of the three configurations enables, and \texttt{blindspots} names it; the remaining \NBlindNopivot have no single such option, among them the containers of built-in composites, which Kbuild never writes as files. The query shows maintainers which code the usual test configurations never compile.
+
+\subsection{RQ4: Comparison with \kmax and ablation}
+\label{sec:eval:kmax}
+\emph{\kmax.} We ran \kmax v4.10 the way it analyzes a whole tree: \texttt{kmaxall} in tristate mode from Linux's root \texttt{Kbuild} with \texttt{SRCARCH=x86}, plus \texttt{lib/}, under \texttt{python3 -O}. As distributed, \texttt{kmaxall} aborts the whole run with a Python~3 \texttt{TypeError} when any directory fails, so we ran a copy with that one error-reporting call fixed. \kmax took \NLinuxKmaxSeconds\,s and \NLinuxKmaxRssGb\,GB of memory; \texttt{fs/hostfs/} failed with an internal \texttt{KeyError}. It reports \NLinuxKmaxObjects object paths, \NLinuxKmaxUnexpanded of them with unexpanded references such as \texttt{arch/x86/kernel/apic/probe\_\$(BITS).o}. Its output gives each object a condition relative to its own Makefile and records each subdirectory's condition separately; we evaluated both the local conditions and the conditions conjoined with every ancestor directory's.
+
+\Cref{tab:kmax} compares the two tools on the same four builds. \kmax's local conditions predict too many objects on small configurations: on \texttt{tinyconfig}, its precision is \NLinuxKmaxTinyconfigLocalPrec\%, with many false positives in directories that the build never enters, such as \texttt{drivers/acpi/}. Conjoining the directory conditions raises precision but lowers overlap. In both variants, \kmax misses between \NLinuxKmaxTinyconfigLocalFn and \NLinuxKmaxAllmodconfigWithDirsFn compiled objects that it extracts. On the three x86-64 configurations, most of them are composite members in \tool's analysis (\NLinuxKmaxAllmodconfigLocalFnMembers of \NLinuxKmaxAllmodconfigLocalFn under \texttt{allmodconfig} with local conditions): \kmax gives a composite's members the condition that the container's option is \texttt{y}, so members of a composite built as a module are never predicted. On BusyBox, which has no composites, the tools agree: both predict \NBusyboxKmaxDefconfigLocalTp compiled objects with no in-set miss; \kmax takes \NBusyboxKmaxSeconds\,s and \tool \NBusyboxSeconds\,s.
 
 \begin{table}[t]
 \centering\footnotesize
@@ -500,63 +465,60 @@ We ran \kmax v4.10 the way it analyzes a whole tree: \texttt{kmaxall} in tristat
 \toprule
 & \multicolumn{2}{c}{\tool} & \multicolumn{2}{c}{\kmax local} & \multicolumn{2}{c}{\kmax with dirs} \\
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
-Profile & P / O & $FN_U$ & P / O & $FN_U$ & P / O & $FN_U$ \\
+Configuration & P / O & $FN_U$ & P / O & $FN_U$ & P / O & $FN_U$ \\
 \midrule
-\texttt{tinyconfig} & 100.0 / 100.0 & 0 & 31.7 / 81.2 & 21 & 96.1 / 59.9 & 125 \\
-\texttt{defconfig} & 100.0 / 100.0 & 0 & 73.8 / 63.2 & 918 & 82.6 / 56.5 & 1,111 \\
-Debian & 100.0 / 100.0 & 0 & 93.7 / 58.7 & 5,472 & 95.6 / 56.7 & 5,782 \\
-\texttt{allmodconfig} & 100.0 / 100.0 & 0 & 96.5 / 64.2 & 7,479 & 97.6 / 62.6 & 7,902 \\
+\texttt{tinyconfig} & \NLinuxTinyconfigPrec\,/\,\NLinuxTinyconfigOverlap & \NLinuxTinyconfigFn & \NLinuxKmaxTinyconfigLocalPrec\,/\,\NLinuxKmaxTinyconfigLocalOverlap & \NLinuxKmaxTinyconfigLocalFn & \NLinuxKmaxTinyconfigWithDirsPrec\,/\,\NLinuxKmaxTinyconfigWithDirsOverlap & \NLinuxKmaxTinyconfigWithDirsFn \\
+\texttt{defconfig} & \NLinuxDefconfigPrec\,/\,\NLinuxDefconfigOverlap & \NLinuxDefconfigFn & \NLinuxKmaxDefconfigLocalPrec\,/\,\NLinuxKmaxDefconfigLocalOverlap & \NLinuxKmaxDefconfigLocalFn & \NLinuxKmaxDefconfigWithDirsPrec\,/\,\NLinuxKmaxDefconfigWithDirsOverlap & \NLinuxKmaxDefconfigWithDirsFn \\
+Debian & \NLinuxDebianPrec\,/\,\NLinuxDebianOverlap & \NLinuxDebianFn & \NLinuxKmaxDebianLocalPrec\,/\,\NLinuxKmaxDebianLocalOverlap & \NLinuxKmaxDebianLocalFn & \NLinuxKmaxDebianWithDirsPrec\,/\,\NLinuxKmaxDebianWithDirsOverlap & \NLinuxKmaxDebianWithDirsFn \\
+\texttt{allmodconfig} & \NLinuxAllmodconfigPrec\,/\,\NLinuxAllmodconfigOverlap & \NLinuxAllmodconfigFn & \NLinuxKmaxAllmodconfigLocalPrec\,/\,\NLinuxKmaxAllmodconfigLocalOverlap & \NLinuxKmaxAllmodconfigLocalFn & \NLinuxKmaxAllmodconfigWithDirsPrec\,/\,\NLinuxKmaxAllmodconfigWithDirsOverlap & \NLinuxKmaxAllmodconfigWithDirsFn \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{RQ5: Ablation}
-\label{sec:eval:ablation}
-We removed one design element at a time and repeated the physical comparison (\Cref{tab:ablation}). Composite members matter most: without them, \tool extracts only target words, and overlap falls to 38.2--49.4\% on the three x86-64 Linux profiles, because most compiled Linux objects are members. Without the rule closure, the boot image, real-mode, vDSO, and \texttt{purgatory} objects are missing, which lowers overlap on \texttt{tinyconfig}, where they are a large share of a small kernel, to 91.6\%. Without the built-in semantics of \Cref{sec:design:build}, overlap stays at 100\% but precision falls to 95.1--99.6\%, because built-in composite containers and the built-in objects of directories reached only through \texttt{obj-m} are predicted but never written. Without include splicing, overlap on Debian and \texttt{allmodconfig} drops to 92.1\% and 95.3\%, mostly in the AMD and Nouveau GPU drivers, whose Makefiles list their objects in included files. With the entry settings used before this study, which started Linux at the root \texttt{Kbuild} without \texttt{SRCARCH}, \texttt{BITS}, \texttt{lib/}, or the boot goal, overlap on \texttt{tinyconfig} falls to 43.4\%, because most of that small kernel lies under \texttt{arch/x86/} and \texttt{lib/}. On the other subjects, only composite members and entry settings change the results: the earlier coreboot settings reached 29 Makefiles instead of 458, and the earlier U-Boot settings miss 12 compiled USB objects.
+\emph{Ablation.} We removed one design element at a time and repeated the comparison with the builds (\Cref{tab:ablation}); composite members are covered by the last column of \Cref{tab:linux-physical}. Without include splicing, \tool loses \NLinuxNoIncludesLostObjects Linux objects, mostly in the AMD and Nouveau GPU drivers, whose Makefiles list their objects in included files, and overlap drops to \NLinuxNoIncludesDebianOverlap\% on Debian. Without the rule closure, \tool loses \NLinuxNoRulesLostObjects objects, the boot image, real-mode, and vDSO objects among them, so overlap drops most on \texttt{tinyconfig}, where they are a large share of a small kernel, and objects that are still extracted but reached only through a rule are missed ($FN_U$). Without the built-in semantics of \Cref{sec:design:build}, overlap is unchanged but built-in composite containers and the built-in objects of directories reached only through \texttt{obj-m} are predicted but never written, adding up to \NLinuxNoLinkSemanticsDefconfigFp false positives. On the other subjects, only the built-in semantics matter: without them, Barebox gains \NBareboxNoLinkSemanticsSandboxDefconfigFp and U-Boot \NUbootNoLinkSemanticsSandboxDefconfigFp false positives.
 
 \begin{table}[t]
 \centering\footnotesize
-\caption{Ablation: precision / overlap (\%) of the physical comparison with one design element removed. ``Earlier entry settings'' are the entry settings used before this study. Include splicing, the rule closure, and the built-in semantics do not change the non-Linux results.}
+\caption{Ablation on Linux: overlap (\%), in-set misses, and false positives with one design element removed.}
 \label{tab:ablation}
-\setlength{\tabcolsep}{2.5pt}
-\begin{tabular}{lcccccc}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrr}
 \toprule
-Subject / profile & Full \tool & No members & No includes & No rules & No built-in sem. & Earlier entry \\
+& Full \tool & No includes & \multicolumn{2}{c}{No rule closure} & No built-in sem. \\
+\cmidrule(lr){2-2}\cmidrule(lr){3-3}\cmidrule(lr){4-5}\cmidrule(lr){6-6}
+Configuration & Overlap & Overlap & Overlap & $FN_U$ & $FP$ \\
 \midrule
-Linux \texttt{tinyconfig} & 100 / 100 & 100 / 88.5 & 100 / 100 & 100 / 91.6 & 99.0 / 100 & 98.6 / 43.4 \\
-Linux \texttt{defconfig} & 100 / 100 & 100 / 49.4 & 100 / 100 & 100 / 97.8 & 95.1 / 100 & 94.8 / 81.8 \\
-Linux Debian & 100 / 100 & 100 / 38.2 & 100 / 92.1 & 100 / 99.5 & 99.3 / 100 & 99.4 / 94.7 \\
-Linux \texttt{allmodconfig} & 100 / 100 & 100 / 47.4 & 100 / 95.3 & 100 / 99.7 & 99.6 / 100 & 99.6 / 96.0 \\
-Barebox & 99.0 / 99.0 & 99.0 / 96.6 & --- & --- & --- & 98.9 / 91.6 \\
-Das U-Boot (archived) & 92.5 / 84.8 & 92.3 / 82.3 & --- & --- & --- & 92.3 / 81.7 \\
-coreboot & 80.9 / 64.8 & 80.9 / 64.8 & --- & --- & --- & 77.2 / 36.2 \\
+\texttt{tinyconfig} & \NLinuxTinyconfigOverlap & \NLinuxNoIncludesTinyconfigOverlap & \NLinuxNoRulesTinyconfigOverlap & \NLinuxNoRulesTinyconfigFn & \NLinuxNoLinkSemanticsTinyconfigFp \\
+\texttt{defconfig} & \NLinuxDefconfigOverlap & \NLinuxNoIncludesDefconfigOverlap & \NLinuxNoRulesDefconfigOverlap & \NLinuxNoRulesDefconfigFn & \NLinuxNoLinkSemanticsDefconfigFp \\
+Debian & \NLinuxDebianOverlap & \NLinuxNoIncludesDebianOverlap & \NLinuxNoRulesDebianOverlap & \NLinuxNoRulesDebianFn & \NLinuxNoLinkSemanticsDebianFp \\
+\texttt{allmodconfig} & \NLinuxAllmodconfigOverlap & \NLinuxNoIncludesAllmodconfigOverlap & \NLinuxNoRulesAllmodconfigOverlap & \NLinuxNoRulesAllmodconfigFn & \NLinuxNoLinkSemanticsAllmodconfigFp \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Threats to validity}
 \label{sec:eval:threats}
-\emph{Construct validity.} Precision and overlap compare path names; neither measures whether a source file builds under an arbitrary configuration. The comparison is limited to the top-level directories that each archive holds, and the one Linux prediction outside that scope was checked with a separate build.
+\emph{Construct validity.} Precision and overlap compare path names; neither measures whether a source file builds under an arbitrary configuration. Inventories contain objects that are not ordinary compilation units, such as host tools, BusyBox's \texttt{built-in.o} archives, and generated blobs; the tables list them separately rather than removing them.
 
-\emph{Internal validity.} We developed several of \tool's semantics, including include splicing, word lists, deferred appends, substitution references, the built-in semantics, and the rule closure, while examining discrepancies on these four Linux configurations, so exact agreement partly reflects fitting to them. Each addition implements a documented behavior of GNU Make or of Kbuild's \texttt{Makefile.build} and has a regression test on a small Makefile, and the per-file GNU Make reference is independent of the builds; configurations outside the four evaluated ones and other kernel versions would test generalization. The entry settings copy directory lists and goals from top-level Makefiles by hand, and a copying error would change the traversal. The comparison depends on path normalization, stage prefixes, and the assumption that each archive corresponds to its configuration; fresh builds that reproduced the path sets for two Linux profiles and Barebox reduce that risk for those inventories.
+\emph{Internal validity.} We developed several of \tool's semantics, including include splicing, the built-in semantics, and the rule closure, while examining discrepancies on Linux builds, so agreement partly reflects fitting to them. Each addition implements a documented behavior of GNU Make or of Kbuild's \texttt{Makefile.build} and has a regression test on a small Makefile. Most of them were developed on Linux v6.6; running on \NLinuxVersion exposed two defects in the rule closure, which we fixed before the runs reported here. Likewise, an earlier \texttt{config-for} run on the same stable patches exposed three options that did not survive \texttt{olddefconfig}; we then made $K$ account for prompt visibility, defaults, and tristate comparisons, and checked the change against the five real configurations rather than against the patches. The \texttt{why} samples and \texttt{config-for} patches are drawn independently of \tool. The entry settings copy directory lists and goals from top-level Makefiles by hand, and a copying error would change the traversal.
 
-\emph{External and conclusion validity.} Each non-Linux system contributes one configuration, and Linux four, all for one architecture family. Only two Linux inventories and Barebox were reproduced by fresh builds, and the U-Boot and coreboot builds did not produce final artifacts. Each measurement is a single run. The results describe this implementation on these subjects and configurations; they do not show that \tool handles every Kbuild dialect or kernel version.
+\emph{External validity.} Linux has four configurations, all x86, and each other system one. The \texttt{config-for} patches come from one stable update, whose fixes may touch fewer optional drivers than new development does. The results describe this implementation on these subjects; they do not show that \tool handles every Kbuild dialect or configuration.
 
 \section{Discussion}
 \label{sec:discussion}
 
 \subsection{Using a condition}
-The most direct use of a condition is explanation: a maintainer can see which Makefile expressions, directory routes, and rules cause an object to be built under a proposed assignment. \tool records, for every object path, the Makefiles and variables or rules that contribute it; for example, it reports that the boot object \texttt{compressed/kaslr.o} is a prerequisite of the compressed kernel image and is built under \texttt{CONFIG\_RANDOMIZE\_BASE}. Because the Linux predictions equal the builds, the conditions can also answer the reverse question without a build: which objects a configuration change adds or removes. The web interface exposes both queries.
+The most direct use of a condition is explanation: a maintainer can see which Makefile expressions, directory routes, and rules cause an object to be built under a proposed assignment. \tool records, for every object path, the Makefiles and variables or rules that contribute it; for example, it reports that the boot object \texttt{compressed/kaslr.o} is a prerequisite of the compressed kernel image and is built under \texttt{CONFIG\_RANDOMIZE\_BASE}. Because the Linux predictions agree with the builds, the conditions can also answer the reverse question without a build: which objects a configuration change adds or removes. The \texttt{why} and \texttt{blindspots} commands package these two queries.
 
-\subsection{Kconfig feasibility and downstream uses}
-A Kbuild condition and a Kconfig-feasible condition answer different questions. Let $K(c)$ mean that a normalized configuration $c$ satisfies the project's configuration rules. A buildable witness for object $o$ requires at least $K(c)\land\Phi_M(o)[c]$ and a successful build. \tool computes $\Phi_M(o)$ but not $K$. Configuration sampling, dead-target detection, and minimal reproducing configurations all need both: an unsatisfiable $\Phi_M(o)$ may reflect an unresolved include or the option domain rather than a dead object, and a satisfying assignment still has to pass the configurator. Combining $\Phi_M$ with a Kconfig encoding such as Kclause~\cite{oh2021kclause} is a direct next step.
+\subsection{Kconfig feasibility}
+A Kbuild condition and a Kconfig-feasible condition answer different questions. Let $K(c)$ mean that a configuration $c$ satisfies the project's configuration rules. A buildable witness for object $o$ requires at least $K(c)\land\Phi_M(o)[c]$ and a successful build. \texttt{config-for} conjoins the two and then checks the result with the real configurator and, in our evaluation, the compiler; the Kconfig model agrees with \texttt{scripts/kconfig} on every option of five configurations except \NKconfigMismatches under \texttt{allmodconfig}. That difference is a \texttt{select} from a member of a Boolean choice whose own dependency is \texttt{m}, which \texttt{kconfiglib} evaluates as \texttt{y}. \texttt{blindspots}, by contrast, uses only $\Phi_M$ and the given configurations, so an object it reports may be one that no configuration can build; the report says which option is missing, not that the code is dead.
 
 \subsection{Constructs outside the model}
 \label{sec:discussion:constructs}
-The syntax census gives a sense of how often the boundaries in \Cref{tab:scope} arise. Over the five traversals it records 92,318 occurrences, of which 91,271 fall in the modeled categories, 1,002 are recipes and directives outside the model, and 45 are unsupported; Linux accounts for 60,554. The labels come from the parser and classifier, not from semantic checks: the 15 Linux \texttt{shell} calls are labeled modeled although \tool runs them concretely. The two unresolved coreboot includes and the one unparsable coreboot file show that constructs outside the model remain, and the non-Linux subjects would need the equivalent of \Cref{sec:design:build} for their own build rules, such as coreboot's stage images.
+On Linux, the only target objects that \tool misses come from constructs outside the model (\Cref{tab:scope}): Makefiles that define their objects with \texttt{\$(eval \$(call \ldots))} and one object that only a recipe builds. \texttt{\$(eval)} could be supported by expanding its argument into guarded text and executing the result as Makefile statements, which the executor already does for included fragments. On the other subjects, the misses also include generated blobs and objects that top-level Makefiles add through variables that the entry settings do not copy, such as coreboot's mainboard directory.
 
 \subsection{Next steps}
-Three extensions follow from the evaluation. First, \tool could execute the directory lists and goals of top-level Makefiles instead of taking them from settings; this requires modeling the \texttt{include} of architecture Makefiles and the top-level rules that the settings now mirror by hand. Second, the build semantics of \Cref{sec:design:build} could be generalized to the other dialects, whose settings currently leave them off. Third, a conformance suite of small Makefiles, compared with GNU Make over all Boolean and tristate settings of their options, would test each construct in isolation, including \texttt{?=} and \texttt{::=}.
+Three extensions follow from the evaluation. First, \tool could execute the directory lists and goals of top-level Makefiles instead of taking them from settings; this requires modeling the \texttt{include} of architecture Makefiles and the top-level rules that the settings now mirror by hand. Second, executing \texttt{\$(eval)} would close the remaining gap on Linux. Third, a conformance suite of small Makefiles, compared with GNU Make over all Boolean and tristate settings of their options, would test each construct in isolation, including \texttt{?=} and \texttt{::=}.
 
 \section{Related Work}
 \label{sec:related}
@@ -564,7 +526,7 @@ Three extensions follow from the evaluation. First, \tool could execute the dire
 The closest work extracts configuration conditions from Kbuild Makefiles; neighboring work represents variability in source code or symbolic states, and a third line models Kconfig itself.
 
 \subsection{Static analysis of Kbuild and build variability}
-\kmax~\cite{gazzillo2017kmax} is the closest prior analysis. It evaluates Kbuild Makefiles with a family-based static analysis whose abstract values are sets of complete string definitions tagged with reaching configurations, represented as BDDs, with the definitions of one variable mutually exclusive; an append combines previous and new definitions by cross-product. It handles computed variable names, includes, and subdirectories, and its evaluation accounts for every C file in the Linux v3.19 and BusyBox 1.25.0 trees. \tool shares the idea of carrying configuration conditions on values but guards each word, which keeps $k$ independent appends at $k$ entries and discards order. It also models build semantics beyond the target lists, such as modular composites, built-in routes, and rule prerequisites, and it is validated differently: we evaluate each formula under concrete configurations against GNU Make and real builds. On current Linux, \kmax's whole-tree driver takes 86 minutes, exceeds 12\,GB on three directories, and misses the members of modular composites, while \tool takes 34\,s and matches the builds (\Cref{sec:eval:kmax}).
+\kmax~\cite{gazzillo2017kmax} is the closest prior analysis. It evaluates Kbuild Makefiles with a family-based static analysis whose abstract values are sets of complete string definitions tagged with reaching configurations, represented as BDDs, with the definitions of one variable mutually exclusive; an append combines previous and new definitions by cross-product. It handles computed variable names, includes, and subdirectories, and its evaluation accounts for every C file in the Linux v3.19 and BusyBox 1.25.0 trees. \tool shares the idea of carrying configuration conditions on values but guards each word, which keeps $k$ independent appends at $k$ entries and discards order. It also models build semantics beyond the target lists, such as modular composites, built-in routes, and rule prerequisites, and it is validated differently: we evaluate each formula under concrete configurations against fresh builds. On Linux \NLinuxVersion, \kmax's whole-tree driver takes \NLinuxKmaxSeconds\,s and \NLinuxKmaxRssGb\,GB and misses the members of modular composites, while \tool takes \NLinuxSeconds\,s and agrees with the builds (\Cref{sec:eval:kmax}).
 
 Nguyen and Nguyen~\cite{nguyen2020using} symbolically execute Linux Kbuild Makefiles by forking a path state at each conditional. \tool replaces this forking with the per-word guards and branch merge of \Cref{alg:exec}, and adds the conditional directory worklist, include splicing, composite members, and build semantics; \Cref{sec:eval:scale} measures the difference in state growth. Later work uses Kbuild constraints to localize compilation errors and find unmet dependencies~\cite{gazzillo2018localizing,oh2021kclause}; these applications consume build conditions like those \tool produces and combine them with Kconfig constraints.
 
@@ -581,7 +543,7 @@ Kconfig is a separate variability language. Work on parsing Kconfig and on confi
 \section{Conclusion}
 \label{sec:conclusion}
 
-\tool extracts a build condition for every object path in a Kbuild tree by attaching guards to individual words, merging conditional arms into one state, splicing included fragments, propagating only uncovered guards through the directory graph, and following Kbuild's build semantics through composites, built-in routes, and rules. The representation stays linear where a forking executor explodes, and it analyzes the Linux x86 tree in 34\,s. Evaluated under four concrete Linux configurations, its predicted objects are exactly the compiled ones, and its per-file target lists agree with GNU Make on every target. Its main limitation is that top-level orchestration enters through settings copied from the top-level Makefiles; executing those Makefiles, carrying the build semantics to other dialects, and combining the conditions with Kconfig constraints are the next steps toward configuration synthesis.
+\tool extracts a build condition for every object path in a Kbuild tree by attaching guards to individual words, merging conditional arms into one state, splicing included fragments, propagating only uncovered guards through the directory graph, and following Kbuild's build semantics through composites, built-in routes, and rules. The representation stays linear where a forking executor explodes, and it analyzes the Linux \NLinuxVersion x86 tree in \NLinuxSeconds\,s. Under four Linux configurations, every predicted object is compiled and every compiled object that \tool extracts is predicted, and the same holds on four other Kbuild-based systems. The conditions explain the build status of every sampled object, and combined with a Kconfig model they produce verified configurations for the files that real stable-kernel patches touch. Its main limitation is that top-level orchestration enters through settings copied from the top-level Makefiles; executing those Makefiles and \texttt{\$(eval)} are the next steps.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{kfold}
@@ -590,10 +552,6 @@ Kconfig is a separate variability language. Work on parsing Kconfig and on confi
 \section{Reproduction Map}
 \label{app:reproduction}
 
-Each reported number has a source file. \path{results/physical_validation.json} contains, for every subject and configuration, the analysis time, memory, census, include statistics, parse errors, predictions outside the archive scope, and the full false-positive, in-set miss, and outside path lists for the physical comparison, both with and without composite members. \path{results/linux_gnu_make_validation.json} contains the per-file GNU Make comparison, \path{results/bench_scaling.json} the controlled scaling runs, \path{results/kmax_physical_validation.json} and \path{results/kmaxall_linux_x86.meta.json} the \kmax runs, \path{results/kmax_fn_classes.json} the classification of \kmax's misses, and \path{results/ablation.json} the ablation. \texttt{evidence/manifest.json} records source revisions, archive hashes where available, configuration hashes, and build status.
-
-The scripts are \path{tools/evaluate_physical.py} (physical comparison), \path{tools/compare_kfold_with_gnu_make.py} (per-file GNU Make reference), \path{tools/bench_scaling.py} (controlled growth; it extracts the forking executor from the repository history), \path{tools/run_kmaxall.py}, \path{tools/evaluate_kmax_physical.py}, and \path{tools/classify_kmax_misses.py} (\kmax), \path{tools/run_ablation.py}, \path{tools/check_merge_equivalence.py}, \path{tools/show_makefile.py}, which prints the guarded variables of one Makefile, and \path{tools/build_web_data.py}, which prepares the web interface in \path{web/}.
-
-The Linux configuration hashes in the manifest are SHA-256 values of the \texttt{.config} bytes. The i386 \texttt{tinyconfig} hash begins \texttt{377795787624}; x86-64 \texttt{defconfig} begins \texttt{e0eef62fcde3}; the Debian configuration begins \texttt{8fb22042e81e}; \texttt{allmodconfig} begins \texttt{286635003641}. A replay that omits the two local Makefile edits or changes the architecture of \texttt{tinyconfig} is not the same comparison.
+\texttt{experiments/run\_all.sh} regenerates every result from the pinned release tarballs: \texttt{fetch.py} downloads and verifies the sources, \texttt{build.py} builds each configuration and records its \texttt{.config} in \path{evidence/configs/} and its object inventory in \path{evidence/inventories/}, \texttt{check\_kconfig.py} checks the Kconfig model, \texttt{evaluate.py} runs \tool and the ablations against the inventories (\path{results/agreement/}), \texttt{timing.py} times the whole-tree analyses, \texttt{kmax.py} runs and scores \kmax (\path{results/kmax/}), \path{tools/bench_scaling.py} runs the controlled-growth benchmark, which extracts the forking executor from the repository history, and \texttt{devtasks.py} runs the developer tasks (\path{results/devtasks/}). \texttt{paper\_numbers.py} then writes every number in \Cref{sec:eval} as a \LaTeX{} macro, together with the table bodies. \path{results/manifest.json} and \path{results/builds.json} record source checksums, toolchain versions, and build status; \texttt{experiments/README.md} lists the deviations from stock builds.
 
 \end{document}

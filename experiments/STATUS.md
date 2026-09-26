@@ -14,31 +14,33 @@ evidence/legacy/ (untracked).
 - Kconfig model check (results/kconfig_check.json): 0 mismatches on
   tinyconfig/defconfig/debian/allyesconfig.
 
-## In progress when the session ended
-work/final.sh (nohup, log in work/final.log): Kmax on Linux ->
-tools/bench_scaling.py -> devtasks why/compile/blindspots -> paper_numbers.py.
-Check with: grep -v '^kmax -D' work/final.log | tail
+- final.sh finished (Kmax, scaling, why, blindspots). /tmp/skbuild_* cleaned.
+- tests: 127 pass with KFOLD_CACHE=work/kfold-cache; test_verify relaxed to
+  accept "proved" as well as "identical" (disjunct order is unstable).
+- paper_numbers.py: macros for blind-spot categories, Kmax memory/unexpanded
+  and the kfold kind of Kmax's misses, why failure kinds, config-for
+  breakdown, Kconfig check, scaling min/max; timing/subjects table fixes.
+- paper/kfold.tex: evaluation rewritten on the macros (4 RQs as in the
+  outline; GNU Make RQ dropped -- no canonical rerun of it); abstract,
+  intro, implementation (new "Developer commands"), discussion, related
+  work, conclusion, reproduction map updated; vDSO/mmp examples updated to
+  7.2.8. Still 20 pages.
+
+- Kconfig encoding (tools/kconfig_solver.py): an option can be on only
+  through select/imply/visible prompt/active default; tristate <, <=, >, >=
+  modeled; parse from a temp dir (the read-only prepared tree made every
+  $(cc-option) probe fail). check_kconfig.py now also checks that each real
+  .config satisfies the encoding: 0 violations on all five.
+- devtasks compile deletes target objects first (an object the defconfig
+  build already had was counted as not compiled).
+- Final devtasks: config-for 384/402 selectable, 12 unmapped, 6 impossible
+  (all need another architecture), 0 lost options; compile 40/40; why
+  400/400. Tests: 130 pass.
 
 ## To do next
-1. Re-run `experiments/devtasks.py config-for` then `devtasks.py compile`:
-   the first config-for pass predates the widened-Kconfig-cone fix
-   (21 commits falsely reported objects as impossible, e.g. drm/sched), so
-   results/devtasks/config_for.json and the compile sample from final.sh are
-   stale.
-2. Re-run `experiments/check_kconfig.py` to confirm the imply and PYTHON3
-   fixes: expected 1 residual allmodconfig mismatch (USB_ROLE_SWITCH: a
-   select from a member of a bool choice whose dependency is m; kconfiglib
-   evaluates the choice as y). Documented, not fixed.
-3. Clean /tmp/skbuild_* created by final.sh's devtasks steps (the CLI
-   analyze writes to /tmp unless SKBUILD_TMP is set; /tmp is RAM-backed).
-4. `experiments/paper_numbers.py`, then rewrite the paper's evaluation to use
-   paper/numbers.tex macros and paper/tables/*.tex (OUTLINE.tex first; also
-   paper/kfold.tex). Update deviations and limitations from README.md
-   ($(eval)-generated objects are the only non-host objects kfold misses on
-   Linux; plus generated blobs and recipe-built objects).
-5. Linux CLI tests: `KFOLD_CACHE=work/kfold-cache pytest tests` once the
-   cache is current. tests/test_cli_cache.py::test_verify also fails on the
-   committed code (disjunct order is unstable between analyses); decide
-   whether to relax it.
-6. Commit and push results/, evidence/ (inventories/configs only; no build
-   trees), experiments/, tests/, src/ changes.
+1. paper/OUTLINE.tex still has v6.6 numbers; port the new evaluation or
+   retire it in favor of kfold.tex (ask the user).
+2. Title says "Exact"; overlap is 97.0-99.5% (host tools and $(eval)
+   objects are outside U). Precision/in-set recall are exact. User decision.
+3. Possible kfold improvement: execute $(eval) (the only non-host Linux
+   objects kfold misses); coreboot mainboard entry settings.

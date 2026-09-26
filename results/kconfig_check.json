@@ -1,0 +1,38 @@
+{
+ "allmodconfig": {
+  "defined_symbols": 18749,
+  "mismatches": [
+   {
+    "kconfiglib": "y",
+    "scripts_kconfig": "m",
+    "symbol": "USB_ROLE_SWITCH"
+   }
+  ],
+  "smt_violations": [],
+  "symbols_in_config": 16102
+ },
+ "allyesconfig": {
+  "defined_symbols": 18749,
+  "mismatches": [],
+  "smt_violations": [],
+  "symbols_in_config": 16208
+ },
+ "debian": {
+  "defined_symbols": 18749,
+  "mismatches": [],
+  "smt_violations": [],
+  "symbols_in_config": 9881
+ },
+ "defconfig": {
+  "defined_symbols": 18749,
+  "mismatches": [],
+  "smt_violations": [],
+  "symbols_in_config": 4414
+ },
+ "tinyconfig": {
+  "defined_symbols": 18749,
+  "mismatches": [],
+  "smt_violations": [],
+  "symbols_in_config": 859
+ }
+}

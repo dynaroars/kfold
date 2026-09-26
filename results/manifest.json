@@ -1,0 +1,59 @@
+{
+ "sources": {
+  "barebox": {
+   "analyzed_tree": "work/prepared/barebox-2026.09.0",
+   "extra": [],
+   "prepare": null,
+   "sha256": "491b504c8a79b5a4e30c419b824916b7329bad8abfe34987ba066bafa1fbcfc5",
+   "sha256_verified_against_upstream": false,
+   "tree": "work/src/barebox-2026.09.0",
+   "url": "https://www.barebox.org/download/barebox-2026.09.0.tar.bz2",
+   "version": "2026.09.0"
+  },
+  "busybox": {
+   "analyzed_tree": "work/prepared/busybox-1.38.0",
+   "extra": [],
+   "prepare": "scripts/gen_build_files.sh . .",
+   "sha256": "34f9ea6ff8636f2c9241153b9114eefa9e65674a45318ae1ef95bb5f31c53bb2",
+   "sha256_verified_against_upstream": true,
+   "tree": "work/src/busybox-1.38.0",
+   "url": "https://busybox.net/downloads/busybox-1.38.0.tar.bz2",
+   "version": "1.38.0"
+  },
+  "coreboot": {
+   "analyzed_tree": "work/prepared/coreboot-26.06",
+   "extra": [
+    {
+     "file": "coreboot-blobs-26.06.tar.xz",
+     "sha256": "a9c0cb146975482c2faa685b12fd24056ccdb66422793eb3bdb848a80a6dc499"
+    }
+   ],
+   "prepare": null,
+   "sha256": "c573be035061abc93ad5097f7fec7a8ebb84b4fdd3c475f301a8f2ca5d06fd0d",
+   "sha256_verified_against_upstream": true,
+   "tree": "work/src/coreboot-26.06",
+   "url": "https://coreboot.org/releases/coreboot-26.06.tar.xz",
+   "version": "26.06"
+  },
+  "linux": {
+   "analyzed_tree": "work/prepared/linux-7.2.8",
+   "extra": [],
+   "prepare": null,
+   "sha256": "12e8d5a973d1ad7c5a5c69882e4022b131ed715db7003fdcd760ddf8c3e51941",
+   "sha256_verified_against_upstream": true,
+   "tree": "work/src/linux-7.2.8",
+   "url": "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.8.tar.xz",
+   "version": "7.2.8"
+  },
+  "uboot": {
+   "analyzed_tree": "work/prepared/u-boot-2026.07",
+   "extra": [],
+   "prepare": null,
+   "sha256": "78e8bfc382fe388f9b55aa1daf8c563522a037779b5d4c349d1415e381f1243e",
+   "sha256_verified_against_upstream": false,
+   "tree": "work/src/u-boot-2026.07",
+   "url": "https://ftp.denx.de/pub/u-boot/u-boot-2026.07.tar.bz2",
+   "version": "2026.07"
+  }
+ }
+}

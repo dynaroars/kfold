@@ -1,0 +1,184 @@
+{
+ "barebox:sandbox_defconfig": {
+  "adjustments": [],
+  "commands": [
+   "make ARCH=sandbox sandbox_defconfig",
+   "make ARCH=sandbox olddefconfig",
+   "make ARCH=sandbox -k -j8"
+  ],
+  "compiler": "gcc (Debian 16.2.0-3) 16.2.0",
+  "config": "sandbox_defconfig",
+  "failed_objects": 0,
+  "log": "/home/tnguyen/git/projects/kfold/work/build/barebox-sandbox_defconfig.log",
+  "objects": 502,
+  "rc_build": 0,
+  "rc_generate": 0,
+  "rc_normalize": 0,
+  "seconds": 15.7,
+  "subject": "barebox",
+  "version": "2026.09.0"
+ },
+ "busybox:defconfig": {
+  "adjustments": [],
+  "commands": [
+   "make CC=gcc defconfig",
+   "make CC=gcc oldconfig </dev/null",
+   "make CC=gcc -k -j8"
+  ],
+  "compiler": "gcc (Debian 16.2.0-3) 16.2.0",
+  "config": "defconfig",
+  "failed_objects": 1,
+  "log": "/home/tnguyen/git/projects/kfold/work/build/busybox-defconfig.log",
+  "objects": 623,
+  "rc_build": 2,
+  "rc_generate": 0,
+  "rc_normalize": 0,
+  "seconds": 19.8,
+  "subject": "busybox",
+  "version": "1.38.0"
+ },
+ "coreboot:qemu-i440fx": {
+  "adjustments": [
+   "echo CONFIG_PAYLOAD_NONE=y >> .config"
+  ],
+  "commands": [
+   "printf 'CONFIG_VENDOR_EMULATION=y\\nCONFIG_BOARD_EMULATION_QEMU_X86_I440FX=y\\n' > .config",
+   "echo CONFIG_PAYLOAD_NONE=y >> .config",
+   "make XGCCPATH=/home/tnguyen/git/projects/kfold/work/toolchains/coreboot-26.06/util/crossgcc/xgcc/bin/ olddefconfig",
+   "make XGCCPATH=/home/tnguyen/git/projects/kfold/work/toolchains/coreboot-26.06/util/crossgcc/xgcc/bin/ -k -j4 CPUS=4"
+  ],
+  "compiler": "gcc (Debian 16.2.0-3) 16.2.0",
+  "config": "qemu-i440fx",
+  "failed_objects": 0,
+  "log": "/home/tnguyen/git/projects/kfold/work/build/coreboot-qemu-i440fx.log",
+  "objects": 626,
+  "rc_build": 0,
+  "rc_generate": 0,
+  "rc_normalize": 0,
+  "seconds": 52.2,
+  "subject": "coreboot",
+  "version": "26.06"
+ },
+ "linux:allmodconfig": {
+  "adjustments": [
+   "scripts/config --disable WERROR --disable DRM_WERROR --disable DRM_AMDGPU_WERROR"
+  ],
+  "commands": [
+   "make ARCH=x86_64 CC=gcc allmodconfig",
+   "scripts/config --disable WERROR --disable DRM_WERROR --disable DRM_AMDGPU_WERROR",
+   "make ARCH=x86_64 CC=gcc olddefconfig",
+   "make ARCH=x86_64 CC=gcc -k -j8"
+  ],
+  "compiler": "gcc (Debian 16.2.0-3) 16.2.0",
+  "config": "allmodconfig",
+  "failed_objects": 0,
+  "log": "/home/tnguyen/git/projects/kfold/work/build/linux-allmodconfig.log",
+  "objects": 29625,
+  "rc_build": 0,
+  "rc_generate": 0,
+  "rc_normalize": 0,
+  "seconds": 6014.8,
+  "subject": "linux",
+  "version": "7.2.8"
+ },
+ "linux:allyesconfig": {
+  "adjustments": [],
+  "commands": [
+   "make ARCH=x86_64 CC=gcc allyesconfig",
+   "make ARCH=x86_64 CC=gcc olddefconfig",
+   "true"
+  ],
+  "compiler": "gcc (Debian 16.2.0-3) 16.2.0",
+  "config": "allyesconfig",
+  "failed_objects": 0,
+  "log": "/home/tnguyen/git/projects/kfold/work/build/linux-allyesconfig.log",
+  "objects": 9,
+  "rc_build": 0,
+  "rc_generate": 0,
+  "rc_normalize": 0,
+  "seconds": 9.4,
+  "subject": "linux",
+  "version": "7.2.8"
+ },
+ "linux:debian": {
+  "adjustments": [
+   "scripts/config --set-str SYSTEM_TRUSTED_KEYS ''",
+   "scripts/config --set-str SYSTEM_REVOCATION_KEYS ''"
+  ],
+  "commands": [
+   "cp /boot/config-7.2.6+deb14-amd64 .config && make ARCH=x86_64 CC=gcc olddefconfig",
+   "scripts/config --set-str SYSTEM_TRUSTED_KEYS ''",
+   "scripts/config --set-str SYSTEM_REVOCATION_KEYS ''",
+   "make ARCH=x86_64 CC=gcc olddefconfig",
+   "make ARCH=x86_64 CC=gcc -k -j8"
+  ],
+  "compiler": "gcc (Debian 16.2.0-3) 16.2.0",
+  "config": "debian",
+  "failed_objects": 0,
+  "log": "/home/tnguyen/git/projects/kfold/work/build/linux-debian.log",
+  "objects": 17191,
+  "rc_build": 0,
+  "rc_generate": 0,
+  "rc_normalize": 0,
+  "seconds": 3249.4,
+  "subject": "linux",
+  "version": "7.2.8"
+ },
+ "linux:defconfig": {
+  "adjustments": [],
+  "commands": [
+   "make ARCH=x86_64 CC=gcc defconfig",
+   "make ARCH=x86_64 CC=gcc olddefconfig",
+   "make ARCH=x86_64 CC=gcc -k -j4"
+  ],
+  "compiler": "gcc (Debian 16.2.0-3) 16.2.0",
+  "config": "defconfig",
+  "failed_objects": 0,
+  "log": "/home/tnguyen/git/projects/kfold/work/build/linux-defconfig.log",
+  "objects": 3133,
+  "rc_build": 0,
+  "rc_generate": 0,
+  "rc_normalize": 0,
+  "seconds": 1011.5,
+  "subject": "linux",
+  "version": "7.2.8"
+ },
+ "linux:tinyconfig": {
+  "adjustments": [],
+  "commands": [
+   "make ARCH=i386 CC=gcc tinyconfig",
+   "make ARCH=i386 CC=gcc olddefconfig",
+   "make ARCH=i386 CC=gcc -k -j4"
+  ],
+  "compiler": "gcc (Debian 16.2.0-3) 16.2.0",
+  "config": "tinyconfig",
+  "failed_objects": 0,
+  "log": "/home/tnguyen/git/projects/kfold/work/build/linux-tinyconfig.log",
+  "objects": 528,
+  "rc_build": 0,
+  "rc_generate": 0,
+  "rc_normalize": 0,
+  "seconds": 155.4,
+  "subject": "linux",
+  "version": "7.2.8"
+ },
+ "uboot:sandbox_defconfig": {
+  "adjustments": [],
+  "commands": [
+   "make sandbox_defconfig",
+   "make olddefconfig",
+   "make NO_PYTHON=1 -k -j8"
+  ],
+  "compiler": "gcc (Debian 16.2.0-3) 16.2.0",
+  "config": "sandbox_defconfig",
+  "failed_objects": 0,
+  "log": "/home/tnguyen/git/projects/kfold/work/build/uboot-sandbox_defconfig.log",
+  "objects": 1344,
+  "rc_build": 2,
+  "rc_generate": 0,
+  "rc_normalize": 0,
+  "seconds": 40.5,
+  "subject": "uboot",
+  "version": "2026.07"
+ }
+}

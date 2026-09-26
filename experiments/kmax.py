@@ -8,7 +8,8 @@ tools/run_kmaxall.py (which only fixes a Python 3 crash in kmaxall's error
 reporting). Its conditions are evaluated under the same .config files and
 compared with the same inventories as experiments/evaluate.py, in two views:
 "local" (each object's own Makefile condition) and "with_dirs" (conjoined
-with the conditions of its ancestor directory entries). Writes
+with the conditions of its ancestor directory entries), and records the
+kfold kind of each object Kmax misses. Writes
 results/kmax/<subject>.json; the raw pickle stays in work/kmax/.
 """
 import json
@@ -62,6 +63,18 @@ def run(subject):
         m = out["profiles"][config]["with_dirs"]
         print(f"kmax {subject} {config}: pred={m['predicted']} tp={m['tp']} fp={m['fp']} "
               f"fn_u={m['fn_within_universe']} overlap={m['overlap_pct']}", flush=True)
+    # The kind kfold gives each compiled object that Kmax extracts but does
+    # not predict (most are composite members; see the paper's RQ4).
+    from cli import cache
+    a = cache.load(tree, WORK / "kfold-cache", check=False)
+    if a is not None:
+        for p in out["profiles"].values():
+            for m in p.values():
+                kinds = {}
+                for path in m["fn_within_universe_paths"]:
+                    k = a.kinds.get(path, "not extracted")
+                    kinds[k] = kinds.get(k, 0) + 1
+                m["fn_kfold_kinds"] = kinds
     (RESULTS / "kmax" / f"{subject}.json").write_text(json.dumps(out, indent=1, sort_keys=True) + "\n")
 
 

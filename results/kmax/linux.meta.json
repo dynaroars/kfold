@@ -1,0 +1,11 @@
+{
+ "rc": 0,
+ "args": [
+  "-T",
+  "-DSRCARCH=x86",
+  "Kbuild",
+  "lib"
+ ],
+ "time_s": 6275.0,
+ "maxrss_mb": 28543.2
+}

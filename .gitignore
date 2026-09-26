@@ -33,3 +33,6 @@
 # Superseded results, kept on disk only
 /results/legacy/
 /evidence/legacy/
+/results/legacy/
+/evidence/legacy/
+/evidence/devtasks/config_for/

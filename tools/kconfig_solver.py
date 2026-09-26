@@ -10,7 +10,9 @@ test configurations produce 100% physically valid .config files without Kconfig 
 
 import os
 import pathlib
+import shutil
 import sys
+import tempfile
 from typing import Dict, List, Optional, Set, Tuple
 
 import kconfiglib
@@ -83,8 +85,12 @@ class KconfigSMT:
         old_srctree_env = os.environ.get("srctree")
         old_obl_source_tokens = kconfiglib._OBL_SOURCE_TOKENS
         added_env = [k for k in TOOLCHAIN_DEFAULTS if k not in os.environ]
+        # Kconfig's $(cc-option) and similar probes write scratch files to the
+        # working directory, so parse from a writable temporary directory
+        # (the tree may be read-only); $srctree locates the Kconfig files.
+        workdir = tempfile.mkdtemp(prefix="kfold-kconfig-")
         try:
-            os.chdir(self.srctree)
+            os.chdir(workdir)
             os.environ["srctree"] = str(self.srctree)
             for k in added_env:
                 os.environ[k] = TOOLCHAIN_DEFAULTS[k]
@@ -98,6 +104,7 @@ class KconfigSMT:
             self.kconf = kconfiglib.Kconfig(str(kconfig_path.relative_to(self.srctree)), warn=False, warn_to_stderr=False)
         finally:
             os.chdir(old_cwd)
+            shutil.rmtree(workdir, ignore_errors=True)
             for k in added_env:
                 os.environ.pop(k, None)
             kconfiglib._OBL_SOURCE_TOKENS = old_obl_source_tokens
@@ -171,7 +178,18 @@ class KconfigSMT:
             if op == kconfiglib.UNEQUAL:
                 eq = zsolver.neg(eq)
             return eq, eq
-        # LESS, GREATER, ... compare int/hex values, which are not modeled.
+        if op in (kconfiglib.LESS, kconfiglib.LESS_EQUAL, kconfiglib.GREATER, kconfiglib.GREATER_EQUAL) \
+                and self._is_tri_operand(expr[1]) and self._is_tri_operand(expr[2]):
+            a, b = self.tri(expr[1], solver), self.tri(expr[2], solver)
+            if op in (kconfiglib.LESS, kconfiglib.LESS_EQUAL):
+                a, b = b, a
+
+            def geq(x, y):
+                return z3.And(z3.Implies(y[0], x[0]), z3.Implies(y[1], x[1]))
+            r = geq(a, b) if op in (kconfiglib.LESS_EQUAL, kconfiglib.GREATER_EQUAL) \
+                else z3.And(geq(a, b), z3.Not(geq(b, a)))
+            return r, r
+        # Comparisons of int/hex/string values are not modeled.
         return self._fresh_pair()
 
     def _is_tri_operand(self, sym):
@@ -208,12 +226,14 @@ class KconfigSMT:
         - a bool symbol is never m (an m bound rounds up to y);
         - a tristate symbol is m only when MODULES is y.
 
-        A symbol with neither a prompt nor a default is at most the larger of
-        its "select" and "imply" reverse dependencies. Symbols that are referenced but defined nowhere are
-        always n, and a
-        "select" of a choice member is ignored, as in Kconfig.
-        Defaults, "imply", and ranges are not modeled, so these constraints
-        over-approximate the set of valid configurations."""
+        - a symbol outside a choice is at most the largest of its "select"
+          and "imply" reverse dependencies, the visibility of its prompts,
+          and its defaults (each value capped by its condition).
+
+        Symbols that are referenced but defined nowhere are always n, and a
+        "select" of a choice member is ignored, as in Kconfig. Which default
+        applies, the lower bound of "imply", and ranges are not modeled, so
+        these constraints over-approximate the set of valid configurations."""
         if sym.is_constant or not sym.name:
             return []
         if not sym.nodes:
@@ -230,15 +250,26 @@ class KconfigSMT:
         bounded = sym.direct_dep is not self.kconf.y and rev is not self.kconf.y
         selected = rev is not self.kconf.n
         clauses = []
-        if not any(node.prompt for node in sym.nodes) and not sym.defaults and sym.choice is None:
-            # With no prompt and no default, only "select" and "imply" set
-            # the value.
+        if sym.choice is None:
+            # Only a "select", an "imply", a visible prompt (the user), or an
+            # active default can turn a symbol on; a bool reachable at m
+            # rounds up to y.
             wm, wy = self.tri(sym.weak_rev_dep, solver)
+            ups_m, ups_y = [rm, wm], [ry, wy]
+            for node in sym.nodes:
+                if node.prompt:
+                    vm, vy = self.tri(node.prompt[1], solver)
+                    ups_m.append(vm)
+                    ups_y.append(vy)
+            for value, cond in sym.defaults:
+                (am, ay), (cm, cy) = self.tri(value, solver), self.tri(cond, solver)
+                ups_m.append(zsolver.conj(am, cm))
+                ups_y.append(zsolver.conj(ay, cy))
             if sym.orig_type == kconfiglib.BOOL:
-                clauses.append(z3.Implies(sy, zsolver.disj(rm, wm)))
+                clauses.append(z3.Implies(sy, z3.Or(*ups_m)))
             else:
-                clauses.append(z3.Implies(sm, zsolver.disj(rm, wm)))
-                clauses.append(z3.Implies(sy, zsolver.disj(ry, wy)))
+                clauses.append(z3.Implies(sm, z3.Or(*ups_m)))
+                clauses.append(z3.Implies(sy, z3.Or(*ups_y)))
         if sym.orig_type == kconfiglib.BOOL:
             clauses.append(z3.Implies(sm, sy))                           # never m
             if bounded:
@@ -267,7 +298,8 @@ class KconfigSMT:
 
     def dependency_cone(self, names, follow_selects: bool = False) -> Set[str]:
         """Names of the symbols reachable from ``names`` (with or without the
-        CONFIG_ prefix) through "depends on", choice membership, and, if
+        CONFIG_ prefix) through "depends on", prompt and default conditions,
+        choice membership, and, if
         ``follow_selects``, the symbols that select them. Constraints over a
         cone are a sound relaxation of the whole-tree constraints: every
         valid configuration satisfies them."""
@@ -280,6 +312,11 @@ class KconfigSMT:
                 continue
             seen.add(name)
             deps = kconfiglib.expr_items(sym.direct_dep)
+            for node in sym.nodes:  # symbols that bound the value from above
+                if node.prompt:
+                    deps |= kconfiglib.expr_items(node.prompt[1])
+            for value, cond in sym.defaults:
+                deps |= kconfiglib.expr_items(value) | kconfiglib.expr_items(cond)
             if follow_selects:
                 deps |= kconfiglib.expr_items(sym.rev_dep)
             if sym.choice is not None:

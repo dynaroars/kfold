@@ -42,6 +42,23 @@ config NOTBUS
 config EQBUS
     bool "Only when BUS=m"
     depends on BUS = m
+
+config TEST
+    bool "Compile test"
+
+config ATR
+    tristate "Visible only for compile tests" if TEST
+
+config WANT
+    bool "Want"
+
+config COREDUMP
+    bool
+    default y if WANT
+
+config GEBUS
+    bool "Only when DRV >= BUS"
+    depends on DRV >= BUS
 """
 
 
@@ -142,3 +159,20 @@ config FS
         assert not _sat(env, ("MODULES", "y"), ("FS", "m"), ("HELPER", "y"))
         assert _sat(env, ("MODULES", "y"), ("FS", "m"), ("HELPER", "m"))
         assert not _sat(env, ("FS", "n"), ("HELPER", "y"))
+
+
+def test_conditional_prompt_bounds_value(env):
+    # ATR has no default and no selector: only its prompt, visible under
+    # TEST, can turn it on.
+    assert not _sat(env, ("MODULES", "y"), ("TEST", "n"), ("ATR", "m"))
+    assert _sat(env, ("MODULES", "y"), ("TEST", "y"), ("ATR", "m"))
+
+
+def test_promptless_symbol_follows_its_default(env):
+    assert not _sat(env, ("WANT", "n"), ("COREDUMP", "y"))
+    assert _sat(env, ("WANT", "y"), ("COREDUMP", "y"))
+
+
+def test_tristate_comparison(env):
+    assert not _sat(env, ("MODULES", "y"), ("BUS", "y"), ("DRV", "m"), ("GEBUS", "y"))
+    assert _sat(env, ("MODULES", "y"), ("BUS", "m"), ("DRV", "m"), ("GEBUS", "y"))

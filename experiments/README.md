@@ -53,7 +53,9 @@ experiments/run_all.sh          # everything below, in order
    on Linux. `config-for` uses the 437 commits of the v7.2.7..v7.2.8 stable
    update (fetched into `work/stable-7.2.8` with a shallow `git fetch` of tag
    v7.2.8), keeping the 402 that touch a `.c` or `.S` file.
-   -> `results/devtasks/`
+   -> `results/devtasks/`. The verified configurations are saved to
+   `evidence/devtasks/config_for/` (committed as `config_for.tar.xz`;
+   extract it there before re-running `compile` alone).
 9. `paper_numbers.py` writes `paper/numbers.tex` (one macro per number used in the
    paper) and the table bodies in `paper/tables/`.
 

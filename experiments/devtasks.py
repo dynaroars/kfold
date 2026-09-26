@@ -24,7 +24,8 @@ config-for  Every commit of the v7.2.7..v7.2.8 stable update that touches a
 compile     For a seeded random sample of COMPILE_SAMPLE of those commits
             whose objects are all selectable, applies the verified
             configuration to a copy of the defconfig build tree and compiles
-            every touched object with ``make <object>``.
+            every touched object with ``make <object>`` (after deleting any
+            copy left by the base build).
             -> results/devtasks/config_for_compile.json
 
 blindspots  ``kfold blindspots --configs allmodconfig allyesconfig defconfig
@@ -201,6 +202,8 @@ def task_compile(seed):
         cfg = ROOT / r["result"]["verify"]["final_config"]
         objs = r["result"]["objects"]
         shutil.copyfile(cfg, scratch / ".config")
+        for o in objs:  # objects the base build already has must be rebuilt too
+            (scratch / o).unlink(missing_ok=True)
         t0 = time.time()
         rc_cfg = subprocess.run("make ARCH=x86_64 olddefconfig", shell=True, cwd=scratch,
                                 capture_output=True).returncode

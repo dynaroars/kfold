@@ -1,0 +1,152 @@
+{
+ "analysis_seconds": 0.3,
+ "census": {
+  "by_category": {
+   "modeled": {
+    "ConditionBlock:eq": 8,
+    "Function:variableref": 1371,
+    "Rule": 8,
+    "SetVariable+=": 805,
+    "SetVariable:=": 34,
+    "SetVariable=": 8
+   },
+   "out_of_scope": {
+    "Command": 3
+   },
+   "unsupported": {}
+  },
+  "totals": {
+   "modeled": 2234,
+   "out_of_scope": 3,
+   "total": 2237,
+   "unsupported": 0
+  }
+ },
+ "kinds": {
+  "target": 625
+ },
+ "makefile_instances": 30,
+ "objects": 625,
+ "parse_errors": [],
+ "peak_rss_mb": 65.3,
+ "profiles": {
+  "defconfig": {
+   "members": {
+    "fn_within_universe": 0,
+    "fn_within_universe_paths": [],
+    "fp": 1,
+    "fp_build_failed": 1,
+    "fp_build_failed_paths": [
+     "networking/tc.o"
+    ],
+    "fp_paths": [
+     "networking/tc.o"
+    ],
+    "outside_universe": 34,
+    "outside_universe_paths": [
+     "applets/built-in.o",
+     "archival/built-in.o",
+     "archival/libarchive/built-in.o",
+     "console-tools/built-in.o",
+     "coreutils/built-in.o",
+     "coreutils/libcoreutils/built-in.o",
+     "debianutils/built-in.o",
+     "e2fsprogs/built-in.o",
+     "editors/built-in.o",
+     "findutils/built-in.o",
+     "init/built-in.o",
+     "klibc-utils/built-in.o",
+     "libbb/built-in.o",
+     "libbb/yescrypt/built-in.o",
+     "libpwdgrp/built-in.o",
+     "loginutils/built-in.o",
+     "mailutils/built-in.o",
+     "miscutils/built-in.o",
+     "modutils/built-in.o",
+     "networking/built-in.o",
+     "networking/libiproute/built-in.o",
+     "networking/udhcp/built-in.o",
+     "printutils/built-in.o",
+     "procps/built-in.o",
+     "runit/built-in.o",
+     "scripts/kconfig/conf.o",
+     "scripts/kconfig/kxgettext.o",
+     "scripts/kconfig/mconf.o",
+     "scripts/kconfig/zconf.tab.o",
+     "selinux/built-in.o",
+     "shell/built-in.o",
+     "sysklogd/built-in.o",
+     "util-linux/built-in.o",
+     "util-linux/volume_id/built-in.o"
+    ],
+    "overlap_pct": 94.5,
+    "physical": 623,
+    "precision_pct": 99.8,
+    "predicted": 590,
+    "recall_within_universe_pct": 100.0,
+    "tp": 589,
+    "universe": 625
+   },
+   "targets": {
+    "fn_within_universe": 0,
+    "fn_within_universe_paths": [],
+    "fp": 1,
+    "fp_build_failed": 1,
+    "fp_build_failed_paths": [
+     "networking/tc.o"
+    ],
+    "fp_paths": [
+     "networking/tc.o"
+    ],
+    "outside_universe": 34,
+    "outside_universe_paths": [
+     "applets/built-in.o",
+     "archival/built-in.o",
+     "archival/libarchive/built-in.o",
+     "console-tools/built-in.o",
+     "coreutils/built-in.o",
+     "coreutils/libcoreutils/built-in.o",
+     "debianutils/built-in.o",
+     "e2fsprogs/built-in.o",
+     "editors/built-in.o",
+     "findutils/built-in.o",
+     "init/built-in.o",
+     "klibc-utils/built-in.o",
+     "libbb/built-in.o",
+     "libbb/yescrypt/built-in.o",
+     "libpwdgrp/built-in.o",
+     "loginutils/built-in.o",
+     "mailutils/built-in.o",
+     "miscutils/built-in.o",
+     "modutils/built-in.o",
+     "networking/built-in.o",
+     "networking/libiproute/built-in.o",
+     "networking/udhcp/built-in.o",
+     "printutils/built-in.o",
+     "procps/built-in.o",
+     "runit/built-in.o",
+     "scripts/kconfig/conf.o",
+     "scripts/kconfig/kxgettext.o",
+     "scripts/kconfig/mconf.o",
+     "scripts/kconfig/zconf.tab.o",
+     "selinux/built-in.o",
+     "shell/built-in.o",
+     "sysklogd/built-in.o",
+     "util-linux/built-in.o",
+     "util-linux/volume_id/built-in.o"
+    ],
+    "overlap_pct": 94.5,
+    "physical": 623,
+    "precision_pct": 99.8,
+    "predicted": 590,
+    "recall_within_universe_pct": 100.0,
+    "tp": 589,
+    "universe": 625
+   }
+  }
+ },
+ "subject": "busybox",
+ "variant": "no_rules",
+ "version": "1.38.0",
+ "z3_checks": 2
+}
