@@ -4,7 +4,7 @@ symbols and a Kconfig-derived minimal fix.
 
 Fast tests run on tests/paper_example (no Kconfig there, so the Kconfig
 explanation/suggestion parts degrade to a reported "no Kconfig" note).
-Linux tests reuse an existing cache of results/workspaces/linux (see
+Linux tests reuse an existing cache of work/prepared/linux-7.2.8 (see
 tests/test_cli_linux.py) and are skipped without one.
 """
 import json
@@ -18,8 +18,9 @@ from cli import cache, main
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PAPER = ROOT / "tests" / "paper_example"
-LINUX = ROOT / "results" / "workspaces" / "linux"
-CONFIGS = ROOT / "results" / "revalidation_builds" / "linux_configs"
+# The analyzed Linux tree and configs of the canonical run (experiments/).
+LINUX = ROOT / "work" / "prepared" / "linux-7.2.8"
+CONFIGS = ROOT / "evidence" / "configs" / "linux"
 
 
 @pytest.fixture
@@ -134,24 +135,24 @@ def test_why_member_object_guard_chain(run, tree, tmp_path):
 # ---------------------------------------------------------------- Linux
 
 pytestmark_linux = pytest.mark.skipif(not (LINUX / "Makefile").is_file(),
-                                      reason="results/workspaces/linux is absent")
+                                      reason="work/prepared/linux-7.2.8 is absent (run experiments/fetch.py)")
 
 
 @pytest.fixture(scope="module")
 def analysis():
     if not (LINUX / "Makefile").is_file():
-        pytest.skip("results/workspaces/linux is absent")
+        pytest.skip("work/prepared/linux-7.2.8 is absent (run experiments/fetch.py)")
     a = cache.load(LINUX)
     if a is None:
         if not os.environ.get("KFOLD_TEST_ANALYZE_LINUX"):
-            pytest.skip("no valid Linux cache; run `kfold analyze results/workspaces/linux` "
+            pytest.skip("no valid Linux cache; run `kfold analyze work/prepared/linux-7.2.8` "
                         "or set KFOLD_TEST_ANALYZE_LINUX=1")
         a = cache.analyze(LINUX)
     return a
 
 
 def _cfg(profile):
-    p = CONFIGS / profile / ".config"
+    p = CONFIGS / f"{profile}.config"
     if not p.is_file():
         pytest.skip(f"{p} is absent")
     return p

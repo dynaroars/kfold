@@ -269,6 +269,20 @@ def run(args):
     kconfig_seconds = round(time.monotonic() - t0, 2)
 
     included, excluded = solve_targets(objs_conds, phi_kconfig)
+    data["kconfig_widened"] = False
+    if excluded and ksmt is not None:
+        # The fast cone pins selectors outside it to their base values, which
+        # can make an object look impossible (or two objects look in
+        # conflict) when only a select could enable it. Re-solve with the
+        # cone widened along "select" edges before reporting any exclusion.
+        t0 = time.monotonic()
+        phi_kconfig, closure = kc.restricted_constraints(ksmt, solver, seed_names,
+                                                          max_symbols=args.max_kconfig_symbols,
+                                                          base_values=base_values,
+                                                          follow_selects=True)
+        included, excluded = solve_targets(objs_conds, phi_kconfig)
+        kconfig_seconds = round(kconfig_seconds + time.monotonic() - t0, 2)
+        data["kconfig_widened"] = True
     data["objects"] = objs
     data["excluded"] = excluded
     data["used_kconfig"] = used_kconfig

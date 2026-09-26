@@ -3,7 +3,7 @@
 Synthetic checks run against tests/lint_fixtures/basic (a tiny Kbuild+Kconfig
 tree crafted to exercise each finding class exactly once, plus one clean
 case per class to bound false positives). Real-Linux checks are skipped
-unless results/workspaces/linux has a valid cache (see test_cli_linux.py).
+unless work/prepared/linux-7.2.8 has a valid cache (see test_cli_linux.py).
 """
 import json
 import pathlib
@@ -15,7 +15,8 @@ from cli import main
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FIXTURE = ROOT / "tests" / "lint_fixtures" / "basic"
-LINUX = ROOT / "results" / "workspaces" / "linux"
+# The analyzed Linux tree and configs of the canonical run (experiments/).
+LINUX = ROOT / "work" / "prepared" / "linux-7.2.8"
 
 
 @pytest.fixture
@@ -177,7 +178,7 @@ def test_diff_guard_change_fixes_dead_object(run, tree, tmp_path):
 # ---------------------------------------------------------------- Linux smoke
 
 pytestmark_linux = pytest.mark.skipif(not (LINUX / "Makefile").is_file(),
-                                      reason="results/workspaces/linux is absent")
+                                      reason="work/prepared/linux-7.2.8 is absent (run experiments/fetch.py)")
 
 
 @pytestmark_linux
@@ -189,7 +190,7 @@ def test_linux_smoke(capsys):
     from cli import cache
     a = cache.load(LINUX)
     if a is None:
-        pytest.skip("no valid Linux cache; run `kfold analyze results/workspaces/linux`")
+        pytest.skip("no valid Linux cache; run `kfold analyze work/prepared/linux-7.2.8`")
     rc = main.main(["lint", "--tree", str(LINUX), "--json", "--no-analyze",
                     "--path", "fs/ext2/", "--dead-limit", "200"])
     d = json.loads(capsys.readouterr().out)

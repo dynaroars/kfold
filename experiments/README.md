@@ -54,7 +54,7 @@ experiments/run_all.sh          # everything below, in order
    update (fetched into `work/stable-7.2.8` with a shallow `git fetch` of tag
    v7.2.8), keeping the 402 that touch a `.c` or `.S` file.
    -> `results/devtasks/`
-9. `numbers.py` writes `paper/numbers.tex` (one macro per number used in the
+9. `paper_numbers.py` writes `paper/numbers.tex` (one macro per number used in the
    paper) and the table bodies in `paper/tables/`.
 
 ## Toolchain and deviations from stock builds

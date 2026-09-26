@@ -12,8 +12,9 @@ from cli.commands import _blindspots_maintainers as mnt
 from cli.commands import blindspots
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-LINUX = ROOT / "results" / "workspaces" / "linux"
-CONFIGS = ROOT / "results" / "revalidation_builds" / "linux_configs"
+# The analyzed Linux tree and configs of the canonical run (experiments/).
+LINUX = ROOT / "work" / "prepared" / "linux-7.2.8"
+CONFIGS = ROOT / "evidence" / "configs" / "linux"
 
 FIXTURE = """\
 NETWORK DRIVER CORE
@@ -159,17 +160,17 @@ def test_classify_arch_path():
 # ---------------------------------------------------------------- Linux e2e
 
 _needs_linux = pytest.mark.skipif(not (LINUX / "Makefile").is_file(),
-                                  reason="results/workspaces/linux is absent")
+                                  reason="work/prepared/linux-7.2.8 is absent (run experiments/fetch.py)")
 
 
 @pytest.fixture(scope="module")
 def analysis():
     if not (LINUX / "Makefile").is_file():
-        pytest.skip("results/workspaces/linux is absent")
+        pytest.skip("work/prepared/linux-7.2.8 is absent (run experiments/fetch.py)")
     a = cache.load(LINUX)
     if a is None:
         if not os.environ.get("KFOLD_TEST_ANALYZE_LINUX"):
-            pytest.skip("no valid Linux cache; run `kfold analyze results/workspaces/linux` "
+            pytest.skip("no valid Linux cache; run `kfold analyze work/prepared/linux-7.2.8` "
                         "or set KFOLD_TEST_ANALYZE_LINUX=1")
         a = cache.analyze(LINUX)
     return a
@@ -184,8 +185,8 @@ def test_source_path_maps_object_to_c(analysis):
 def test_blindspots_cli_on_ext2(analysis, capsys):
     """fs/ext2 is built by allmodconfig/defconfig, so it should have no
     blind spots and should be attributed to an EXT2 MAINTAINERS entry."""
-    allmod = CONFIGS / "allmodconfig" / ".config"
-    defcfg = CONFIGS / "defconfig" / ".config"
+    allmod = CONFIGS / "allmodconfig.config"
+    defcfg = CONFIGS / "defconfig.config"
     if not (allmod.is_file() and defcfg.is_file()):
         pytest.skip("standard Linux configs are absent")
     rc = main.main(["blindspots", "--tree", str(LINUX), "--path", "fs/ext2",
@@ -200,8 +201,8 @@ def test_blindspots_cli_on_ext2(analysis, capsys):
 def test_blindspots_finds_x86_32_only_code(analysis, capsys):
     """arch/x86/kernel/cpu/mtrr/cyrix.o is X86_32-only legacy CPU support;
     every standard config here targets x86_64, so it must be a blind spot."""
-    allmod = CONFIGS / "allmodconfig" / ".config"
-    defcfg = CONFIGS / "defconfig" / ".config"
+    allmod = CONFIGS / "allmodconfig.config"
+    defcfg = CONFIGS / "defconfig.config"
     if not (allmod.is_file() and defcfg.is_file()):
         pytest.skip("standard Linux configs are absent")
     rc = main.main(["blindspots", "--tree", str(LINUX),

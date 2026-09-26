@@ -101,6 +101,36 @@ if not getattr(kconfiglib.Kconfig, "_kfold_compat", False):
         return _EMPTY.get(self.orig_type, v) if v == "" else v
 
     kconfiglib.Symbol.str_value = property(_str_value_compat)
+
+    _tri_value = kconfiglib.Symbol.tri_value
+    _BOOL_TRISTATE = (kconfiglib.BOOL, kconfiglib.TRISTATE)
+    _ev = kconfiglib.expr_value
+
+    def _tri_value_compat(self):
+        if self._cached_tri_val is not None:
+            return self._cached_tri_val
+        if self.orig_type not in _BOOL_TRISTATE or self.choice is not None:
+            return _tri_value.fget(self)
+        vis = self.visibility
+        val = 0
+        if vis and self.user_value is not None:
+            val = min(self.user_value, vis)
+        else:
+            for default, cond in self.defaults:
+                dep = _ev(cond)
+                if dep:
+                    val = min(_ev(default), dep)
+                    break
+            implied = _ev(self.weak_rev_dep)
+            if implied:
+                val = min(max(val, implied), _ev(self.direct_dep))
+        val = max(val, _ev(self.rev_dep))
+        if val == 1 and self.type is kconfiglib.BOOL:
+            val = 2
+        self._cached_tri_val = val
+        return val
+
+    kconfiglib.Symbol.tri_value = property(_tri_value_compat)
     kconfiglib.Kconfig._kfold_compat = True
 
 

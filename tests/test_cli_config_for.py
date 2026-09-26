@@ -5,7 +5,7 @@ tree) verifying the result against real Kconfig/olddefconfig behavior.
 Fast tests run on tests/paper_example (no Kconfig, so only Phi_Kbuild
 applies) and on synthetic z3 conditions (solve_targets' conflict handling,
 with no tree at all). Linux tests are skipped unless a valid cache exists
-for results/workspaces/linux (same convention as tests/test_cli_linux.py).
+for work/prepared/linux-7.2.8 (same convention as tests/test_cli_linux.py).
 """
 import json
 import pathlib
@@ -21,8 +21,9 @@ from cli.commands import config_for as cf
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PAPER = ROOT / "tests" / "paper_example"
-LINUX = ROOT / "results" / "workspaces" / "linux"
-DEFCONFIG = ROOT / "results" / "revalidation_builds" / "linux_configs" / "defconfig" / ".config"
+# The analyzed Linux tree and configs of the canonical run (experiments/).
+LINUX = ROOT / "work" / "prepared" / "linux-7.2.8"
+DEFCONFIG = ROOT / "evidence" / "configs" / "linux" / "defconfig.config"
 
 
 @pytest.fixture
@@ -175,16 +176,16 @@ def test_solve_targets_reports_solo_unsat():
 # ---------------------------------------------------------------- Linux tree
 
 pytestmark_linux = pytest.mark.skipif(not (LINUX / "Makefile").is_file(),
-                                      reason="results/workspaces/linux is absent")
+                                      reason="work/prepared/linux-7.2.8 is absent (run experiments/fetch.py)")
 
 
 @pytest.fixture(scope="module")
 def linux_analysis():
     if not (LINUX / "Makefile").is_file():
-        pytest.skip("results/workspaces/linux is absent")
+        pytest.skip("work/prepared/linux-7.2.8 is absent (run experiments/fetch.py)")
     a = cache.load(LINUX)
     if a is None:
-        pytest.skip("no valid Linux cache; run `kfold analyze results/workspaces/linux`")
+        pytest.skip("no valid Linux cache; run `kfold analyze work/prepared/linux-7.2.8`")
     return a
 
 

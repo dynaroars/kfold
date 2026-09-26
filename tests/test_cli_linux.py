@@ -1,8 +1,8 @@
 """Smoke test of the kfold CLI on the Linux v6.6 workspace.
 
-Skipped unless results/workspaces/linux exists. Analyzing Linux takes about
+Skipped unless work/prepared/linux-7.2.8 exists. Analyzing Linux takes about
 two minutes, so the tests use an existing valid cache (from `kfold analyze
-results/workspaces/linux`, default cache root or $KFOLD_CACHE) and are
+work/prepared/linux-7.2.8`, default cache root or $KFOLD_CACHE) and are
 skipped without one, unless KFOLD_TEST_ANALYZE_LINUX=1 allows analyzing.
 """
 import json
@@ -15,11 +15,12 @@ import pytest
 from cli import cache, main
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-LINUX = ROOT / "results" / "workspaces" / "linux"
-CONFIGS = ROOT / "results" / "revalidation_builds" / "linux_configs"
+# The analyzed Linux tree and configs of the canonical run (experiments/).
+LINUX = ROOT / "work" / "prepared" / "linux-7.2.8"
+CONFIGS = ROOT / "evidence" / "configs" / "linux"
 
 pytestmark = pytest.mark.skipif(not (LINUX / "Makefile").is_file(),
-                                reason="results/workspaces/linux is absent")
+                                reason="work/prepared/linux-7.2.8 is absent (run experiments/fetch.py)")
 
 
 @pytest.fixture(scope="module")
@@ -27,7 +28,7 @@ def analysis():
     a = cache.load(LINUX)
     if a is None:
         if not os.environ.get("KFOLD_TEST_ANALYZE_LINUX"):
-            pytest.skip("no valid Linux cache; run `kfold analyze results/workspaces/linux` "
+            pytest.skip("no valid Linux cache; run `kfold analyze work/prepared/linux-7.2.8` "
                         "or set KFOLD_TEST_ANALYZE_LINUX=1")
         a = cache.analyze(LINUX)
     return a
@@ -50,16 +51,17 @@ def test_ext2_xattr(analysis):
     assert not analysis.is_built(p, {"CONFIG_EXT2_FS": "y"})
 
 
-@pytest.mark.parametrize("profile", ["defconfig", "tinyconfig_i386"])
+@pytest.mark.parametrize("profile", ["defconfig", "tinyconfig"])
 def test_query_matches_archived_build(analysis, profile, capsys):
     """kfold's verdict for a few objects agrees with the archived build."""
-    cfg = CONFIGS / profile / ".config"
+    cfg = CONFIGS / f"{profile}.config"
     if not cfg.is_file():
         pytest.skip(f"{cfg} is absent")
+    built = set((ROOT / "evidence" / "inventories" / "linux" / f"{profile}.txt").read_text().split())
     for obj in ("kernel/sched/core.o", "fs/ext4/xattr.o", "fs/ext2/xattr.o",
                 "drivers/net/ethernet/intel/e1000e/netdev.o"):
         rc = main.main(["query", obj, "--tree", str(LINUX), "--config", str(cfg),
                         "--json", "--no-analyze"])
         d = json.loads(capsys.readouterr().out)
         assert rc == 0
-        assert d["config"]["built"] == (CONFIGS / profile / obj).is_file(), (profile, obj)
+        assert d["config"]["built"] == (obj in built), (profile, obj)

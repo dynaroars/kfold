@@ -14,4 +14,4 @@ python3 experiments/devtasks.py why
 python3 experiments/devtasks.py config-for
 python3 experiments/devtasks.py compile
 python3 experiments/devtasks.py blindspots
-python3 experiments/numbers.py
+python3 experiments/paper_numbers.py

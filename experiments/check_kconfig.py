@@ -46,7 +46,7 @@ def main():
         os.environ.update(srctree=str(tree), ARCH=cfg["arch"], SRCARCH="x86", CC=CC, LD="ld",
                           NM="nm", OBJCOPY="objcopy", PAHOLE="pahole", HOSTCC="gcc",
                           KERNELVERSION=SUBJECTS["linux"]["version"],
-                          RUSTC="rustc", BINDGEN="bindgen")
+                          RUSTC="rustc", BINDGEN="bindgen", PYTHON3="python3")
         os.environ.update(kconfig_compat.makefile_exports(tree))
         kc = kconfiglib.Kconfig(str(tree / "Kconfig"), warn=False)
         kc.load_config(str(path))

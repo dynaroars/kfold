@@ -37,6 +37,7 @@ TOOLCHAIN_DEFAULTS = {
     "OBJDUMP": "objdump", "READELF": "readelf", "STRIP": "strip",
     "HOSTCC": "gcc", "HOSTCXX": "g++", "HOSTPKG_CONFIG": "pkg-config",
     "PAHOLE": "pahole", "RUSTC": "rustc", "BINDGEN": "bindgen",
+    "PYTHON3": "python3",
 }
 
 
