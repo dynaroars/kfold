@@ -1,32 +1,35 @@
 @inproceedings{berger2010variability,
-  title={Variability-aware parsing in the presence of conditional compilation},
-  author={Berger, Christian and She, Steven and Lotufo, Rafael and Wasowski, Andrzej and Czarnecki, Krzysztof},
+  title={Variability modeling in the real: a perspective from the operating systems domain},
+  author={Berger, Thorsten and She, Steven and Lotufo, Rafael and W{\k{a}}sowski, Andrzej and Czarnecki, Krzysztof},
   booktitle={Proceedings of the 25th IEEE/ACM International Conference on Automated Software Engineering (ASE)},
-  pages={125--134},
-  year={2010}
+  pages={73--82},
+  year={2010},
+  doi={10.1145/1858996.1859010}
 }
 
-@inproceedings{berger2013variability,
-  title={Variability modeling in the systems software domain: a survey},
-  author={Berger, Thorsten and Rublack, Ralf and Nair, Divya and Atlee, Joanne M and Becker, Martin and Dalmau, Krzysztof and Wasowski, Andrzej},
-  booktitle={Proceedings of the 17th International Software Product Line Conference (SPLC)},
-  pages={111--120},
-  year={2013}
+@article{berger2013variability,
+  title={A Study of Variability Models and Languages in the Systems Software Domain},
+  author={Berger, Thorsten and She, Steven and Lotufo, Rafael and W{\k{a}}sowski, Andrzej and Czarnecki, Krzysztof},
+  journal={IEEE Transactions on Software Engineering},
+  volume={39},
+  number={12},
+  pages={1611--1640},
+  year={2013},
+  doi={10.1109/TSE.2013.34}
 }
 
 @inproceedings{dietrich2012variability,
-  title={Variability-aware parsing of {Kconfig} specifications},
-  author={Dietrich, Christian and Tartler, Reinhard and Sincero, Julio and Schr{\"o}der-Preikschat, Wolfgang and Lohmann, Daniel},
+  title={A Robust Approach for Variability Extraction from the {Linux} Build System},
+  author={Dietrich, Christian and Tartler, Reinhard and Schr{\"o}der-Preikschat, Wolfgang and Lohmann, Daniel},
   booktitle={Proceedings of the 16th International Software Product Line Conference (SPLC)},
-  pages={1--10},
   year={2012}
 }
 
 @inproceedings{tartler2011dead,
-  title={Dead code detection in {Linux} kernel},
+  title={Feature Consistency in Compile-Time-Configurable System Software: Facing the {Linux} 10,000 Feature Problem},
   author={Tartler, Reinhard and Lohmann, Daniel and Sincero, Julio and Schr{\"o}der-Preikschat, Wolfgang},
-  booktitle={Proceedings of the 2011 USENIX Annual Technical Conference (USENIX ATC)},
-  pages={1--14},
+  booktitle={Proceedings of the Sixth European Conference on Computer Systems (EuroSys)},
+  pages={47--60},
   year={2011}
 }
 
@@ -40,34 +43,28 @@
 }
 
 @inproceedings{gazzillo2018localizing,
-  title={Localizing Compilation Errors in the {Linux} Kernel},
-  author={Gazzillo, Paul},
-  booktitle={Proceedings of the 26th ACM Joint Meeting on European Software Engineering Conference and Symposium on the Foundations of Software Engineering (ESEC/FSE)},
-  pages={847--857},
-  year={2018}
+  title={Localizing Configurations in Highly-Configurable Systems},
+  author={Gazzillo, Paul and Koc, Ugur and Nguyen, ThanhVu and Wei, Shiyi},
+  booktitle={Proceedings of the 22nd International Systems and Software Product Line Conference (SPLC), Challenge Track},
+  year={2018},
+  doi={10.1145/3233027.3236404}
 }
 
-@inproceedings{yildiran2021kismet,
-  title={Kismet: Fast and Automated Finding of Unmet Dependency Bugs in the {Linux} Kernel},
-  author={Yildiran, Necip and Oh, Jeho and Braha, Julian and Gazzillo, Paul},
+
+@inproceedings{oh2021kclause,
+  title={Finding Broken {Linux} Configuration Specifications by Statically Analyzing the {Kconfig} Language},
+  author={Oh, Jeho and Y{\i}ld{\i}ran, Necip Faz{\i}l and Braha, Julian and Gazzillo, Paul},
   booktitle={Proceedings of the 29th ACM Joint Meeting on European Software Engineering Conference and Symposium on the Foundations of Software Engineering (ESEC/FSE)},
-  pages={706--718},
-  year={2021}
-}
-
-@article{oh2021kclause,
-  title={Kclause: Extracting Configurable Build System Constraints},
-  author={Oh, Jeho and Gazzillo, Paul},
-  journal={arXiv preprint arXiv:2104.03254},
-  year={2021}
+  year={2021},
+  doi={10.1145/3468264.3468578}
 }
 
 
 
 @inproceedings{cadar2008klee,
-  title={{KLEE}: Unassisted and automatic generation of high-coverage tests for complex systems programs},
-  author={Cadar, Cristian and Dunbar, Daniel and Engler, Dawson R},
-  booktitle={Proceedings of the 8th USENIX Conference on Operating Systems Design and Implementation (OSDI)},
+  title={{KLEE}: Unassisted and Automatic Generation of High-Coverage Tests for Complex Systems Programs},
+  author={Cadar, Cristian and Dunbar, Daniel and Engler, Dawson R.},
+  booktitle={Proceedings of the 8th USENIX Symposium on Operating Systems Design and Implementation (OSDI)},
   pages={209--224},
   year={2008}
 }
@@ -117,11 +114,29 @@
 }
 
 @inproceedings{kenner2010typechef,
-  title={{TypeChef}: Towards type checking \#ifdef-rich code},
-  author={K{\"a}stner, Christian and Giarrusso, Paolo G and Rendel, Tillmann and Erdweg, Sebastian and Ostermann, Klaus and Berger, Thorsten},
+  title={{TypeChef}: Toward Type Checking \#ifdef Variability in {C}},
+  author={Kenner, Andy and K{\"a}stner, Christian and Haase, Steffen and Leich, Thomas},
+  booktitle={Proceedings of the 2nd International Workshop on Feature-Oriented Software Development (FOSD)},
+  pages={25--32},
+  year={2010},
+  doi={10.1145/1868688.1868693}
+}
+
+@inproceedings{kastner2011variability,
+  title={Variability-Aware Parsing in the Presence of Lexical Macros and Conditional Compilation},
+  author={K{\"a}stner, Christian and Giarrusso, Paolo G. and Rendel, Tillmann and Erdweg, Sebastian and Ostermann, Klaus and Berger, Thorsten},
   booktitle={Proceedings of the ACM International Conference on Object Oriented Programming Systems Languages and Applications (OOPSLA)},
-  pages={1--12},
+  pages={805--824},
   year={2011}
+}
+
+@inproceedings{berger2010feature,
+  title={Feature-to-Code Mapping in Two Large Product Lines},
+  author={Berger, Thorsten and She, Steven and Lotufo, Rafael and Czarnecki, Krzysztof and W{\k{a}}sowski, Andrzej},
+  booktitle={Software Product Lines: Going Beyond (SPLC 2010)},
+  series={LNCS},
+  volume={6287},
+  year={2010}
 }
 
 @inproceedings{gazzillo2012superc,
@@ -211,3 +226,73 @@
   pages={517--518},
   year={2007}
 }
+
+@inproceedings{de2008z3,
+  title={{Z3}: An efficient {SMT} solver},
+  author={De Moura, Leonardo and Bj{\o}rner, Nikolaj},
+  booktitle={Proceedings of the International Conference on Tools and Algorithms for the Construction and Analysis of Systems (TACAS)},
+  pages={337--340},
+  year={2008},
+  publisher={Springer}
+}
+
+@article{thum2014potential,
+  title={Potential and limitations of analyses of configurable systems},
+  author={Th{\"u}m, Thomas and Apel, Sven and K{\"a}stner, Christian and Schaefer, Ina and Saake, Gunter},
+  journal={ACM Computing Surveys (CSUR)},
+  volume={47},
+  number={1},
+  pages={1--36},
+  year={2014}
+}
+
+@inproceedings{abal2014variability,
+  title={42 variability bugs in the alternative world: a study of {Linux} kernel flaws},
+  author={Abal, Irit and Brabrand, Claus and Wasowski, Andrzej},
+  booktitle={Proceedings of the 2014 ACM SIGSOFT International Symposium on Foundations of Software Engineering (FSE)},
+  pages={379--390},
+  year={2014}
+}
+
+@inproceedings{sen2005cute,
+  title={{CUTE}: a concolic unit testing engine for {C}},
+  author={Sen, Koushik and Marinov, Darko and Agha, Gul},
+  booktitle={Proceedings of the 10th European Software Engineering Conference and 13th ACM SIGSOFT International Symposium on Foundations of Software Engineering (ESEC/FSE)},
+  pages={263--272},
+  year={2005}
+}
+
+@article{clarke1976program,
+  title={A program testing system},
+  author={Clarke, Lori A},
+  journal={ACM '76: Proceedings of the 1976 Annual Conference},
+  pages={488--491},
+  year={1976}
+}
+
+@inproceedings{torlak2014symbolic,
+  title={A lightweight symbolic execution expressive solver-aided host},
+  author={Torlak, Emina and Bodik, Rastislav},
+  booktitle={Proceedings of the 35th ACM SIGPLAN Conference on Programming Language Design and Implementation (PLDI)},
+  pages={530--541},
+  year={2014}
+}
+
+@article{dietrich2018variability,
+  title={Understanding {Linux} feature interactions through build and configuration},
+  author={Dietrich, Christian and Tartler, Reinhard and Schr{\"o}der-Preikschat, Wolfgang and Lohmann, Daniel},
+  journal={ACM Transactions on Computer Systems (TOCS)},
+  volume={35},
+  number={4},
+  pages={1--28},
+  year={2018}
+}
+
+@inproceedings{nadi2014mining,
+  title={Mining configuration constraints: Static analyses and empirical evaluations},
+  author={Nadi, Sarah and Berger, Thorsten and K{\"a}stner, Christian and Czarnecki, Krzysztof},
+  booktitle={Proceedings of the 36th International Conference on Software Engineering (ICSE)},
+  pages={140--151},
+  year={2014}
+}
+
