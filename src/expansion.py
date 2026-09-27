@@ -428,8 +428,12 @@ class ExpansionBase(ABC):
             if not self.solver.is_sat(cond):
                 continue
             try:
+                # stdin is /dev/null: a command that reads stdin (as Make's
+                # would, from a terminal) must not wait on kfold's own stdin
+                # until the timeout.
                 res = subprocess.run(
-                    cmd, shell=True, cwd=dir_, capture_output=True, text=True, timeout=5
+                    cmd, shell=True, cwd=dir_, capture_output=True, text=True, timeout=5,
+                    stdin=subprocess.DEVNULL
                 )
                 out = res.stdout.replace('\r\n', '\n').replace('\n', ' ').strip()
                 d[out] = cond
@@ -735,11 +739,24 @@ class ExpansionBase(ABC):
         d = OrderedDict()
         import fnmatch
         import os
+        import glob
         for wc, cond in exps:
             if self.solver.is_sat(cond):
-                dir_ = list(states['src'].vals)[0]
-                assert dir_.is_dir(), dir_
-                v = ' '.join(fnmatch.filter(os.listdir(dir_), wc))
+                if "/" in wc:
+                    # A pattern with a directory part is matched as GNU Make
+                    # does, from the directory Make runs in (the source
+                    # root): coreboot's src/arch/x86/Makefile.mk has
+                    # "ramstage-srcs += $(wildcard src/mainboard/$(MAINBOARDDIR)/mainboard.c)".
+                    root = os.fspath(self.solver.mysettings.maindir)
+                    found = []
+                    for pat in wc.split():
+                        hits = sorted(glob.glob(pat if os.path.isabs(pat) else os.path.join(root, pat)))
+                        found.extend(h if os.path.isabs(pat) else os.path.relpath(h, root) for h in hits)
+                    v = ' '.join(found)
+                else:
+                    dir_ = list(states['src'].vals)[0]
+                    assert dir_.is_dir(), dir_
+                    v = ' '.join(fnmatch.filter(os.listdir(dir_), wc))
                 if v not in d:
                     d[v] = cond
 
@@ -878,23 +895,27 @@ class ExpansionBase(ABC):
     def do_config_var(self, name):
         assert (self.solver.mysettings.is_copt(name) or
                 self.solver.mysettings.is_xopt(name)), name
-
-        symbol, optd = self.solver.get_sort(name)
-
-        vals = []
-        for k in optd:
-            c = (symbol == optd[k])
-            if k == 'm' and name != "CONFIG_MODULES":
-                mod_symbol, mod_optd = self.solver.get_sort("CONFIG_MODULES")
-                c = zsolver.conj(c, mod_symbol == mod_optd['y'])
-            vals.append((k, c))
-        return vals
+        return config_valconds(self.solver, name)
 
     def get_fun_arg_vals(self, fun, nargs, states):
         assert nargs >= 1, nargs
         fargs = [fun._arguments[i] for i in range(nargs)]
         expansions = [self.do_expansion(farg, states) for farg in fargs]
         return itertools.product(*expansions)
+
+
+def config_valconds(solver, name):
+    """Each value of Kconfig option ``name`` with its condition; m requires
+    CONFIG_MODULES=y."""
+    symbol, optd = solver.get_sort(name)
+    vals = []
+    for k in optd:
+        c = (symbol == optd[k])
+        if k == 'm' and name != "CONFIG_MODULES":
+            mod_symbol, mod_optd = solver.get_sort("CONFIG_MODULES")
+            c = zsolver.conj(c, mod_symbol == mod_optd['y'])
+        vals.append((k, c))
+    return vals
 
 
 class ExpansionSExe(ExpansionBase):

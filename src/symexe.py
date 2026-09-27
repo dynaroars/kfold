@@ -232,7 +232,7 @@ class StatementList(Statement):
 
 
 def _merge_branch_states(dest_state, then_state, then_guard, else_state, else_guard,
-                         guard):
+                         guard, solver=None):
     """Fold ``then_state``/``else_state`` (each a full clone of the
     pre-conditional state that a branch's statements executed against under
     their own ambient guard) back into ``dest_state``.
@@ -266,6 +266,12 @@ def _merge_branch_states(dest_state, then_state, then_guard, else_state, else_gu
     for name in names:
         then_v = then_state.states.get(name)
         else_v = else_state.states.get(name)
+        # A Kconfig option that only one branch assigns keeps its
+        # auto.conf value in the other (ds.BaseState._config_default).
+        if then_v is None:
+            then_v = then_state._config_default(name, solver)
+        if else_v is None:
+            else_v = else_state._config_default(name, solver)
         words = set()
         if then_v is not None:
             words |= set(then_v.valconds)
@@ -403,7 +409,7 @@ class ConditionBlock(Statement):
             self.else_stmts.sexe(else_state, else_guard, ddb)
 
         _merge_branch_states(state, then_state, then_guard, else_state, else_guard,
-                             guard)
+                             guard, self.solver)
 
     def eval_condition(self, cond, state, myeval):
         """

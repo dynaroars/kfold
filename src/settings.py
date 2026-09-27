@@ -78,8 +78,28 @@ class Settings:
         # (Makefile.build's need-builtin); obj-m or subdir-y reachability is
         # not enough.
         self.need_builtin = False
+        # host_programs_share_objects: the subject's scripts/Makefile.host
+        # links every multi-object host program from all of the directory's
+        # host objects ("$(host-cmulti): %: $(host-cobjs)", Kbuild before
+        # Linux 2.6.x), so building one program compiles every program's -objs.
+        self.host_programs_share_objects = False
+        # root_lists: suffixes X such that FAMILY-X (for a FAMILY in
+        # target_vars) is a target list whose words are paths from the source
+        # root, not from the Makefile's directory: coreboot's ramstage-srcs,
+        # which its top-level Makefile.mk fills from ramstage-y and some
+        # Makefile.mk files extend directly.
+        self.root_lists = ()
+        # src_dir: what $(src) names, relative to the tree, when it is one
+        # directory for every Makefile (coreboot's top-level Makefile:
+        # "src := src") rather than the Makefile's own directory (Kbuild).
+        self.src_dir = None
+        # rules_from_root: rule targets and prerequisites are paths from the
+        # source root (coreboot includes every Makefile.mk into one Make run
+        # in the top directory), not from the Makefile's directory ($(obj)
+        # in Kbuild).
+        self.rules_from_root = False
         # extra_objects: objects produced by top-level link steps, each
-        # optionally guarded by an option that must be y.
+        # optionally guarded by options ("A&B") that must be y.
         self.extra_objects = []
         # entry_goals: files that top-level rules build (e.g. the boot image),
         # each optionally guarded by an option that must be y or m.
@@ -141,6 +161,14 @@ class Settings:
 
         if 'need_builtin' in myconfig:
             self.need_builtin = myconfig.getboolean('need_builtin')
+        if 'rules_from_root' in myconfig:
+            self.rules_from_root = myconfig.getboolean('rules_from_root')
+        if 'src_dir' in myconfig:
+            self.src_dir = myconfig.get('src_dir').strip() or None
+        if 'root_lists' in myconfig:
+            self.root_lists = tuple(myconfig.get('root_lists').split())
+        if 'host_programs_share_objects' in myconfig:
+            self.host_programs_share_objects = myconfig.getboolean('host_programs_share_objects')
         if 'composite_objects' in myconfig:
             self.composite_objects = myconfig.get('composite_objects').strip()
         if 'entry_goals' in myconfig:

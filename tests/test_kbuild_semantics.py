@@ -155,3 +155,51 @@ def test_entry_goal_builds_host_program_members():
     assert {"k/conf.o", "k/expr.o", "k/util.o"} <= predicted
     assert kinds["k/conf.o"] == "rule"
     assert "k/mconf.o" not in predicted
+
+
+def test_assigned_config_option_keeps_kconfig_value_elsewhere():
+    # U-Boot tools/Makefile: CONFIG_CMD_NET = y only under HOST_TOOLS_ALL;
+    # otherwise $(CONFIG_CMD_NET) is the value from include/config/auto.conf.
+    kb, solver = analyze("ifneq ($(HOST_TOOLS_ALL),)\nCONFIG_CMD_NET = y\nendif\n"
+                         "hostprogs-always-$(CONFIG_CMD_NET) += crc\n")
+    progs = next(v for v in kb.state.program_files if v.name == "hostprogs-always-y")
+    sym, optd = solver.get_sort("CONFIG_CMD_NET")
+    assert solver.is_valid(progs.valconds["crc"] == (sym == optd["y"]))
+
+
+def test_coreboot_root_lists_and_rules_from_root():
+    # coreboot: ramstage-srcs words are paths from the tree root (found with
+    # $(wildcard) from there), and util rules name build/ paths from the root.
+    root = make_tree({
+        "src/arch/x86/Makefile.mk": ("ramstage-y += boot.c\n"
+                                     "ramstage-srcs += $(wildcard src/mainboard/$(MAINBOARDDIR)/mainboard.c)\n"
+                                     "ramstage-srcs += $(wildcard src/mainboard/$(MAINBOARDDIR)/absent.c)\n"
+                                     "romstage-srcs += $(wildcard $(src)/mainboard/$(MAINBOARDDIR)/romstage.c)\n"),
+        "src/arch/x86/boot.c": "",
+        "src/mainboard/b/mainboard.c": "", "src/mainboard/b/romstage.c": "",
+        "util/tool/Makefile.mk": ("toolobj := main.o util.o\n"
+                                  "$(objutil)/tool/tool: $(addprefix $(objutil)/tool/,$(toolobj))\n"),
+    }, "entry_files = Makefile.mk\ntop_dirs = src/arch/x86 util/tool\n"
+       "target_vars = ramstage- romstage-\nroot_lists = srcs\nsrc_dir = src\nrules_from_root = yes\n"
+       "defines = MAINBOARDDIR=b objutil=build/util\nentry_goals = build/util/tool/tool\n")
+    predicted, kinds = objects_under(root, {})
+    assert {"build/ramstage/arch/x86/boot.o", "build/ramstage/mainboard/b/mainboard.o",
+            "build/romstage/mainboard/b/romstage.o",
+            "build/util/tool/main.o", "build/util/tool/util.o"} <= predicted
+    assert not any("absent" in p for p in predicted)
+    assert kinds["build/util/tool/main.o"] == "rule"
+
+
+def test_host_programs_share_objects():
+    # BusyBox's scripts/Makefile.host: "$(host-cmulti): %: $(host-cobjs)".
+    files = {
+        "Kbuild": "obj-y += a.o\n",
+        "k/Makefile": ("silentoldconfig: $(obj)/conf\n\t$< -s Config.in\n"
+                       "hostprogs-y := conf mconf\n"
+                       "conf-objs := conf.o zconf.tab.o\nmconf-objs := mconf.o zconf.tab.o\n"),
+    }
+    ini = "entry_goals = k/silentoldconfig\n"
+    predicted, _ = objects_under(make_tree(files, ini), {})
+    assert "k/mconf.o" not in predicted
+    predicted, _ = objects_under(make_tree(files, ini + "host_programs_share_objects = yes\n"), {})
+    assert {"k/conf.o", "k/zconf.tab.o", "k/mconf.o"} <= predicted

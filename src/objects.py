@@ -125,10 +125,13 @@ def object_conditions(runner, include_members=True, origins=None):
     if include_members:
         solver = zsolver.ZSolver(runner.mysettings)
         for path, sym in getattr(runner.mysettings, "extra_objects", []):
-            guard = zsolver.T
-            if sym:
-                zvar, values = solver.get_sort(sym)
-                guard = zvar == values["y"]
+            # A guard is one option, or several joined by "&", each of which
+            # must be y.
+            guards = []
+            for name in (sym.split("&") if sym else []):
+                zvar, values = solver.get_sort(name)
+                guards.append(zvar == values["y"])
+            guard = zsolver.mconj(guards) if guards else zsolver.T
             _add(targets, kinds, path, guard, "extra")
             note(path, runner.maindir / "skbuild.ini", "extra_objects")
     suffixes = getattr(runner.mysettings, "family_suffixes", {})
@@ -144,11 +147,13 @@ def object_conditions(runner, include_members=True, origins=None):
     need_builtin = link_semantics and getattr(runner.mysettings, "need_builtin", False)
     builtin = builtin_guards(runner) if need_builtin else {}
     roots = []  # non-object targets whose rules the closure follows
+    root_lists = tuple("-" + x for x in getattr(runner.mysettings, "root_lists", ()))
     for kb in runner.all_kbuilds:
-        state, parent = kb.state, kb.makefile.parent
+        state = kb.state
         for var in state.target_files:
             if var.name in runner.mysettings.target_vars:
                 continue
+            parent = runner.maindir if root_lists and var.name.endswith(root_lists) else kb.makefile.parent
             # obj-y objects go into built-in.a, which Kbuild builds only for
             # a directory with a built-in route; lib-y, extra-y, and always-y
             # objects are built whenever the directory is visited.
@@ -212,7 +217,7 @@ def object_conditions(runner, include_members=True, origins=None):
                 if not isinstance(prog, str) or "$" in prog:
                     continue
                 for member, mcond in state.composite_members(prog).items():
-                    rel = target_path(member, "obj-y", parent, runner.maindir)
+                    rel = target_path(member, "obj-y", kb.makefile.parent, runner.maindir)
                     if rel is not None:
                         _add(targets, kinds, rel, zsolver.conj(cond, mcond), "program")
                         note(rel, kb.makefile, f"object of program {prog} ({var.name})")
@@ -239,8 +244,9 @@ class _RuleIndex:
     """Explicit rules, pattern rules, and sub-makes of analyzed Makefiles,
     keyed by target paths relative to the source root."""
 
-    def __init__(self, maindir):
+    def __init__(self, maindir, mysettings=None):
         self.maindir = maindir
+        self.mysettings = mysettings
         self.explicit = {}   # target -> [(prereq, cond)]
         self.patterns = []   # (dir, target pattern, [(prereq pattern, cond)])
         self.submakes = {}   # target -> [(makefile dir, goal, cond)]
@@ -262,7 +268,8 @@ class _RuleIndex:
         self.seen.add(key)
         self._matches.clear()
         self._makeable.clear()
-        parent = makefile.parent
+        parent = (self.maindir if getattr(self.mysettings, "rules_from_root", False)
+                  else makefile.parent)
         for name, var in state.states.items():
             if not (name.startswith("__rule") and name.endswith("_t")):
                 continue
@@ -298,17 +305,23 @@ class _RuleIndex:
         # members: "$(host-cmulti): %: $(host-cobjs)". A program built only
         # because a rule needs it (kconfig's "$(simple-targets): $(obj)/conf")
         # is reached here, not through the directory's target lists.
+        programs = {}
         for var in state.program_files:
             for prog, cond in var.valconds.items():
                 if not isinstance(prog, str) or "$" in prog:
                     continue
-                ppath = _norm(parent, prog, self.maindir)
+                ppath = _norm(makefile.parent, prog, self.maindir)
                 if ppath is None:
                     continue
                 for member, mcond in state.composite_members(prog).items():
-                    rel = target_path(member, "obj-y", parent, self.maindir)
+                    rel = target_path(member, "obj-y", makefile.parent, self.maindir)
                     if rel is not None:
-                        self.explicit.setdefault(ppath, []).append((rel, zsolver.conj(cond, mcond)))
+                        programs.setdefault(ppath, []).append((rel, zsolver.conj(cond, mcond)))
+        if getattr(self.mysettings, "host_programs_share_objects", False):
+            shared = [m for ms in programs.values() for m in ms]
+            programs = {p: shared for p in programs}
+        for ppath, members in programs.items():
+            self.explicit.setdefault(ppath, []).extend(members)
 
     def _pattern_matches(self, path):
         """Instantiated prerequisites of each pattern rule matching path."""
@@ -375,7 +388,7 @@ def rule_closure(runner, targets, kinds, note=None, roots=()):
     from alg import Run
     from kbuild import Kbuild
     solver = zsolver.ZSolver(runner.mysettings)
-    index = _RuleIndex(runner.maindir)
+    index = _RuleIndex(runner.maindir, runner.mysettings)
     analyzed = {}
     for kb in runner.all_kbuilds:
         index.add_state(kb.makefile, kb.state)

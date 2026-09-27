@@ -168,6 +168,18 @@ class BaseState:
                     v.name, new_valconds, v.flavor, v.mysettings)
         return self.__class__(new_states, self.mysettings)
 
+    def _config_default(self, name, solver):
+        """A Kconfig option that a Makefile assigns starts from its value in
+        include/config/auto.conf, which the top-level Makefile includes
+        before any Kbuild file: U-Boot's tools/Makefile sets CONFIG_CMD_NET = y
+        only under ifneq ($(HOST_TOOLS_ALL),), and elsewhere
+        $(CONFIG_CMD_NET) is still the option's value."""
+        if solver is None or not (self.mysettings.is_copt(name) or self.mysettings.is_xopt(name)):
+            return None
+        from expansion import config_valconds
+        vals = {k: c for k, c in config_valconds(solver, name) if k}
+        return VarG(name, vals, VarG.get_flavor("="), self.mysettings) if vals else None
+
     def set_var_dict(self, name, token, valconds, name_guard, solver):
         assert isinstance(name, str), name
         assert isinstance(token, str) and token, token
@@ -177,6 +189,8 @@ class BaseState:
         GLOBAL_METRICS.set_var_calls += 1
 
         old = self.states.get(name)
+        if old is None:
+            old = self._config_default(name, solver)
 
         if old is None or self.check_token(token):
             if token == "?=":
@@ -228,6 +242,8 @@ class BaseState:
 
         words = frozenset(val.split())
         old = self.states.get(name)
+        if old is None:
+            old = self._config_default(name, solver)
 
         if old is None or self.check_token(token):
             # Overwrite-like assignment (=, :=, ::=, ?=).
@@ -278,7 +294,8 @@ class BaseState:
         # A target list is a family prefix followed by y, m, or nothing
         # (obj-y, obj-m, obj-); helper variables such as
         # obj-pvrusb2-dvb-y or ramstage-srcs only share the prefix.
-        return any(t.startswith(x) and t[len(x):] in ("", "y", "m")
+        return any(t.startswith(x) and (t[len(x):] in ("", "y", "m")
+                                        or t[len(x):] in self.mysettings.root_lists)
                    for x in self.mysettings.target_vars)
 
     def subdirs_with_cond(self, topdir):
@@ -515,6 +532,8 @@ class BaseState:
         assert isinstance(src_dir, VarG) or src_dir.is_dir(), src_dir
         assert isinstance(mysettings, settings.Settings), mysettings
 
+        if not isinstance(src_dir, VarG) and mysettings.src_dir:
+            src_dir = mysettings.maindir / mysettings.src_dir
         states = {'src': src_dir if isinstance(
             src_dir, VarG) else VarG.src_var(src_dir, mysettings)}
         # $(obj) names the Makefile's directory; paths are kept relative to it.
