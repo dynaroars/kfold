@@ -294,6 +294,21 @@ class _RuleIndex:
                         subdir = pathlib.Path(os.path.normpath(parent / d))
                         g = _norm(parent, goal, self.maindir) if goal else None
                         self.submakes.setdefault(tpath, []).append((subdir, g, zsolver.conj(tc, wc)))
+        # scripts/Makefile.host links a program p with p-objs from its
+        # members: "$(host-cmulti): %: $(host-cobjs)". A program built only
+        # because a rule needs it (kconfig's "$(simple-targets): $(obj)/conf")
+        # is reached here, not through the directory's target lists.
+        for var in state.program_files:
+            for prog, cond in var.valconds.items():
+                if not isinstance(prog, str) or "$" in prog:
+                    continue
+                ppath = _norm(parent, prog, self.maindir)
+                if ppath is None:
+                    continue
+                for member, mcond in state.composite_members(prog).items():
+                    rel = target_path(member, "obj-y", parent, self.maindir)
+                    if rel is not None:
+                        self.explicit.setdefault(ppath, []).append((rel, zsolver.conj(cond, mcond)))
 
     def _pattern_matches(self, path):
         """Instantiated prerequisites of each pattern rule matching path."""

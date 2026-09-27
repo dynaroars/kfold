@@ -130,3 +130,28 @@ def test_always_target_rule_prerequisites():
     }, "target_vars = obj- lib- extra- always-\n")
     predicted, _ = objects_under(root, {})
     assert "d/base.o" not in predicted
+
+
+def test_entry_goal_builds_host_program_members():
+    # scripts/kconfig: "$(simple-targets): $(obj)/conf" and conf-objs; conf
+    # is in hostprogs (built on demand), mconf is never needed. A '#' on the
+    # recipe line before a continuation must not end the recipe.
+    root = make_tree({
+        "Kbuild": "obj-y += a.o\n",
+        "k/Makefile": ("simple-targets := oldconfig syncconfig\n"
+                       "$(simple-targets): $(obj)/conf\n"
+                       "\t$(Q)$< --$@ Kconfig\n"
+                       "help:\n"
+                       "\t@$(foreach f, $(L), \\\n"
+                       "\t\tif h=$$(grep -m1 '^# Help: ' $(f)); then \\\n"
+                       "\t\t\techo $$h; \\\n"
+                       "\t\tfi;)\n"
+                       "common-objs := expr.o util.o\n"
+                       "hostprogs += conf mconf\n"
+                       "conf-objs := conf.o $(common-objs)\n"
+                       "mconf-objs := mconf.o $(common-objs)\n"),
+    }, "entry_goals = k/syncconfig\n")
+    predicted, kinds = objects_under(root, {})
+    assert {"k/conf.o", "k/expr.o", "k/util.o"} <= predicted
+    assert kinds["k/conf.o"] == "rule"
+    assert "k/mconf.o" not in predicted

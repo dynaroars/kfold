@@ -20,20 +20,11 @@ DBG = pdb.set_trace
 import re
 
 def clean_makefile_text(text: str) -> str:
-    """Preprocess raw makefile text before parsing:
-    - Normalize line endings to LF
-    - Strip inline comments that precede backslash line-continuations
-    - Strip unprintable / null bytes
-    """
-    text = text.replace('\r\n', '\n').replace('\r', '\n')
-    lines = text.split('\n')
-    cleaned = []
-    for line in lines:
-        m = re.search(r'(#.*)\\$', line)
-        if m:
-            line = line[:m.start(1)] + m.group(1)
-        cleaned.append(line)
-    return '\n'.join(cleaned)
+    """Normalize line endings to LF before parsing. Nothing else is changed:
+    a '#' on a recipe line is shell text and "\\#" in a value is a literal
+    '#', so removing a backslash after '#' would break the line
+    continuation of, e.g., scripts/kconfig/Makefile's help recipe."""
+    return text.replace('\r\n', '\n').replace('\r', '\n')
 
 
 _VAR_REF = re.compile(r"\$[({]([A-Za-z0-9_.-]+)[)}]")
