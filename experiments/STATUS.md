@@ -52,6 +52,30 @@ evidence/legacy/ (untracked).
   overview config-for example is stable commit 82699d1b727b. "Exact"
   dropped from kfold.tex's title.
 
-## To do next
-1. Possible kfold work: host tools (scripts/, tools/) via the top-level
-   Makefile's rules; coreboot mainboard entry settings.
+- 2026-09-27: speed, host tools, coreboot entries (21ad525, 92906af, 8e1d73c).
+  - Rule closure: string path normalization and memoized pattern matches;
+    Linux 147 s -> 51 s. $(shell) now gets /dev/null as stdin: with an open
+    stdin pipe, commands that read it waited for the 5 s timeout (coreboot
+    70 s vs 15 s; part of the old Linux 143 s timing).
+  - Host tools via the top-level rules on every subject (scripts/,
+    scripts/mod, scripts/dtc, U-Boot tools/, kconfig's conf through an
+    entry goal); kconfig/Makefile had been unparsable (a '#...\' recipe
+    line lost its continuation in clean_makefile_text).
+  - coreboot: <stage>-srcs (root_lists), src_dir, rules_from_root; mainboard
+    objects, static.o and SIPI vector (extra_objects); cbfstool, nvramtool,
+    sconfig via entry goals.
+  - A Kconfig option a Makefile assigns keeps its auto.conf value outside
+    the assignment's guard (U-Boot tools/Makefile CONFIG_CMD_NET).
+  - Artifact: README.md, experiments/environment.py, tools/make_artifact.sh.
+  - All kfold-side results rerun (work/rerun5.sh). paper/numbers.tex NOT
+    regenerated (user is editing the paper): run experiments/paper_numbers.py.
+
+## Not modeled (documented in experiments/settings/*.ini)
+- Linux tools/objtool, tools/bpf/resolve_btfids: tools/build (Build files,
+  host feature detection), not Kbuild.
+- coreboot util/kconfig (built from a sed-rewritten Makefile.real),
+  vboot_lib ($(MAKE) -C 3rdparty/vboot), cse_fpt/cse_serger format objects
+  (include $(top)/...; defining $(top) breaks $(top)/ words in stage lists).
+- BusyBox per-directory built-in.o (ld -r containers; ignore_files).
+- U-Boot EFI apps (lib/efi_loader, lib/efi_selftest), keep-syms-lto.o;
+  Barebox barebox.o/.tmp_barebox.o, *.bbenv.o, dtb.pbl.o, imd-barebox.pbl.o.

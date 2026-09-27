@@ -1,63 +1,64 @@
 {
- "analysis_seconds": 120.96,
+ "analysis_seconds": 50.56,
  "census": {
   "by_category": {
    "modeled": {
-    "ConditionBlock:eq": 277,
-    "ConditionBlock:ifdef": 141,
-    "Function:addprefix": 60,
+    "ConditionBlock:eq": 284,
+    "ConditionBlock:ifdef": 146,
+    "Function:addprefix": 72,
     "Function:addsuffix": 2,
     "Function:basename": 8,
     "Function:call": 87,
     "Function:filter": 21,
-    "Function:filter-out": 17,
-    "Function:findstring": 4,
-    "Function:foreach": 12,
+    "Function:filter-out": 19,
+    "Function:findstring": 6,
+    "Function:foreach": 22,
     "Function:if": 7,
-    "Function:notdir": 1,
-    "Function:or": 4,
+    "Function:notdir": 3,
+    "Function:or": 6,
     "Function:patsubst": 49,
-    "Function:shell": 36,
-    "Function:sort": 4,
+    "Function:shell": 37,
+    "Function:sort": 6,
     "Function:subst": 49,
     "Function:substitutionref": 11,
-    "Function:variableref": 39621,
-    "Function:wildcard": 12,
+    "Function:variableref": 39953,
+    "Function:wildcard": 13,
     "Function:words": 4,
     "Include": 19,
-    "Rule": 322,
-    "SetVariable+=": 20564,
-    "SetVariable:=": 3671,
-    "SetVariable=": 532,
+    "Rule": 373,
+    "SetVariable+=": 20649,
+    "SetVariable:=": 3721,
+    "SetVariable=": 595,
     "SetVariable?=": 1,
-    "StaticPatternRule": 4
+    "StaticPatternRule": 6
    },
    "out_of_scope": {
-    "Command": 243,
-    "EmptyDirective": 35
+    "Command": 305,
+    "EmptyDirective": 28
    },
    "unsupported": {
-    "Function:eval": 158
+    "ExportDirective": 4,
+    "Function:eval": 192
    }
   },
   "totals": {
-   "modeled": 65540,
-   "out_of_scope": 278,
-   "total": 65976,
-   "unsupported": 158
+   "modeled": 66169,
+   "out_of_scope": 333,
+   "total": 66698,
+   "unsupported": 196
   }
  },
  "kinds": {
   "extra": 8,
   "member": 14861,
-  "program": 7,
-  "rule": 92,
-  "target": 16354
+  "program": 45,
+  "rule": 101,
+  "target": 16355
  },
- "makefile_instances": 2214,
- "objects": 31322,
+ "makefile_instances": 2224,
+ "objects": 31370,
  "parse_errors": [],
- "peak_rss_mb": 197.1,
+ "peak_rss_mb": 209.0,
  "profiles": {
   "allmodconfig": {
    "members": {
@@ -67,7 +68,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 1576,
+    "outside_universe": 1538,
     "outside_universe_paths": [
      "arch/x86/entry/vdso/vdso32/note.o",
      "arch/x86/entry/vdso/vdso32/sigreturn.o",
@@ -1566,44 +1567,6 @@
      "drivers/gpu/drm/nouveau/nvkm/subdev/volt/gpio.o",
      "drivers/gpu/drm/nouveau/nvkm/subdev/volt/nv40.o",
      "drivers/gpu/drm/nouveau/sil164.o",
-     "scripts/dtc/checks.o",
-     "scripts/dtc/data.o",
-     "scripts/dtc/dtc-lexer.lex.o",
-     "scripts/dtc/dtc-parser.tab.o",
-     "scripts/dtc/dtc.o",
-     "scripts/dtc/fdtoverlay.o",
-     "scripts/dtc/flattree.o",
-     "scripts/dtc/fstree.o",
-     "scripts/dtc/libfdt/fdt.o",
-     "scripts/dtc/libfdt/fdt_addresses.o",
-     "scripts/dtc/libfdt/fdt_empty_tree.o",
-     "scripts/dtc/libfdt/fdt_overlay.o",
-     "scripts/dtc/libfdt/fdt_ro.o",
-     "scripts/dtc/libfdt/fdt_rw.o",
-     "scripts/dtc/libfdt/fdt_strerror.o",
-     "scripts/dtc/libfdt/fdt_sw.o",
-     "scripts/dtc/libfdt/fdt_wip.o",
-     "scripts/dtc/livetree.o",
-     "scripts/dtc/srcpos.o",
-     "scripts/dtc/treesource.o",
-     "scripts/dtc/util.o",
-     "scripts/elf-parse.o",
-     "scripts/kconfig/conf.o",
-     "scripts/kconfig/confdata.o",
-     "scripts/kconfig/expr.o",
-     "scripts/kconfig/lexer.lex.o",
-     "scripts/kconfig/menu.o",
-     "scripts/kconfig/parser.tab.o",
-     "scripts/kconfig/preprocess.o",
-     "scripts/kconfig/symbol.o",
-     "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
-     "scripts/mod/file2alias.o",
-     "scripts/mod/modpost.o",
-     "scripts/mod/sumversion.o",
-     "scripts/mod/symsearch.o",
-     "scripts/sorttable.o",
-     "scripts/tracepoint-update.o",
      "tools/objtool/arch/x86/decode.o",
      "tools/objtool/arch/x86/objtool-in.o",
      "tools/objtool/arch/x86/orc.o",
@@ -1646,13 +1609,13 @@
      "virt/kvm/pfncache.o",
      "virt/kvm/vfio.o"
     ],
-    "overlap_pct": 94.7,
+    "overlap_pct": 94.8,
     "physical": 29625,
     "precision_pct": 100.0,
-    "predicted": 28049,
+    "predicted": 28087,
     "recall_within_universe_pct": 100.0,
-    "tp": 28049,
-    "universe": 31322
+    "tp": 28087,
+    "universe": 31370
    },
    "targets": {
     "fn_within_universe": 0,
@@ -1661,7 +1624,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 15708,
+    "outside_universe": 15707,
     "outside_universe_paths": [
      ".module-common.o",
      ".tmp_vmlinux0.kallsyms.o",
@@ -15576,7 +15539,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
      "scripts/mod/file2alias.o",
      "scripts/mod/modpost.o",
      "scripts/mod/sumversion.o",
@@ -17375,10 +17337,10 @@
     "overlap_pct": 47.0,
     "physical": 29625,
     "precision_pct": 100.0,
-    "predicted": 13917,
+    "predicted": 13918,
     "recall_within_universe_pct": 100.0,
-    "tp": 13917,
-    "universe": 16354
+    "tp": 13918,
+    "universe": 16355
    }
   },
   "debian": {
@@ -17389,7 +17351,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 1590,
+    "outside_universe": 1573,
     "outside_universe_paths": [
      "arch/x86/entry/vdso/vdso32/note.o",
      "arch/x86/entry/vdso/vdso32/sigreturn.o",
@@ -18880,23 +18842,6 @@
      "drivers/gpu/drm/nouveau/nvkm/subdev/volt/gpio.o",
      "drivers/gpu/drm/nouveau/nvkm/subdev/volt/nv40.o",
      "drivers/gpu/drm/nouveau/sil164.o",
-     "scripts/elf-parse.o",
-     "scripts/kconfig/conf.o",
-     "scripts/kconfig/confdata.o",
-     "scripts/kconfig/expr.o",
-     "scripts/kconfig/lexer.lex.o",
-     "scripts/kconfig/menu.o",
-     "scripts/kconfig/parser.tab.o",
-     "scripts/kconfig/preprocess.o",
-     "scripts/kconfig/symbol.o",
-     "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
-     "scripts/mod/file2alias.o",
-     "scripts/mod/modpost.o",
-     "scripts/mod/sumversion.o",
-     "scripts/mod/symsearch.o",
-     "scripts/sorttable.o",
-     "scripts/tracepoint-update.o",
      "tools/bpf/resolve_btfids/ctype.o",
      "tools/bpf/resolve_btfids/fixdep-in.o",
      "tools/bpf/resolve_btfids/fixdep.o",
@@ -18985,10 +18930,10 @@
     "overlap_pct": 90.8,
     "physical": 17191,
     "precision_pct": 100.0,
-    "predicted": 15601,
+    "predicted": 15618,
     "recall_within_universe_pct": 100.0,
-    "tp": 15601,
-    "universe": 31322
+    "tp": 15618,
+    "universe": 31370
    },
    "targets": {
     "fn_within_universe": 0,
@@ -18997,7 +18942,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 11051,
+    "outside_universe": 11050,
     "outside_universe_paths": [
      ".module-common.o",
      ".tmp_vmlinux0.kallsyms.o",
@@ -29012,7 +28957,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
      "scripts/mod/file2alias.o",
      "scripts/mod/modpost.o",
      "scripts/mod/sumversion.o",
@@ -30054,10 +29998,10 @@
     "overlap_pct": 35.7,
     "physical": 17191,
     "precision_pct": 100.0,
-    "predicted": 6140,
+    "predicted": 6141,
     "recall_within_universe_pct": 100.0,
-    "tp": 6140,
-    "universe": 16354
+    "tp": 6141,
+    "universe": 16355
    }
   },
   "defconfig": {
@@ -30068,7 +30012,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 62,
+    "outside_universe": 45,
     "outside_universe_paths": [
      "arch/x86/entry/vdso/vdso32/note.o",
      "arch/x86/entry/vdso/vdso32/sigreturn.o",
@@ -30084,23 +30028,6 @@
      "arch/x86/entry/vdso/vdso64/vgetcpu.o",
      "arch/x86/entry/vdso/vdso64/vgetrandom-chacha.o",
      "arch/x86/entry/vdso/vdso64/vgetrandom.o",
-     "scripts/elf-parse.o",
-     "scripts/kconfig/conf.o",
-     "scripts/kconfig/confdata.o",
-     "scripts/kconfig/expr.o",
-     "scripts/kconfig/lexer.lex.o",
-     "scripts/kconfig/menu.o",
-     "scripts/kconfig/parser.tab.o",
-     "scripts/kconfig/preprocess.o",
-     "scripts/kconfig/symbol.o",
-     "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
-     "scripts/mod/file2alias.o",
-     "scripts/mod/modpost.o",
-     "scripts/mod/sumversion.o",
-     "scripts/mod/symsearch.o",
-     "scripts/sorttable.o",
-     "scripts/tracepoint-update.o",
      "tools/objtool/arch/x86/decode.o",
      "tools/objtool/arch/x86/objtool-in.o",
      "tools/objtool/arch/x86/orc.o",
@@ -30133,13 +30060,13 @@
      "tools/objtool/str_error_r.o",
      "tools/objtool/weak.o"
     ],
-    "overlap_pct": 98.0,
+    "overlap_pct": 98.6,
     "physical": 3133,
     "precision_pct": 100.0,
-    "predicted": 3071,
+    "predicted": 3088,
     "recall_within_universe_pct": 100.0,
-    "tp": 3071,
-    "universe": 31322
+    "tp": 3088,
+    "universe": 31370
    },
    "targets": {
     "fn_within_universe": 0,
@@ -30148,7 +30075,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 1656,
+    "outside_universe": 1655,
     "outside_universe_paths": [
      ".module-common.o",
      ".tmp_vmlinux0.kallsyms.o",
@@ -31684,7 +31611,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
      "scripts/mod/file2alias.o",
      "scripts/mod/modpost.o",
      "scripts/mod/sumversion.o",
@@ -31807,13 +31733,13 @@
      "tools/objtool/weak.o",
      "vmlinux.o"
     ],
-    "overlap_pct": 47.1,
+    "overlap_pct": 47.2,
     "physical": 3133,
     "precision_pct": 100.0,
-    "predicted": 1477,
+    "predicted": 1478,
     "recall_within_universe_pct": 100.0,
-    "tp": 1477,
-    "universe": 16354
+    "tp": 1478,
+    "universe": 16355
    }
   },
   "tinyconfig": {
@@ -31824,38 +31750,22 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 22,
+    "outside_universe": 6,
     "outside_universe_paths": [
      "arch/x86/entry/vdso/vdso32/note.o",
      "arch/x86/entry/vdso/vdso32/sigreturn.o",
      "arch/x86/entry/vdso/vdso32/system_call.o",
      "arch/x86/entry/vdso/vdso32/vclock_gettime.o",
      "arch/x86/entry/vdso/vdso32/vdso32-image.o",
-     "arch/x86/entry/vdso/vdso32/vgetcpu.o",
-     "scripts/elf-parse.o",
-     "scripts/kconfig/conf.o",
-     "scripts/kconfig/confdata.o",
-     "scripts/kconfig/expr.o",
-     "scripts/kconfig/lexer.lex.o",
-     "scripts/kconfig/menu.o",
-     "scripts/kconfig/parser.tab.o",
-     "scripts/kconfig/preprocess.o",
-     "scripts/kconfig/symbol.o",
-     "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
-     "scripts/mod/file2alias.o",
-     "scripts/mod/modpost.o",
-     "scripts/mod/sumversion.o",
-     "scripts/mod/symsearch.o",
-     "scripts/sorttable.o"
+     "arch/x86/entry/vdso/vdso32/vgetcpu.o"
     ],
-    "overlap_pct": 95.8,
+    "overlap_pct": 98.9,
     "physical": 528,
     "precision_pct": 100.0,
-    "predicted": 506,
+    "predicted": 522,
     "recall_within_universe_pct": 100.0,
-    "tp": 506,
-    "universe": 31322
+    "tp": 522,
+    "universe": 31370
    },
    "targets": {
     "fn_within_universe": 0,
@@ -31864,7 +31774,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 72,
+    "outside_universe": 71,
     "outside_universe_paths": [
      ".vmlinux.export.o",
      "arch/x86/boot/a20.o",
@@ -31931,7 +31841,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
      "scripts/mod/file2alias.o",
      "scripts/mod/modpost.o",
      "scripts/mod/sumversion.o",
@@ -31939,18 +31848,18 @@
      "scripts/sorttable.o",
      "vmlinux.o"
     ],
-    "overlap_pct": 86.4,
+    "overlap_pct": 86.6,
     "physical": 528,
     "precision_pct": 100.0,
-    "predicted": 456,
+    "predicted": 457,
     "recall_within_universe_pct": 100.0,
-    "tp": 456,
-    "universe": 16354
+    "tp": 457,
+    "universe": 16355
    }
   }
  },
  "subject": "linux",
  "variant": "no_includes",
  "version": "7.2.8",
- "z3_checks": 100921
+ "z3_checks": 101044
 }

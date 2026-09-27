@@ -1,34 +1,38 @@
 {
- "analysis_seconds": 0.33,
+ "analysis_seconds": 0.34,
  "census": {
   "by_category": {
    "modeled": {
-    "ConditionBlock:eq": 8,
-    "Function:variableref": 1371,
-    "Rule": 8,
-    "SetVariable+=": 805,
-    "SetVariable:=": 34,
-    "SetVariable=": 8
+    "ConditionBlock:eq": 15,
+    "ConditionBlock:ifdef": 1,
+    "Function:shell": 1,
+    "Function:variableref": 1475,
+    "Include": 2,
+    "Rule": 39,
+    "SetVariable+=": 809,
+    "SetVariable:=": 47,
+    "SetVariable=": 12
    },
    "out_of_scope": {
-    "Command": 3
+    "Command": 53
    },
    "unsupported": {}
   },
   "totals": {
-   "modeled": 2234,
-   "out_of_scope": 3,
-   "total": 2237,
+   "modeled": 2401,
+   "out_of_scope": 53,
+   "total": 2454,
    "unsupported": 0
   }
  },
  "kinds": {
+  "rule": 6,
   "target": 625
  },
  "makefile_instances": 30,
- "objects": 625,
+ "objects": 631,
  "parse_errors": [],
- "peak_rss_mb": 65.7,
+ "peak_rss_mb": 66.0,
  "profiles": {
   "defconfig": {
    "members": {
@@ -42,7 +46,7 @@
     "fp_paths": [
      "networking/tc.o"
     ],
-    "outside_universe": 34,
+    "outside_universe": 30,
     "outside_universe_paths": [
      "applets/built-in.o",
      "archival/built-in.o",
@@ -69,23 +73,19 @@
      "printutils/built-in.o",
      "procps/built-in.o",
      "runit/built-in.o",
-     "scripts/kconfig/conf.o",
-     "scripts/kconfig/kxgettext.o",
-     "scripts/kconfig/mconf.o",
-     "scripts/kconfig/zconf.tab.o",
      "selinux/built-in.o",
      "shell/built-in.o",
      "sysklogd/built-in.o",
      "util-linux/built-in.o",
      "util-linux/volume_id/built-in.o"
     ],
-    "overlap_pct": 94.5,
+    "overlap_pct": 95.2,
     "physical": 623,
     "precision_pct": 99.8,
-    "predicted": 590,
+    "predicted": 594,
     "recall_within_universe_pct": 100.0,
-    "tp": 589,
-    "universe": 625
+    "tp": 593,
+    "universe": 631
    },
    "targets": {
     "fn_within_universe": 0,
@@ -148,5 +148,5 @@
  "subject": "busybox",
  "variant": "no_includes",
  "version": "1.38.0",
- "z3_checks": 2
+ "z3_checks": 9
 }

@@ -1,11 +1,11 @@
 {
- "analysis_seconds": 14.58,
+ "analysis_seconds": 14.76,
  "census": {
   "by_category": {
    "modeled": {
     "ConditionBlock:eq": 692,
     "Function:addprefix": 41,
-    "Function:call": 592,
+    "Function:call": 608,
     "Function:dir": 9,
     "Function:error": 4,
     "Function:filter": 57,
@@ -13,46 +13,47 @@
     "Function:findstring": 1,
     "Function:foreach": 60,
     "Function:if": 51,
-    "Function:notdir": 11,
+    "Function:notdir": 27,
     "Function:patsubst": 60,
     "Function:shell": 41,
     "Function:sort": 7,
     "Function:strip": 22,
     "Function:subst": 19,
-    "Function:substitutionref": 11,
-    "Function:variableref": 9142,
-    "Function:wildcard": 55,
+    "Function:substitutionref": 13,
+    "Function:variableref": 9255,
+    "Function:wildcard": 61,
     "Include": 2,
-    "Rule": 383,
+    "Rule": 399,
     "SetVariable+=": 6525,
     "SetVariable:=": 1273,
     "SetVariable=": 714,
     "SetVariable?=": 35
    },
    "out_of_scope": {
-    "Command": 746,
+    "Command": 758,
     "EmptyDirective": 177
    },
    "unsupported": {
     "ExportDirective": 3,
     "Function:abspath": 13,
-    "Function:eval": 494
+    "Function:eval": 502
    }
   },
   "totals": {
-   "modeled": 19819,
-   "out_of_scope": 923,
-   "total": 21252,
-   "unsupported": 510
+   "modeled": 19988,
+   "out_of_scope": 935,
+   "total": 21441,
+   "unsupported": 518
   }
  },
  "kinds": {
-  "target": 5444
+  "extra": 9,
+  "target": 5456
  },
  "makefile_instances": 513,
- "objects": 5444,
+ "objects": 5465,
  "parse_errors": [],
- "peak_rss_mb": 105.2,
+ "peak_rss_mb": 105.5,
  "profiles": {
   "qemu-i440fx": {
    "members": {
@@ -62,17 +63,8 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 149,
+    "outside_universe": 140,
     "outside_universe_paths": [
-     "build/bootblock/mainboard/emulation/qemu-i440fx/static.o",
-     "build/cpu/x86/sipi_vector.o",
-     "build/postcar/mainboard/emulation/qemu-i440fx/static.o",
-     "build/ramstage/mainboard/emulation/qemu-i440fx/irq_tables.o",
-     "build/ramstage/mainboard/emulation/qemu-i440fx/mainboard.o",
-     "build/ramstage/mainboard/emulation/qemu-i440fx/static.o",
-     "build/rmodules_x86_32/cpu/x86/sipi_vector.o",
-     "build/romstage/mainboard/emulation/qemu-i440fx/romstage.o",
-     "build/romstage/mainboard/emulation/qemu-i440fx/static.o",
      "build/util/cbfstool/LzFind.o",
      "build/util/cbfstool/LzmaDec.o",
      "build/util/cbfstool/LzmaEnc.o",
@@ -214,13 +206,13 @@
      "build/util/vboot_lib/host/lib/subprocess.o",
      "build/util/vboot_lib/host/lib21/host_misc.o"
     ],
-    "overlap_pct": 76.2,
+    "overlap_pct": 77.6,
     "physical": 626,
     "precision_pct": 100.0,
-    "predicted": 477,
+    "predicted": 486,
     "recall_within_universe_pct": 100.0,
-    "tp": 477,
-    "universe": 5444
+    "tp": 486,
+    "universe": 5465
    },
    "targets": {
     "fn_within_universe": 0,
@@ -229,16 +221,13 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 149,
+    "outside_universe": 146,
     "outside_universe_paths": [
      "build/bootblock/mainboard/emulation/qemu-i440fx/static.o",
      "build/cpu/x86/sipi_vector.o",
      "build/postcar/mainboard/emulation/qemu-i440fx/static.o",
-     "build/ramstage/mainboard/emulation/qemu-i440fx/irq_tables.o",
-     "build/ramstage/mainboard/emulation/qemu-i440fx/mainboard.o",
      "build/ramstage/mainboard/emulation/qemu-i440fx/static.o",
      "build/rmodules_x86_32/cpu/x86/sipi_vector.o",
-     "build/romstage/mainboard/emulation/qemu-i440fx/romstage.o",
      "build/romstage/mainboard/emulation/qemu-i440fx/static.o",
      "build/util/cbfstool/LzFind.o",
      "build/util/cbfstool/LzmaDec.o",
@@ -381,18 +370,18 @@
      "build/util/vboot_lib/host/lib/subprocess.o",
      "build/util/vboot_lib/host/lib21/host_misc.o"
     ],
-    "overlap_pct": 76.2,
+    "overlap_pct": 76.7,
     "physical": 626,
     "precision_pct": 100.0,
-    "predicted": 477,
+    "predicted": 480,
     "recall_within_universe_pct": 100.0,
-    "tp": 477,
-    "universe": 5444
+    "tp": 480,
+    "universe": 5456
    }
   }
  },
  "subject": "coreboot",
  "variant": "no_rules",
  "version": "26.06",
- "z3_checks": 4163
+ "z3_checks": 4554
 }

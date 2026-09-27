@@ -1,161 +1,161 @@
 {
  "barebox": {
   "cpu": "Intel(R) Core(TM) i7-7700 CPU @ 3.60GHz",
-  "max_peak_rss_mb": 70.3,
-  "median_seconds": 2.69,
+  "max_peak_rss_mb": 70.9,
+  "median_seconds": 1.53,
   "python": "3.14.7",
   "runs": [
    {
-    "load_before": 0.65,
-    "makefile_instances": 191,
-    "objects": 1770,
-    "peak_rss_mb": 70.02734375,
-    "seconds": 2.647726921015419,
-    "z3_checks": 4948
+    "load_before": 0.81,
+    "makefile_instances": 196,
+    "objects": 1830,
+    "peak_rss_mb": 70.86328125,
+    "seconds": 1.56282304902561,
+    "z3_checks": 4985
    },
    {
-    "load_before": 0.67,
-    "makefile_instances": 191,
-    "objects": 1770,
-    "peak_rss_mb": 70.109375,
-    "seconds": 2.7001352249644697,
-    "z3_checks": 4948
+    "load_before": 0.83,
+    "makefile_instances": 196,
+    "objects": 1830,
+    "peak_rss_mb": 70.9375,
+    "seconds": 1.5158782999496907,
+    "z3_checks": 4985
    },
    {
-    "load_before": 0.67,
-    "makefile_instances": 191,
-    "objects": 1770,
-    "peak_rss_mb": 70.265625,
-    "seconds": 2.6876103449612856,
-    "z3_checks": 4948
+    "load_before": 0.83,
+    "makefile_instances": 196,
+    "objects": 1830,
+    "peak_rss_mb": 70.875,
+    "seconds": 1.5348269660025835,
+    "z3_checks": 4985
    }
   ]
  },
  "busybox": {
   "cpu": "Intel(R) Core(TM) i7-7700 CPU @ 3.60GHz",
-  "max_peak_rss_mb": 68.8,
-  "median_seconds": 0.29,
+  "max_peak_rss_mb": 69.4,
+  "median_seconds": 0.31,
   "python": "3.14.7",
   "runs": [
    {
-    "load_before": 0.65,
+    "load_before": 0.81,
     "makefile_instances": 30,
-    "objects": 625,
-    "peak_rss_mb": 68.703125,
-    "seconds": 0.29544398305006325,
-    "z3_checks": 2
+    "objects": 631,
+    "peak_rss_mb": 69.35546875,
+    "seconds": 0.3429601760581136,
+    "z3_checks": 9
    },
    {
-    "load_before": 0.65,
+    "load_before": 0.81,
     "makefile_instances": 30,
-    "objects": 625,
-    "peak_rss_mb": 68.76953125,
-    "seconds": 0.2922414490021765,
-    "z3_checks": 2
+    "objects": 631,
+    "peak_rss_mb": 69.0859375,
+    "seconds": 0.31192017206922174,
+    "z3_checks": 9
    },
    {
-    "load_before": 0.65,
+    "load_before": 0.81,
     "makefile_instances": 30,
-    "objects": 625,
-    "peak_rss_mb": 68.8125,
-    "seconds": 0.29289732698816806,
-    "z3_checks": 2
+    "objects": 631,
+    "peak_rss_mb": 69.19140625,
+    "seconds": 0.3095671460032463,
+    "z3_checks": 9
    }
   ]
  },
  "coreboot": {
   "cpu": "Intel(R) Core(TM) i7-7700 CPU @ 3.60GHz",
-  "max_peak_rss_mb": 106.1,
-  "median_seconds": 22.99,
+  "max_peak_rss_mb": 107.0,
+  "median_seconds": 14.58,
   "python": "3.14.7",
   "runs": [
    {
-    "load_before": 0.83,
+    "load_before": 0.87,
     "makefile_instances": 513,
-    "objects": 5444,
-    "peak_rss_mb": 105.96875,
-    "seconds": 22.871526397997513,
-    "z3_checks": 4163
+    "objects": 5546,
+    "peak_rss_mb": 106.9765625,
+    "seconds": 14.575229892972857,
+    "z3_checks": 4554
    },
    {
-    "load_before": 0.82,
+    "load_before": 0.9,
     "makefile_instances": 513,
-    "objects": 5444,
-    "peak_rss_mb": 105.98828125,
-    "seconds": 23.040159189957194,
-    "z3_checks": 4163
+    "objects": 5546,
+    "peak_rss_mb": 106.90625,
+    "seconds": 15.133743462967686,
+    "z3_checks": 4554
    },
    {
-    "load_before": 0.82,
+    "load_before": 0.85,
     "makefile_instances": 513,
-    "objects": 5444,
-    "peak_rss_mb": 106.125,
-    "seconds": 22.994660625001416,
-    "z3_checks": 4163
+    "objects": 5546,
+    "peak_rss_mb": 106.87109375,
+    "seconds": 14.565303255920298,
+    "z3_checks": 4554
    }
   ]
  },
  "linux": {
   "cpu": "Intel(R) Core(TM) i7-7700 CPU @ 3.60GHz",
-  "max_peak_rss_mb": 203.9,
-  "median_seconds": 143.13,
+  "max_peak_rss_mb": 214.6,
+  "median_seconds": 48.23,
   "python": "3.14.7",
   "runs": [
    {
-    "load_before": 0.76,
-    "makefile_instances": 2215,
-    "objects": 32829,
-    "peak_rss_mb": 203.86328125,
-    "seconds": 142.32178400899284,
-    "z3_checks": 107208
+    "load_before": 0.95,
+    "makefile_instances": 2225,
+    "objects": 32877,
+    "peak_rss_mb": 213.23046875,
+    "seconds": 48.11465949995909,
+    "z3_checks": 107331
    },
    {
-    "load_before": 0.63,
-    "makefile_instances": 2215,
-    "objects": 32829,
-    "peak_rss_mb": 200.49609375,
-    "seconds": 143.12647933908738,
-    "z3_checks": 107205
+    "load_before": 0.81,
+    "makefile_instances": 2225,
+    "objects": 32877,
+    "peak_rss_mb": 213.1171875,
+    "seconds": 48.22855392296333,
+    "z3_checks": 107328
    },
    {
-    "load_before": 1.0,
-    "makefile_instances": 2215,
-    "objects": 32829,
-    "peak_rss_mb": 200.9921875,
-    "seconds": 143.13836141698994,
-    "z3_checks": 107205
+    "load_before": 0.78,
+    "makefile_instances": 2225,
+    "objects": 32877,
+    "peak_rss_mb": 214.64453125,
+    "seconds": 49.53431760391686,
+    "z3_checks": 107331
    }
   ]
  },
  "uboot": {
   "cpu": "Intel(R) Core(TM) i7-7700 CPU @ 3.60GHz",
-  "max_peak_rss_mb": 77.6,
-  "median_seconds": 4.85,
+  "max_peak_rss_mb": 79.9,
+  "median_seconds": 3.84,
   "python": "3.14.7",
   "runs": [
    {
-    "load_before": 0.78,
-    "makefile_instances": 319,
-    "objects": 3750,
-    "peak_rss_mb": 77.40234375,
-    "seconds": 4.850975233013742,
-    "z3_checks": 7895
+    "load_before": 0.83,
+    "makefile_instances": 322,
+    "objects": 3871,
+    "peak_rss_mb": 79.859375,
+    "seconds": 3.7570171729894355,
+    "z3_checks": 7896
    },
    {
-    "load_before": 0.8,
-    "makefile_instances": 319,
-    "objects": 3750,
-    "peak_rss_mb": 77.5703125,
-    "seconds": 4.973436861066148,
-    "z3_checks": 7895
+    "load_before": 0.84,
+    "makefile_instances": 322,
+    "objects": 3871,
+    "peak_rss_mb": 79.68359375,
+    "seconds": 3.8386117060435936,
+    "z3_checks": 7896
    },
    {
-    "load_before": 0.81,
-    "makefile_instances": 319,
-    "objects": 3750,
-    "peak_rss_mb": 77.43359375,
-    "seconds": 4.7861346289282665,
-    "z3_checks": 7895
+    "load_before": 0.86,
+    "makefile_instances": 322,
+    "objects": 3871,
+    "peak_rss_mb": 79.59765625,
+    "seconds": 3.9805522880051285,
+    "z3_checks": 7896
    }
   ]
  }

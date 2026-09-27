@@ -9,29 +9,29 @@
       "expected": 1,
       "kfold": {
         "status": "ok",
-        "time_s": 0.664,
-        "maxrss_mb": 65.2,
+        "time_s": 0.642,
+        "maxrss_mb": 65.5,
         "objects": 1,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.759,
-        "maxrss_mb": 71.3,
+        "time_s": 0.736,
+        "maxrss_mb": 71.4,
         "objects": 1,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.685,
-        "maxrss_mb": 75.1,
+        "time_s": 0.682,
+        "maxrss_mb": 75.3,
         "objects": 1,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.55,
-        "maxrss_mb": 66.0,
+        "time_s": 0.548,
+        "maxrss_mb": 66.1,
         "states": 2
       }
     },
@@ -41,29 +41,29 @@
       "expected": 2,
       "kfold": {
         "status": "ok",
-        "time_s": 0.622,
-        "maxrss_mb": 65.5,
+        "time_s": 0.615,
+        "maxrss_mb": 65.7,
         "objects": 2,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.684,
+        "time_s": 0.677,
         "maxrss_mb": 71.4,
         "objects": 2,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.678,
-        "maxrss_mb": 75.3,
+        "time_s": 0.699,
+        "maxrss_mb": 75.2,
         "objects": 2,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.506,
-        "maxrss_mb": 65.0,
+        "time_s": 0.592,
+        "maxrss_mb": 65.1,
         "states": 4
       }
     },
@@ -73,28 +73,28 @@
       "expected": 4,
       "kfold": {
         "status": "ok",
-        "time_s": 0.62,
-        "maxrss_mb": 65.6,
+        "time_s": 0.645,
+        "maxrss_mb": 65.5,
         "objects": 4,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.692,
-        "maxrss_mb": 71.3,
+        "time_s": 0.685,
+        "maxrss_mb": 71.8,
         "objects": 4,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.688,
-        "maxrss_mb": 75.4,
+        "time_s": 0.731,
+        "maxrss_mb": 75.2,
         "objects": 4,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.507,
+        "time_s": 0.512,
         "maxrss_mb": 65.0,
         "states": 8
       }
@@ -105,28 +105,28 @@
       "expected": 8,
       "kfold": {
         "status": "ok",
-        "time_s": 0.635,
-        "maxrss_mb": 65.3,
+        "time_s": 0.619,
+        "maxrss_mb": 65.5,
         "objects": 8,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.678,
-        "maxrss_mb": 71.6,
+        "time_s": 0.682,
+        "maxrss_mb": 71.7,
         "objects": 8,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.747,
-        "maxrss_mb": 75.7,
+        "time_s": 0.712,
+        "maxrss_mb": 75.8,
         "objects": 8,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.511,
+        "time_s": 0.514,
         "maxrss_mb": 65.1,
         "states": 16
       }
@@ -137,29 +137,29 @@
       "expected": 12,
       "kfold": {
         "status": "ok",
-        "time_s": 0.615,
-        "maxrss_mb": 65.3,
+        "time_s": 0.617,
+        "maxrss_mb": 65.4,
         "objects": 12,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.697,
-        "maxrss_mb": 71.6,
+        "time_s": 0.685,
+        "maxrss_mb": 71.9,
         "objects": 12,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.726,
-        "maxrss_mb": 76.1,
+        "time_s": 0.74,
+        "maxrss_mb": 76.2,
         "objects": 12,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.519,
-        "maxrss_mb": 65.2,
+        "time_s": 0.51,
+        "maxrss_mb": 65.1,
         "states": 24
       }
     },
@@ -169,29 +169,29 @@
       "expected": 16,
       "kfold": {
         "status": "ok",
-        "time_s": 0.618,
-        "maxrss_mb": 65.2,
+        "time_s": 0.624,
+        "maxrss_mb": 65.6,
         "objects": 16,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.692,
-        "maxrss_mb": 71.9,
+        "time_s": 0.691,
+        "maxrss_mb": 71.8,
         "objects": 16,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.761,
-        "maxrss_mb": 76.8,
+        "time_s": 0.764,
+        "maxrss_mb": 76.7,
         "objects": 16,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.547,
-        "maxrss_mb": 65.3,
+        "time_s": 0.526,
+        "maxrss_mb": 65.2,
         "states": 32
       }
     },
@@ -201,29 +201,29 @@
       "expected": 20,
       "kfold": {
         "status": "ok",
-        "time_s": 0.619,
-        "maxrss_mb": 65.4,
+        "time_s": 0.62,
+        "maxrss_mb": 65.5,
         "objects": 20,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.707,
-        "maxrss_mb": 71.7,
+        "time_s": 0.694,
+        "maxrss_mb": 71.8,
         "objects": 20,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.809,
-        "maxrss_mb": 77.1,
+        "time_s": 0.815,
+        "maxrss_mb": 77.2,
         "objects": 20,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.518,
-        "maxrss_mb": 65.5,
+        "time_s": 0.547,
+        "maxrss_mb": 65.3,
         "states": 40
       }
     },
@@ -233,29 +233,29 @@
       "expected": 24,
       "kfold": {
         "status": "ok",
-        "time_s": 0.619,
-        "maxrss_mb": 65.4,
+        "time_s": 0.616,
+        "maxrss_mb": 65.6,
         "objects": 24,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.7,
-        "maxrss_mb": 71.6,
+        "time_s": 0.699,
+        "maxrss_mb": 71.5,
         "objects": 24,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.859,
-        "maxrss_mb": 78.0,
+        "time_s": 0.862,
+        "maxrss_mb": 78.1,
         "objects": 24,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.554,
-        "maxrss_mb": 65.4,
+        "time_s": 0.517,
+        "maxrss_mb": 65.2,
         "states": 48
       }
     },
@@ -265,29 +265,29 @@
       "expected": 32,
       "kfold": {
         "status": "ok",
-        "time_s": 0.622,
-        "maxrss_mb": 65.3,
+        "time_s": 0.623,
+        "maxrss_mb": 65.6,
         "objects": 32,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.704,
-        "maxrss_mb": 71.8,
+        "time_s": 0.699,
+        "maxrss_mb": 71.9,
         "objects": 32,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.996,
-        "maxrss_mb": 80.1,
+        "time_s": 1.003,
+        "maxrss_mb": 79.9,
         "objects": 32,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.53,
-        "maxrss_mb": 65.1,
+        "time_s": 0.528,
+        "maxrss_mb": 65.2,
         "states": 64
       }
     },
@@ -297,28 +297,28 @@
       "expected": 48,
       "kfold": {
         "status": "ok",
-        "time_s": 0.62,
-        "maxrss_mb": 65.2,
+        "time_s": 0.625,
+        "maxrss_mb": 65.5,
         "objects": 48,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.721,
-        "maxrss_mb": 71.8,
+        "time_s": 0.718,
+        "maxrss_mb": 71.9,
         "objects": 48,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 1.375,
-        "maxrss_mb": 85.4,
+        "time_s": 1.43,
+        "maxrss_mb": 85.1,
         "objects": 48,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.531,
+        "time_s": 0.53,
         "maxrss_mb": 65.3,
         "states": 96
       }
@@ -329,29 +329,29 @@
       "expected": 64,
       "kfold": {
         "status": "ok",
-        "time_s": 0.622,
-        "maxrss_mb": 65.2,
+        "time_s": 0.624,
+        "maxrss_mb": 65.5,
         "objects": 64,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.733,
-        "maxrss_mb": 72.0,
+        "time_s": 0.74,
+        "maxrss_mb": 72.2,
         "objects": 64,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 1.997,
-        "maxrss_mb": 92.2,
+        "time_s": 2.02,
+        "maxrss_mb": 91.7,
         "objects": 64,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.542,
-        "maxrss_mb": 65.5,
+        "time_s": 0.546,
+        "maxrss_mb": 65.6,
         "states": 128
       }
     },
@@ -361,29 +361,29 @@
       "expected": 128,
       "kfold": {
         "status": "ok",
-        "time_s": 0.626,
-        "maxrss_mb": 65.5,
+        "time_s": 0.634,
+        "maxrss_mb": 65.6,
         "objects": 128,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.819,
+        "time_s": 0.799,
         "maxrss_mb": 72.5,
         "objects": 128,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 6.779,
-        "maxrss_mb": 133.5,
+        "time_s": 6.787,
+        "maxrss_mb": 134.1,
         "objects": 128,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.601,
-        "maxrss_mb": 65.7,
+        "time_s": 0.59,
+        "maxrss_mb": 65.8,
         "states": 256
       }
     },
@@ -393,29 +393,29 @@
       "expected": 1,
       "kfold": {
         "status": "ok",
-        "time_s": 0.618,
-        "maxrss_mb": 65.3,
+        "time_s": 0.619,
+        "maxrss_mb": 65.6,
         "objects": 1,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.676,
+        "time_s": 0.679,
         "maxrss_mb": 71.4,
         "objects": 1,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.682,
-        "maxrss_mb": 75.4,
+        "time_s": 0.68,
+        "maxrss_mb": 75.2,
         "objects": 1,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.506,
-        "maxrss_mb": 65.2,
+        "time_s": 0.548,
+        "maxrss_mb": 65.4,
         "states": 2
       }
     },
@@ -425,28 +425,28 @@
       "expected": 2,
       "kfold": {
         "status": "ok",
-        "time_s": 0.62,
-        "maxrss_mb": 65.4,
+        "time_s": 0.618,
+        "maxrss_mb": 65.6,
         "objects": 2,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.684,
-        "maxrss_mb": 71.5,
+        "time_s": 0.683,
+        "maxrss_mb": 71.4,
         "objects": 2,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.681,
-        "maxrss_mb": 75.5,
+        "time_s": 0.688,
+        "maxrss_mb": 75.4,
         "objects": 2,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.583,
+        "time_s": 0.537,
         "maxrss_mb": 66.4,
         "states": 3
       }
@@ -457,28 +457,28 @@
       "expected": 4,
       "kfold": {
         "status": "ok",
-        "time_s": 0.616,
-        "maxrss_mb": 65.3,
+        "time_s": 0.618,
+        "maxrss_mb": 65.5,
         "objects": 4,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.677,
-        "maxrss_mb": 71.6,
+        "time_s": 0.681,
+        "maxrss_mb": 71.5,
         "objects": 4,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.684,
+        "time_s": 0.688,
         "maxrss_mb": 75.2,
         "objects": 4,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.597,
+        "time_s": 0.596,
         "maxrss_mb": 66.3,
         "states": 5
       }
@@ -489,29 +489,29 @@
       "expected": 8,
       "kfold": {
         "status": "ok",
-        "time_s": 0.616,
-        "maxrss_mb": 65.5,
+        "time_s": 0.621,
+        "maxrss_mb": 65.4,
         "objects": 8,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.683,
-        "maxrss_mb": 71.7,
+        "time_s": 0.726,
+        "maxrss_mb": 71.6,
         "objects": 8,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.692,
+        "time_s": 0.706,
         "maxrss_mb": 75.3,
         "objects": 8,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.695,
-        "maxrss_mb": 66.3,
+        "time_s": 0.689,
+        "maxrss_mb": 66.5,
         "states": 9
       }
     },
@@ -521,29 +521,29 @@
       "expected": 12,
       "kfold": {
         "status": "ok",
-        "time_s": 0.619,
-        "maxrss_mb": 65.4,
+        "time_s": 0.617,
+        "maxrss_mb": 65.6,
         "objects": 12,
         "exact": true
       },
       "kmax": {
         "status": "ok",
         "time_s": 0.687,
-        "maxrss_mb": 71.6,
+        "maxrss_mb": 71.8,
         "objects": 12,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.706,
+        "time_s": 0.716,
         "maxrss_mb": 75.4,
         "objects": 12,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.967,
-        "maxrss_mb": 66.4,
+        "time_s": 0.984,
+        "maxrss_mb": 66.6,
         "states": 13
       }
     },
@@ -553,29 +553,29 @@
       "expected": 16,
       "kfold": {
         "status": "ok",
-        "time_s": 0.648,
-        "maxrss_mb": 65.4,
+        "time_s": 0.622,
+        "maxrss_mb": 65.6,
         "objects": 16,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.691,
-        "maxrss_mb": 71.4,
+        "time_s": 0.694,
+        "maxrss_mb": 71.5,
         "objects": 16,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.735,
-        "maxrss_mb": 75.5,
+        "time_s": 0.706,
+        "maxrss_mb": 75.4,
         "objects": 16,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 1.5,
-        "maxrss_mb": 66.3,
+        "time_s": 1.508,
+        "maxrss_mb": 66.6,
         "states": 17
       }
     },
@@ -585,29 +585,29 @@
       "expected": 20,
       "kfold": {
         "status": "ok",
-        "time_s": 0.619,
-        "maxrss_mb": 65.4,
+        "time_s": 0.624,
+        "maxrss_mb": 65.5,
         "objects": 20,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.696,
-        "maxrss_mb": 71.5,
+        "time_s": 0.692,
+        "maxrss_mb": 71.6,
         "objects": 20,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.718,
-        "maxrss_mb": 75.5,
+        "time_s": 0.72,
+        "maxrss_mb": 75.8,
         "objects": 20,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 2.544,
-        "maxrss_mb": 66.1,
+        "time_s": 2.546,
+        "maxrss_mb": 66.5,
         "states": 21
       }
     },
@@ -617,29 +617,29 @@
       "expected": 24,
       "kfold": {
         "status": "ok",
-        "time_s": 0.626,
-        "maxrss_mb": 65.5,
+        "time_s": 0.621,
+        "maxrss_mb": 65.6,
         "objects": 24,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.714,
-        "maxrss_mb": 71.6,
+        "time_s": 0.706,
+        "maxrss_mb": 71.8,
         "objects": 24,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.727,
-        "maxrss_mb": 75.6,
+        "time_s": 0.722,
+        "maxrss_mb": 75.5,
         "objects": 24,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 4.309,
-        "maxrss_mb": 66.5,
+        "time_s": 4.436,
+        "maxrss_mb": 66.4,
         "states": 25
       }
     },
@@ -649,29 +649,29 @@
       "expected": 32,
       "kfold": {
         "status": "ok",
-        "time_s": 0.624,
-        "maxrss_mb": 65.5,
+        "time_s": 0.637,
+        "maxrss_mb": 65.6,
         "objects": 32,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.711,
-        "maxrss_mb": 71.9,
+        "time_s": 0.707,
+        "maxrss_mb": 72.0,
         "objects": 32,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.739,
+        "time_s": 0.74,
         "maxrss_mb": 76.0,
         "objects": 32,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 12.281,
-        "maxrss_mb": 67.5,
+        "time_s": 12.242,
+        "maxrss_mb": 67.8,
         "states": 33
       }
     },
@@ -681,29 +681,29 @@
       "expected": 48,
       "kfold": {
         "status": "ok",
-        "time_s": 0.619,
+        "time_s": 0.62,
         "maxrss_mb": 65.5,
         "objects": 48,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.721,
-        "maxrss_mb": 72.1,
+        "time_s": 0.735,
+        "maxrss_mb": 71.7,
         "objects": 48,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.779,
-        "maxrss_mb": 75.6,
+        "time_s": 0.768,
+        "maxrss_mb": 75.9,
         "objects": 48,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 68.346,
-        "maxrss_mb": 72.8,
+        "time_s": 69.672,
+        "maxrss_mb": 72.6,
         "states": 49
       }
     },
@@ -713,29 +713,29 @@
       "expected": 64,
       "kfold": {
         "status": "ok",
-        "time_s": 0.621,
-        "maxrss_mb": 65.3,
+        "time_s": 0.707,
+        "maxrss_mb": 65.6,
         "objects": 64,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.744,
-        "maxrss_mb": 71.9,
+        "time_s": 0.815,
+        "maxrss_mb": 71.8,
         "objects": 64,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.806,
-        "maxrss_mb": 76.5,
+        "time_s": 1.009,
+        "maxrss_mb": 76.2,
         "objects": 64,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 268.372,
-        "maxrss_mb": 82.0,
+        "time_s": 282.3,
+        "maxrss_mb": 81.7,
         "states": 65
       }
     },
@@ -745,22 +745,22 @@
       "expected": 128,
       "kfold": {
         "status": "ok",
-        "time_s": 0.619,
-        "maxrss_mb": 65.6,
+        "time_s": 0.62,
+        "maxrss_mb": 65.9,
         "objects": 128,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.815,
-        "maxrss_mb": 72.2,
+        "time_s": 0.813,
+        "maxrss_mb": 72.4,
         "objects": 128,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.936,
-        "maxrss_mb": 77.6,
+        "time_s": 0.931,
+        "maxrss_mb": 77.5,
         "objects": 128,
         "exact": true
       },
@@ -776,29 +776,29 @@
       "expected": 2,
       "kfold": {
         "status": "ok",
-        "time_s": 0.62,
-        "maxrss_mb": 65.4,
+        "time_s": 0.622,
+        "maxrss_mb": 65.6,
         "objects": 2,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.688,
+        "time_s": 0.682,
         "maxrss_mb": 71.4,
         "objects": 3,
         "exact": false
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.681,
-        "maxrss_mb": 75.3,
+        "time_s": 0.687,
+        "maxrss_mb": 75.4,
         "objects": 3,
         "exact": false
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.51,
-        "maxrss_mb": 65.2,
+        "time_s": 0.511,
+        "maxrss_mb": 65.3,
         "states": 2
       }
     },
@@ -808,28 +808,28 @@
       "expected": 4,
       "kfold": {
         "status": "ok",
-        "time_s": 0.62,
-        "maxrss_mb": 65.4,
+        "time_s": 0.619,
+        "maxrss_mb": 65.6,
         "objects": 4,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.688,
+        "time_s": 0.679,
         "maxrss_mb": 71.6,
         "objects": 6,
         "exact": false
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.687,
-        "maxrss_mb": 75.3,
+        "time_s": 0.689,
+        "maxrss_mb": 75.2,
         "objects": 6,
         "exact": false
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.507,
+        "time_s": 0.509,
         "maxrss_mb": 65.3,
         "states": 8
       }
@@ -840,7 +840,7 @@
       "expected": 8,
       "kfold": {
         "status": "ok",
-        "time_s": 0.615,
+        "time_s": 0.621,
         "maxrss_mb": 65.5,
         "objects": 8,
         "exact": true
@@ -848,21 +848,21 @@
       "kmax": {
         "status": "ok",
         "time_s": 0.681,
-        "maxrss_mb": 71.3,
+        "maxrss_mb": 71.6,
         "objects": 12,
         "exact": false
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.689,
-        "maxrss_mb": 75.2,
+        "time_s": 0.698,
+        "maxrss_mb": 75.3,
         "objects": 12,
         "exact": false
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.616,
-        "maxrss_mb": 66.7,
+        "time_s": 0.661,
+        "maxrss_mb": 66.5,
         "states": 64
       }
     },
@@ -872,29 +872,29 @@
       "expected": 16,
       "kfold": {
         "status": "ok",
-        "time_s": 0.624,
-        "maxrss_mb": 65.4,
+        "time_s": 0.621,
+        "maxrss_mb": 65.5,
         "objects": 16,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.692,
-        "maxrss_mb": 71.4,
+        "time_s": 0.714,
+        "maxrss_mb": 71.8,
         "objects": 24,
         "exact": false
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.713,
+        "time_s": 0.701,
         "maxrss_mb": 75.5,
         "objects": 24,
         "exact": false
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 3.192,
-        "maxrss_mb": 79.9,
+        "time_s": 3.187,
+        "maxrss_mb": 80.3,
         "states": 2048
       }
     },
@@ -904,28 +904,28 @@
       "expected": 24,
       "kfold": {
         "status": "ok",
-        "time_s": 0.626,
-        "maxrss_mb": 65.4,
+        "time_s": 0.63,
+        "maxrss_mb": 65.6,
         "objects": 24,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.709,
-        "maxrss_mb": 71.6,
+        "time_s": 0.696,
+        "maxrss_mb": 71.5,
         "objects": 36,
         "exact": false
       },
       "kmax_smt": {
         "status": "ok",
         "time_s": 0.718,
-        "maxrss_mb": 75.5,
+        "maxrss_mb": 75.8,
         "objects": 36,
         "exact": false
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 77.75,
+        "time_s": 77.534,
         "maxrss_mb": 449.0,
         "states": 49152
       }
@@ -936,22 +936,22 @@
       "expected": 32,
       "kfold": {
         "status": "ok",
-        "time_s": 0.626,
-        "maxrss_mb": 65.4,
+        "time_s": 0.616,
+        "maxrss_mb": 65.5,
         "objects": 32,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.72,
-        "maxrss_mb": 71.5,
+        "time_s": 0.707,
+        "maxrss_mb": 71.9,
         "objects": 48,
         "exact": false
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.731,
-        "maxrss_mb": 75.8,
+        "time_s": 0.728,
+        "maxrss_mb": 75.7,
         "objects": 48,
         "exact": false
       },
@@ -967,21 +967,21 @@
       "expected": 40,
       "kfold": {
         "status": "ok",
-        "time_s": 0.628,
-        "maxrss_mb": 65.3,
+        "time_s": 0.623,
+        "maxrss_mb": 65.5,
         "objects": 40,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.709,
-        "maxrss_mb": 71.7,
+        "time_s": 0.712,
+        "maxrss_mb": 71.6,
         "objects": 60,
         "exact": false
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.748,
+        "time_s": 0.746,
         "maxrss_mb": 75.8,
         "objects": 60,
         "exact": false
@@ -996,22 +996,22 @@
       "expected": 48,
       "kfold": {
         "status": "ok",
-        "time_s": 0.625,
-        "maxrss_mb": 65.2,
+        "time_s": 0.626,
+        "maxrss_mb": 65.6,
         "objects": 48,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.716,
+        "time_s": 0.73,
         "maxrss_mb": 71.9,
         "objects": 72,
         "exact": false
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.751,
-        "maxrss_mb": 75.9,
+        "time_s": 0.767,
+        "maxrss_mb": 75.7,
         "objects": 72,
         "exact": false
       },
@@ -1025,22 +1025,22 @@
       "expected": 64,
       "kfold": {
         "status": "ok",
-        "time_s": 0.619,
-        "maxrss_mb": 65.3,
+        "time_s": 0.625,
+        "maxrss_mb": 65.6,
         "objects": 64,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.728,
-        "maxrss_mb": 71.9,
+        "time_s": 0.737,
+        "maxrss_mb": 72.0,
         "objects": 96,
         "exact": false
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.791,
-        "maxrss_mb": 76.1,
+        "time_s": 0.788,
+        "maxrss_mb": 75.9,
         "objects": 96,
         "exact": false
       },
@@ -1054,22 +1054,22 @@
       "expected": 96,
       "kfold": {
         "status": "ok",
-        "time_s": 0.622,
+        "time_s": 0.626,
         "maxrss_mb": 65.8,
         "objects": 96,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.758,
-        "maxrss_mb": 72.1,
+        "time_s": 0.761,
+        "maxrss_mb": 71.9,
         "objects": 144,
         "exact": false
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.841,
-        "maxrss_mb": 76.7,
+        "time_s": 0.846,
+        "maxrss_mb": 76.4,
         "objects": 144,
         "exact": false
       },
@@ -1083,22 +1083,22 @@
       "expected": 128,
       "kfold": {
         "status": "ok",
-        "time_s": 0.622,
+        "time_s": 0.639,
         "maxrss_mb": 65.9,
         "objects": 128,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.794,
+        "time_s": 0.791,
         "maxrss_mb": 72.3,
         "objects": 192,
         "exact": false
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.891,
-        "maxrss_mb": 77.1,
+        "time_s": 0.906,
+        "maxrss_mb": 76.8,
         "objects": 192,
         "exact": false
       },
@@ -1112,21 +1112,21 @@
       "expected": 256,
       "kfold": {
         "status": "ok",
-        "time_s": 0.727,
+        "time_s": 0.734,
         "maxrss_mb": 66.8,
         "objects": 256,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.924,
-        "maxrss_mb": 73.0,
+        "time_s": 0.927,
+        "maxrss_mb": 73.2,
         "objects": 384,
         "exact": false
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 1.141,
+        "time_s": 1.119,
         "maxrss_mb": 78.6,
         "objects": 384,
         "exact": false
@@ -1141,29 +1141,29 @@
       "expected": 1,
       "kfold": {
         "status": "ok",
-        "time_s": 0.614,
-        "maxrss_mb": 65.4,
+        "time_s": 0.622,
+        "maxrss_mb": 65.5,
         "objects": 1,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.674,
+        "time_s": 0.681,
         "maxrss_mb": 71.4,
         "objects": 1,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.677,
+        "time_s": 0.684,
         "maxrss_mb": 75.2,
         "objects": 1,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.503,
-        "maxrss_mb": 65.2,
+        "time_s": 0.548,
+        "maxrss_mb": 65.1,
         "states": 2
       }
     },
@@ -1173,29 +1173,29 @@
       "expected": 2,
       "kfold": {
         "status": "ok",
-        "time_s": 0.618,
+        "time_s": 0.622,
         "maxrss_mb": 65.6,
         "objects": 2,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.674,
-        "maxrss_mb": 71.5,
+        "time_s": 0.678,
+        "maxrss_mb": 71.6,
         "objects": 2,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.702,
-        "maxrss_mb": 75.3,
+        "time_s": 0.684,
+        "maxrss_mb": 75.2,
         "objects": 2,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.522,
-        "maxrss_mb": 65.1,
+        "time_s": 0.508,
+        "maxrss_mb": 65.3,
         "states": 5
       }
     },
@@ -1205,29 +1205,29 @@
       "expected": 4,
       "kfold": {
         "status": "ok",
-        "time_s": 0.616,
+        "time_s": 0.626,
         "maxrss_mb": 65.5,
         "objects": 4,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.676,
-        "maxrss_mb": 71.4,
+        "time_s": 0.688,
+        "maxrss_mb": 71.7,
         "objects": 4,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.694,
-        "maxrss_mb": 75.2,
+        "time_s": 0.688,
+        "maxrss_mb": 75.3,
         "objects": 4,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.52,
-        "maxrss_mb": 65.4,
+        "time_s": 0.53,
+        "maxrss_mb": 65.1,
         "states": 33
       }
     },
@@ -1237,28 +1237,28 @@
       "expected": 8,
       "kfold": {
         "status": "ok",
-        "time_s": 0.615,
-        "maxrss_mb": 65.3,
+        "time_s": 0.621,
+        "maxrss_mb": 65.6,
         "objects": 8,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.682,
-        "maxrss_mb": 71.5,
+        "time_s": 0.704,
+        "maxrss_mb": 71.6,
         "objects": 8,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.696,
-        "maxrss_mb": 75.2,
+        "time_s": 0.697,
+        "maxrss_mb": 75.3,
         "objects": 8,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 0.857,
+        "time_s": 0.849,
         "maxrss_mb": 66.8,
         "states": 1025
       }
@@ -1269,29 +1269,29 @@
       "expected": 12,
       "kfold": {
         "status": "ok",
-        "time_s": 0.618,
+        "time_s": 0.616,
         "maxrss_mb": 65.6,
         "objects": 12,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.692,
-        "maxrss_mb": 71.5,
+        "time_s": 0.693,
+        "maxrss_mb": 71.7,
         "objects": 12,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.707,
-        "maxrss_mb": 75.3,
+        "time_s": 0.704,
+        "maxrss_mb": 75.6,
         "objects": 12,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 8.695,
-        "maxrss_mb": 133.4,
+        "time_s": 8.86,
+        "maxrss_mb": 136.6,
         "states": 24577
       }
     },
@@ -1301,29 +1301,29 @@
       "expected": 16,
       "kfold": {
         "status": "ok",
-        "time_s": 0.616,
-        "maxrss_mb": 65.4,
+        "time_s": 0.619,
+        "maxrss_mb": 65.7,
         "objects": 16,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.704,
+        "time_s": 0.697,
         "maxrss_mb": 71.7,
         "objects": 16,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.708,
+        "time_s": 0.728,
         "maxrss_mb": 75.6,
         "objects": 16,
         "exact": true
       },
       "kfold_fork": {
         "status": "ok",
-        "time_s": 187.094,
-        "maxrss_mb": 1744.2,
+        "time_s": 196.257,
+        "maxrss_mb": 1744.1,
         "states": 524289
       }
     },
@@ -1333,22 +1333,22 @@
       "expected": 20,
       "kfold": {
         "status": "ok",
-        "time_s": 0.625,
-        "maxrss_mb": 65.6,
+        "time_s": 0.665,
+        "maxrss_mb": 65.4,
         "objects": 20,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.692,
-        "maxrss_mb": 71.9,
+        "time_s": 0.746,
+        "maxrss_mb": 71.8,
         "objects": 20,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.725,
-        "maxrss_mb": 75.5,
+        "time_s": 0.769,
+        "maxrss_mb": 75.6,
         "objects": 20,
         "exact": true
       },
@@ -1364,22 +1364,22 @@
       "expected": 24,
       "kfold": {
         "status": "ok",
-        "time_s": 0.622,
-        "maxrss_mb": 65.1,
+        "time_s": 0.657,
+        "maxrss_mb": 65.4,
         "objects": 24,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.711,
-        "maxrss_mb": 71.6,
+        "time_s": 0.739,
+        "maxrss_mb": 71.5,
         "objects": 24,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.725,
-        "maxrss_mb": 75.7,
+        "time_s": 0.769,
+        "maxrss_mb": 75.4,
         "objects": 24,
         "exact": true
       },
@@ -1393,22 +1393,22 @@
       "expected": 32,
       "kfold": {
         "status": "ok",
-        "time_s": 0.625,
-        "maxrss_mb": 65.3,
+        "time_s": 0.662,
+        "maxrss_mb": 65.1,
         "objects": 32,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.731,
-        "maxrss_mb": 71.7,
+        "time_s": 0.752,
+        "maxrss_mb": 71.8,
         "objects": 32,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.74,
-        "maxrss_mb": 75.5,
+        "time_s": 0.78,
+        "maxrss_mb": 75.6,
         "objects": 32,
         "exact": true
       },
@@ -1422,22 +1422,22 @@
       "expected": 48,
       "kfold": {
         "status": "ok",
-        "time_s": 0.618,
-        "maxrss_mb": 65.3,
+        "time_s": 0.657,
+        "maxrss_mb": 65.6,
         "objects": 48,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.722,
-        "maxrss_mb": 72.0,
+        "time_s": 0.767,
+        "maxrss_mb": 71.8,
         "objects": 48,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.78,
-        "maxrss_mb": 76.0,
+        "time_s": 0.864,
+        "maxrss_mb": 76.2,
         "objects": 48,
         "exact": true
       },
@@ -1451,22 +1451,22 @@
       "expected": 64,
       "kfold": {
         "status": "ok",
-        "time_s": 0.633,
-        "maxrss_mb": 65.4,
+        "time_s": 0.685,
+        "maxrss_mb": 65.7,
         "objects": 64,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.754,
-        "maxrss_mb": 72.0,
+        "time_s": 0.791,
+        "maxrss_mb": 72.3,
         "objects": 64,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.811,
-        "maxrss_mb": 76.1,
+        "time_s": 0.848,
+        "maxrss_mb": 76.4,
         "objects": 64,
         "exact": true
       },
@@ -1480,22 +1480,22 @@
       "expected": 128,
       "kfold": {
         "status": "ok",
-        "time_s": 0.628,
-        "maxrss_mb": 65.6,
+        "time_s": 0.659,
+        "maxrss_mb": 65.8,
         "objects": 128,
         "exact": true
       },
       "kmax": {
         "status": "ok",
-        "time_s": 0.826,
-        "maxrss_mb": 72.9,
+        "time_s": 0.88,
+        "maxrss_mb": 72.8,
         "objects": 128,
         "exact": true
       },
       "kmax_smt": {
         "status": "ok",
-        "time_s": 0.941,
-        "maxrss_mb": 77.4,
+        "time_s": 0.995,
+        "maxrss_mb": 77.1,
         "objects": 128,
         "exact": true
       },

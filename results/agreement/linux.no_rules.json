@@ -1,40 +1,40 @@
 {
- "analysis_seconds": 49.03,
+ "analysis_seconds": 48.67,
  "census": {
   "by_category": {
    "modeled": {
-    "ConditionBlock:eq": 293,
-    "ConditionBlock:ifdef": 166,
-    "Function:addprefix": 543,
+    "ConditionBlock:eq": 296,
+    "ConditionBlock:ifdef": 168,
+    "Function:addprefix": 551,
     "Function:addsuffix": 2,
     "Function:basename": 8,
     "Function:call": 91,
     "Function:dir": 2,
     "Function:filter": 25,
-    "Function:filter-out": 21,
+    "Function:filter-out": 23,
     "Function:findstring": 4,
-    "Function:foreach": 25,
+    "Function:foreach": 31,
     "Function:if": 7,
-    "Function:notdir": 1,
-    "Function:or": 4,
+    "Function:notdir": 3,
+    "Function:or": 6,
     "Function:patsubst": 53,
     "Function:shell": 38,
-    "Function:sort": 4,
+    "Function:sort": 6,
     "Function:subst": 49,
     "Function:substitutionref": 11,
-    "Function:variableref": 43820,
+    "Function:variableref": 43969,
     "Function:wildcard": 12,
     "Function:words": 4,
-    "Rule": 296,
-    "SetVariable+=": 21681,
-    "SetVariable:=": 4003,
-    "SetVariable=": 1019,
+    "Rule": 307,
+    "SetVariable+=": 21731,
+    "SetVariable:=": 4031,
+    "SetVariable=": 1039,
     "SetVariable?=": 2,
-    "StaticPatternRule": 4
+    "StaticPatternRule": 6
    },
    "out_of_scope": {
-    "Command": 215,
-    "EmptyDirective": 37
+    "Command": 219,
+    "EmptyDirective": 28
    },
    "unsupported": {
     "Function:abspath": 2,
@@ -42,22 +42,22 @@
    }
   },
   "totals": {
-   "modeled": 72188,
-   "out_of_scope": 252,
-   "total": 72732,
+   "modeled": 72475,
+   "out_of_scope": 247,
+   "total": 73014,
    "unsupported": 292
   }
  },
  "kinds": {
   "extra": 8,
   "member": 16336,
-  "program": 7,
-  "target": 16366
+  "program": 45,
+  "target": 16367
  },
- "makefile_instances": 2215,
- "objects": 32717,
+ "makefile_instances": 2225,
+ "objects": 32756,
  "parse_errors": [],
- "peak_rss_mb": 174.5,
+ "peak_rss_mb": 175.1,
  "profiles": {
   "allmodconfig": {
    "members": {
@@ -78,7 +78,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 172,
+    "outside_universe": 143,
     "outside_universe_paths": [
      "arch/x86/boot/a20.o",
      "arch/x86/boot/bioscall.o",
@@ -183,28 +183,6 @@
      "drivers/firmware/efi/libstub/vsprintf.o",
      "drivers/misc/lkdtm/rodata.o",
      "kernel/trace/undefsyms_base.o",
-     "scripts/dtc/checks.o",
-     "scripts/dtc/data.o",
-     "scripts/dtc/dtc-lexer.lex.o",
-     "scripts/dtc/dtc-parser.tab.o",
-     "scripts/dtc/dtc.o",
-     "scripts/dtc/fdtoverlay.o",
-     "scripts/dtc/flattree.o",
-     "scripts/dtc/fstree.o",
-     "scripts/dtc/libfdt/fdt.o",
-     "scripts/dtc/libfdt/fdt_addresses.o",
-     "scripts/dtc/libfdt/fdt_empty_tree.o",
-     "scripts/dtc/libfdt/fdt_overlay.o",
-     "scripts/dtc/libfdt/fdt_ro.o",
-     "scripts/dtc/libfdt/fdt_rw.o",
-     "scripts/dtc/libfdt/fdt_strerror.o",
-     "scripts/dtc/libfdt/fdt_sw.o",
-     "scripts/dtc/libfdt/fdt_wip.o",
-     "scripts/dtc/livetree.o",
-     "scripts/dtc/srcpos.o",
-     "scripts/dtc/treesource.o",
-     "scripts/dtc/util.o",
-     "scripts/elf-parse.o",
      "scripts/kconfig/conf.o",
      "scripts/kconfig/confdata.o",
      "scripts/kconfig/expr.o",
@@ -214,13 +192,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
-     "scripts/mod/file2alias.o",
-     "scripts/mod/modpost.o",
-     "scripts/mod/sumversion.o",
-     "scripts/mod/symsearch.o",
-     "scripts/sorttable.o",
-     "scripts/tracepoint-update.o",
      "tools/objtool/arch/x86/decode.o",
      "tools/objtool/arch/x86/objtool-in.o",
      "tools/objtool/arch/x86/orc.o",
@@ -253,13 +224,13 @@
      "tools/objtool/str_error_r.o",
      "tools/objtool/weak.o"
     ],
-    "overlap_pct": 99.4,
+    "overlap_pct": 99.5,
     "physical": 29625,
     "precision_pct": 100.0,
-    "predicted": 29443,
+    "predicted": 29472,
     "recall_within_universe_pct": 100.0,
-    "tp": 29443,
-    "universe": 32717
+    "tp": 29472,
+    "universe": 32756
    },
    "targets": {
     "fn_within_universe": 10,
@@ -279,7 +250,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 15696,
+    "outside_universe": 15695,
     "outside_universe_paths": [
      ".module-common.o",
      ".tmp_vmlinux0.kallsyms.o",
@@ -14182,7 +14153,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
      "scripts/mod/file2alias.o",
      "scripts/mod/modpost.o",
      "scripts/mod/sumversion.o",
@@ -15981,10 +15951,10 @@
     "overlap_pct": 47.0,
     "physical": 29625,
     "precision_pct": 100.0,
-    "predicted": 13919,
+    "predicted": 13920,
     "recall_within_universe_pct": 99.9,
-    "tp": 13919,
-    "universe": 16366
+    "tp": 13920,
+    "universe": 16367
    }
   },
   "debian": {
@@ -16006,7 +15976,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 192,
+    "outside_universe": 184,
     "outside_universe_paths": [
      "arch/x86/boot/a20.o",
      "arch/x86/boot/bioscall.o",
@@ -16109,7 +16079,6 @@
      "drivers/firmware/efi/libstub/skip_spaces.o",
      "drivers/firmware/efi/libstub/tpm.o",
      "drivers/firmware/efi/libstub/vsprintf.o",
-     "scripts/elf-parse.o",
      "scripts/kconfig/conf.o",
      "scripts/kconfig/confdata.o",
      "scripts/kconfig/expr.o",
@@ -16119,13 +16088,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
-     "scripts/mod/file2alias.o",
-     "scripts/mod/modpost.o",
-     "scripts/mod/sumversion.o",
-     "scripts/mod/symsearch.o",
-     "scripts/sorttable.o",
-     "scripts/tracepoint-update.o",
      "tools/bpf/resolve_btfids/ctype.o",
      "tools/bpf/resolve_btfids/fixdep-in.o",
      "tools/bpf/resolve_btfids/fixdep.o",
@@ -16201,13 +16163,13 @@
      "tools/objtool/str_error_r.o",
      "tools/objtool/weak.o"
     ],
-    "overlap_pct": 98.8,
+    "overlap_pct": 98.9,
     "physical": 17191,
     "precision_pct": 100.0,
-    "predicted": 16989,
+    "predicted": 16997,
     "recall_within_universe_pct": 99.9,
-    "tp": 16989,
-    "universe": 32717
+    "tp": 16997,
+    "universe": 32756
    },
    "targets": {
     "fn_within_universe": 10,
@@ -16227,7 +16189,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 11046,
+    "outside_universe": 11045,
     "outside_universe_paths": [
      ".module-common.o",
      ".tmp_vmlinux0.kallsyms.o",
@@ -26237,7 +26199,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
      "scripts/mod/file2alias.o",
      "scripts/mod/modpost.o",
      "scripts/mod/sumversion.o",
@@ -27279,10 +27240,10 @@
     "overlap_pct": 35.7,
     "physical": 17191,
     "precision_pct": 100.0,
-    "predicted": 6135,
+    "predicted": 6136,
     "recall_within_universe_pct": 99.8,
-    "tp": 6135,
-    "universe": 16366
+    "tp": 6136,
+    "universe": 16367
    }
   },
   "defconfig": {
@@ -27299,7 +27260,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 128,
+    "outside_universe": 120,
     "outside_universe_paths": [
      "arch/x86/boot/a20.o",
      "arch/x86/boot/bioscall.o",
@@ -27381,7 +27342,6 @@
      "drivers/firmware/efi/libstub/skip_spaces.o",
      "drivers/firmware/efi/libstub/tpm.o",
      "drivers/firmware/efi/libstub/vsprintf.o",
-     "scripts/elf-parse.o",
      "scripts/kconfig/conf.o",
      "scripts/kconfig/confdata.o",
      "scripts/kconfig/expr.o",
@@ -27391,13 +27351,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
-     "scripts/mod/file2alias.o",
-     "scripts/mod/modpost.o",
-     "scripts/mod/sumversion.o",
-     "scripts/mod/symsearch.o",
-     "scripts/sorttable.o",
-     "scripts/tracepoint-update.o",
      "tools/objtool/arch/x86/decode.o",
      "tools/objtool/arch/x86/objtool-in.o",
      "tools/objtool/arch/x86/orc.o",
@@ -27430,13 +27383,13 @@
      "tools/objtool/str_error_r.o",
      "tools/objtool/weak.o"
     ],
-    "overlap_pct": 95.8,
+    "overlap_pct": 96.0,
     "physical": 3133,
     "precision_pct": 100.0,
-    "predicted": 3000,
+    "predicted": 3008,
     "recall_within_universe_pct": 99.8,
-    "tp": 3000,
-    "universe": 32717
+    "tp": 3008,
+    "universe": 32756
    },
    "targets": {
     "fn_within_universe": 5,
@@ -27451,7 +27404,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 1654,
+    "outside_universe": 1653,
     "outside_universe_paths": [
      ".module-common.o",
      ".tmp_vmlinux0.kallsyms.o",
@@ -28985,7 +28938,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
      "scripts/mod/file2alias.o",
      "scripts/mod/modpost.o",
      "scripts/mod/sumversion.o",
@@ -29108,13 +29060,13 @@
      "tools/objtool/weak.o",
      "vmlinux.o"
     ],
-    "overlap_pct": 47.0,
+    "overlap_pct": 47.1,
     "physical": 3133,
     "precision_pct": 100.0,
-    "predicted": 1474,
+    "predicted": 1475,
     "recall_within_universe_pct": 99.7,
-    "tp": 1474,
-    "universe": 16366
+    "tp": 1475,
+    "universe": 16367
    }
   },
   "tinyconfig": {
@@ -29125,7 +29077,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 57,
+    "outside_universe": 50,
     "outside_universe_paths": [
      "arch/x86/boot/a20.o",
      "arch/x86/boot/bioscall.o",
@@ -29168,7 +29120,6 @@
      "arch/x86/realmode/rm/reboot.o",
      "arch/x86/realmode/rm/stack.o",
      "arch/x86/realmode/rm/trampoline_32.o",
-     "scripts/elf-parse.o",
      "scripts/kconfig/conf.o",
      "scripts/kconfig/confdata.o",
      "scripts/kconfig/expr.o",
@@ -29177,21 +29128,15 @@
      "scripts/kconfig/parser.tab.o",
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
-     "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
-     "scripts/mod/file2alias.o",
-     "scripts/mod/modpost.o",
-     "scripts/mod/sumversion.o",
-     "scripts/mod/symsearch.o",
-     "scripts/sorttable.o"
+     "scripts/kconfig/util.o"
     ],
-    "overlap_pct": 89.2,
+    "overlap_pct": 90.5,
     "physical": 528,
     "precision_pct": 100.0,
-    "predicted": 471,
+    "predicted": 478,
     "recall_within_universe_pct": 100.0,
-    "tp": 471,
-    "universe": 32717
+    "tp": 478,
+    "universe": 32756
    },
    "targets": {
     "fn_within_universe": 0,
@@ -29200,7 +29145,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 71,
+    "outside_universe": 70,
     "outside_universe_paths": [
      ".vmlinux.export.o",
      "arch/x86/boot/a20.o",
@@ -29266,7 +29211,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
      "scripts/mod/file2alias.o",
      "scripts/mod/modpost.o",
      "scripts/mod/sumversion.o",
@@ -29274,18 +29218,18 @@
      "scripts/sorttable.o",
      "vmlinux.o"
     ],
-    "overlap_pct": 86.6,
+    "overlap_pct": 86.7,
     "physical": 528,
     "precision_pct": 100.0,
-    "predicted": 457,
+    "predicted": 458,
     "recall_within_universe_pct": 100.0,
-    "tp": 457,
-    "universe": 16366
+    "tp": 458,
+    "universe": 16367
    }
   }
  },
  "subject": "linux",
  "variant": "no_rules",
  "version": "7.2.8",
- "z3_checks": 99075
+ "z3_checks": 99172
 }

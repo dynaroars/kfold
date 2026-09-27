@@ -4,12 +4,62 @@
    "cases": 100,
    "correct": 100,
    "failing_kinds": {
-    "composite membership": 7,
-    "directory route": 54,
-    "target-list line": 21
+    "composite membership": 8,
+    "directory route": 49,
+    "target-list line": 24
    },
    "kconfig_errors": 0,
    "rows": [
+    {
+     "built": true,
+     "correct": true,
+     "failing_kind": null,
+     "first_failing": null,
+     "kconfig_error": null,
+     "object": "arch/x86/crypto/serpent-avx2-asm_64.o",
+     "pivotal_symbols": [],
+     "verdict": true
+    },
+    {
+     "built": true,
+     "correct": true,
+     "failing_kind": null,
+     "first_failing": null,
+     "kconfig_error": null,
+     "object": "drivers/gpu/drm/panel/panel-seiko-43wvf1g.o",
+     "pivotal_symbols": [],
+     "verdict": true
+    },
+    {
+     "built": true,
+     "correct": true,
+     "failing_kind": null,
+     "first_failing": null,
+     "kconfig_error": null,
+     "object": "arch/x86/lib/insn-eval.o",
+     "pivotal_symbols": [],
+     "verdict": true
+    },
+    {
+     "built": true,
+     "correct": true,
+     "failing_kind": null,
+     "first_failing": null,
+     "kconfig_error": null,
+     "object": "fs/proc/task_mmu.o",
+     "pivotal_symbols": [],
+     "verdict": true
+    },
+    {
+     "built": true,
+     "correct": true,
+     "failing_kind": null,
+     "first_failing": null,
+     "kconfig_error": null,
+     "object": "lib/nlattr.o",
+     "pivotal_symbols": [],
+     "verdict": true
+    },
     {
      "built": true,
      "correct": true,
@@ -26,7 +76,7 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/drivers/Makefile",
      "kconfig_error": null,
-     "object": "sound/drivers/snd-portman2x4.o",
+     "object": "sound/drivers/aloop.o",
      "pivotal_symbols": [],
      "verdict": true
     },
@@ -126,7 +176,7 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/fsl/snd-soc-fsl-lpc3xxx.o",
+     "object": "sound/soc/dwc/designware_i2s.o",
      "pivotal_symbols": [],
      "verdict": true
     },
@@ -196,7 +246,7 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/codecs/rt5677-spi.o",
+     "object": "sound/soc/codecs/pm4125.o",
      "pivotal_symbols": [],
      "verdict": true
     },
@@ -296,7 +346,7 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/codecs/snd-soc-nau8825.o",
+     "object": "sound/soc/codecs/snd-soc-max9768.o",
      "pivotal_symbols": [],
      "verdict": true
     },
@@ -346,7 +396,7 @@
      "failing_kind": null,
      "first_failing": null,
      "kconfig_error": null,
-     "object": "security/min_addr.o",
+     "object": "security/keys/gc.o",
      "pivotal_symbols": [],
      "verdict": true
     },
@@ -396,7 +446,7 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/codecs/wm8990.o",
+     "object": "sound/soc/codecs/wm5110.o",
      "pivotal_symbols": [],
      "verdict": true
     },
@@ -426,7 +476,7 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/codecs/max9867.o",
+     "object": "sound/soc/codecs/hdac_hda.o",
      "pivotal_symbols": [],
      "verdict": true
     },
@@ -461,54 +511,64 @@
      "verdict": true
     },
     {
-     "built": true,
+     "built": false,
+     "correct": true,
+     "failing_kind": "target-list line",
+     "first_failing": "obj-m in drivers/firmware/efi/Makefile: cper-arm.o",
+     "kconfig_error": null,
+     "object": "drivers/firmware/efi/cper-arm.o",
+     "pivotal_symbols": [
+      "CONFIG_UEFI_CPER_ARM"
+     ],
+     "verdict": false
+    },
+    {
+     "built": false,
+     "correct": true,
+     "failing_kind": "target-list line",
+     "first_failing": "obj-m in kernel/time/Makefile: sched_clock.o",
+     "kconfig_error": null,
+     "object": "kernel/time/sched_clock.o",
+     "pivotal_symbols": [
+      "CONFIG_GENERIC_SCHED_CLOCK"
+     ],
+     "verdict": false
+    },
+    {
+     "built": false,
      "correct": true,
      "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): drivers/gpu/drm/nouveau/Kbuild",
+     "first_failing": "reached (built-in / obj-y route): drivers/hwtracing/coresight/Makefile",
      "kconfig_error": null,
-     "object": "drivers/gpu/drm/nouveau/nvkm/subdev/mmu/base.o",
-     "pivotal_symbols": [],
-     "verdict": true
+     "object": "drivers/hwtracing/coresight/coresight-syscfg-configfs.o",
+     "pivotal_symbols": [
+      "CONFIG_CORESIGHT"
+     ],
+     "verdict": false
     },
     {
-     "built": true,
+     "built": false,
      "correct": true,
-     "failing_kind": null,
-     "first_failing": null,
+     "failing_kind": "target-list line",
+     "first_failing": "obj-m in drivers/scsi/Makefile: mac_esp.o",
      "kconfig_error": null,
-     "object": "drivers/watchdog/s32g_wdt.o",
-     "pivotal_symbols": [],
-     "verdict": true
+     "object": "drivers/scsi/mac_esp.o",
+     "pivotal_symbols": [
+      "CONFIG_SCSI_MAC_ESP"
+     ],
+     "verdict": false
     },
     {
-     "built": true,
+     "built": false,
      "correct": true,
-     "failing_kind": null,
-     "first_failing": null,
+     "failing_kind": "target-list line",
+     "first_failing": "obj-m in drivers/irqchip/Makefile: irq-digicolor.o",
      "kconfig_error": null,
-     "object": "drivers/hwtracing/intel_th/intel_th_pti.o",
-     "pivotal_symbols": [],
-     "verdict": true
-    },
-    {
-     "built": true,
-     "correct": true,
-     "failing_kind": null,
-     "first_failing": null,
-     "kconfig_error": null,
-     "object": "drivers/pinctrl/renesas/pfc-r8a7792.o",
-     "pivotal_symbols": [],
-     "verdict": true
-    },
-    {
-     "built": true,
-     "correct": true,
-     "failing_kind": null,
-     "first_failing": null,
-     "kconfig_error": null,
-     "object": "drivers/irqchip/irq-ti-sci-intr.o",
-     "pivotal_symbols": [],
-     "verdict": true
+     "object": "drivers/irqchip/irq-digicolor.o",
+     "pivotal_symbols": [
+      "CONFIG_ARCH_DIGICOLOR"
+     ],
+     "verdict": false
     },
     {
      "built": false,
@@ -547,12 +607,13 @@
     {
      "built": false,
      "correct": true,
-     "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): sound/ac97/Makefile",
+     "failing_kind": "composite membership",
+     "first_failing": "member of encrypted-keys.o in security/keys/encrypted-keys/Makefile: encrypted-keys.o",
      "kconfig_error": null,
-     "object": "sound/ac97/codec.o",
+     "object": "security/keys/encrypted-keys/masterkey_trusted.o",
      "pivotal_symbols": [
-      "CONFIG_AC97_BUS_NEW"
+      "CONFIG_ENCRYPTED_KEYS",
+      "CONFIG_TRUSTED_KEYS"
      ],
      "verdict": false
     },
@@ -820,9 +881,9 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/renesas/siu_dai.o",
+     "object": "sound/soc/pxa/snd-soc-mmp-sspa.o",
      "pivotal_symbols": [
-      "CONFIG_SND_SOC_SH4_SIU"
+      "CONFIG_SND_MMP_SOC_SSPA"
      ],
      "verdict": false
     },
@@ -878,7 +939,7 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/mediatek/mt8183/mt8183-mt6358-ts3a227-max98357.o",
+     "object": "sound/soc/mediatek/mt8173/mt8173-rt5650-rt5676.o",
      "pivotal_symbols": [],
      "verdict": false
     },
@@ -1031,64 +1092,6 @@
      "object": "drivers/interconnect/qcom/qnoc-qcs615.o",
      "pivotal_symbols": [],
      "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): drivers/clk/qcom/Makefile",
-     "kconfig_error": null,
-     "object": "drivers/clk/qcom/apcs-msm8996.o",
-     "pivotal_symbols": [
-      "CONFIG_QCOM_CLK_APCC_MSM8996"
-     ],
-     "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): drivers/platform/mips/Makefile",
-     "kconfig_error": null,
-     "object": "drivers/platform/mips/ls2k-reset.o",
-     "pivotal_symbols": [],
-     "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "target-list line",
-     "first_failing": "obj-y in mm/Makefile: nommu.o",
-     "kconfig_error": null,
-     "object": "mm/nommu.o",
-     "pivotal_symbols": [
-      "CONFIG_MMU"
-     ],
-     "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): drivers/gpu/drm/imagination/Makefile",
-     "kconfig_error": null,
-     "object": "drivers/gpu/drm/imagination/pvr_fw_util.o",
-     "pivotal_symbols": [
-      "CONFIG_DRM_POWERVR"
-     ],
-     "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): drivers/block/rnull/Makefile",
-     "kconfig_error": null,
-     "object": "drivers/block/rnull/rnull_mod.o",
-     "pivotal_symbols": [
-      "CONFIG_BLK_DEV_RUST_NULL"
-     ],
-     "verdict": false
     }
    ]
   },
@@ -1097,11 +1100,31 @@
    "correct": 100,
    "failing_kinds": {
     "composite membership": 3,
-    "directory route": 61,
-    "target-list line": 21
+    "directory route": 59,
+    "target-list line": 23
    },
    "kconfig_errors": 0,
    "rows": [
+    {
+     "built": true,
+     "correct": true,
+     "failing_kind": "directory route",
+     "first_failing": "reached (built-in / obj-y route): fs/nilfs2/Makefile",
+     "kconfig_error": null,
+     "object": "fs/nilfs2/recovery.o",
+     "pivotal_symbols": [],
+     "verdict": true
+    },
+    {
+     "built": true,
+     "correct": true,
+     "failing_kind": null,
+     "first_failing": null,
+     "kconfig_error": null,
+     "object": "drivers/media/i2c/saa7110.o",
+     "pivotal_symbols": [],
+     "verdict": true
+    },
     {
      "built": true,
      "correct": true,
@@ -1268,7 +1291,7 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/codecs/snd-soc-rt715.o",
+     "object": "sound/soc/codecs/snd-soc-rt5640.o",
      "pivotal_symbols": [],
      "verdict": true
     },
@@ -1408,7 +1431,7 @@
      "failing_kind": null,
      "first_failing": null,
      "kconfig_error": null,
-     "object": "security/keys/request_key_auth.o",
+     "object": "security/ipe/policy_fs.o",
      "pivotal_symbols": [],
      "verdict": true
     },
@@ -1583,24 +1606,64 @@
      "verdict": true
     },
     {
-     "built": true,
+     "built": false,
      "correct": true,
-     "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): fs/squashfs/Makefile",
+     "failing_kind": "target-list line",
+     "first_failing": "obj-m in drivers/media/rc/Makefile: ir-spi.o",
      "kconfig_error": null,
-     "object": "fs/squashfs/file_direct.o",
-     "pivotal_symbols": [],
-     "verdict": true
+     "object": "drivers/media/rc/ir-spi.o",
+     "pivotal_symbols": [
+      "CONFIG_IR_SPI"
+     ],
+     "verdict": false
     },
     {
-     "built": true,
+     "built": false,
      "correct": true,
-     "failing_kind": null,
-     "first_failing": null,
+     "failing_kind": "directory route",
+     "first_failing": "reached (built-in / obj-y route): sound/pci/Makefile",
      "kconfig_error": null,
-     "object": "kernel/kthread.o",
-     "pivotal_symbols": [],
-     "verdict": true
+     "object": "sound/pci/snd-cs5530.o",
+     "pivotal_symbols": [
+      "CONFIG_SND_CS5530"
+     ],
+     "verdict": false
+    },
+    {
+     "built": false,
+     "correct": true,
+     "failing_kind": "target-list line",
+     "first_failing": "obj-m in drivers/soc/sunxi/Makefile: sunxi_sram.o",
+     "kconfig_error": null,
+     "object": "drivers/soc/sunxi/sunxi_sram.o",
+     "pivotal_symbols": [
+      "CONFIG_SUNXI_SRAM"
+     ],
+     "verdict": false
+    },
+    {
+     "built": false,
+     "correct": true,
+     "failing_kind": "directory route",
+     "first_failing": "reached (built-in / obj-y route): drivers/pcmcia/Makefile",
+     "kconfig_error": null,
+     "object": "drivers/pcmcia/db1xxx_ss.o",
+     "pivotal_symbols": [
+      "CONFIG_PCMCIA_ALCHEMY_DEVBOARD"
+     ],
+     "verdict": false
+    },
+    {
+     "built": false,
+     "correct": true,
+     "failing_kind": "target-list line",
+     "first_failing": "obj-m in drivers/mfd/Makefile: rn5t618.o",
+     "kconfig_error": null,
+     "object": "drivers/mfd/rn5t618.o",
+     "pivotal_symbols": [
+      "CONFIG_MFD_RN5T618"
+     ],
+     "verdict": false
     },
     {
      "built": false,
@@ -1748,9 +1811,9 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/codecs/ml26124.o",
+     "object": "sound/soc/codecs/idt821034.o",
      "pivotal_symbols": [
-      "CONFIG_SND_SOC_ML26124"
+      "CONFIG_SND_SOC_IDT821034"
      ],
      "verdict": false
     },
@@ -1772,9 +1835,9 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/codecs/snd-soc-wm8727.o",
+     "object": "sound/soc/codecs/snd-soc-twl6040.o",
      "pivotal_symbols": [
-      "CONFIG_SND_SOC_WM8727"
+      "CONFIG_SND_SOC_TWL6040"
      ],
      "verdict": false
     },
@@ -1830,9 +1893,9 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/codecs/lpass-wsa-macro.o",
+     "object": "sound/soc/codecs/da9055.o",
      "pivotal_symbols": [
-      "CONFIG_SND_SOC_LPASS_WSA_MACRO"
+      "CONFIG_SND_SOC_DA9055"
      ],
      "verdict": false
     },
@@ -1946,9 +2009,9 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/cirrus/ep93xx-pcm.o",
+     "object": "sound/soc/atmel/snd-soc-mchp-spdifrx.o",
      "pivotal_symbols": [
-      "CONFIG_SND_EP93XX_SOC"
+      "CONFIG_SND_MCHP_SOC_SPDIFRX"
      ],
      "verdict": false
     },
@@ -2084,10 +2147,8 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/sophgo/cv1800b-sound-dac.o",
-     "pivotal_symbols": [
-      "CONFIG_SND_SOC_CV1800B_DAC_CODEC"
-     ],
+     "object": "sound/soc/sof/imx/imx-common.o",
+     "pivotal_symbols": [],
      "verdict": false
     },
     {
@@ -2123,62 +2184,6 @@
       "CONFIG_SERIO_RPCKBD"
      ],
      "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "target-list line",
-     "first_failing": "obj-m in arch/x86/kernel/cpu/Makefile: transmeta.o",
-     "kconfig_error": null,
-     "object": "arch/x86/kernel/cpu/transmeta.o",
-     "pivotal_symbols": [
-      "CONFIG_CPU_SUP_TRANSMETA_32"
-     ],
-     "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): drivers/gpu/drm/msm/Makefile",
-     "kconfig_error": null,
-     "object": "drivers/gpu/drm/msm/hdmi/hdmi_hdcp.o",
-     "pivotal_symbols": [],
-     "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): drivers/accel/qaic/Makefile",
-     "kconfig_error": null,
-     "object": "drivers/accel/qaic/qaic_ssr.o",
-     "pivotal_symbols": [
-      "CONFIG_DRM_ACCEL_QAIC"
-     ],
-     "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): drivers/staging/greybus/Makefile",
-     "kconfig_error": null,
-     "object": "drivers/staging/greybus/camera.o",
-     "pivotal_symbols": [],
-     "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): drivers/usb/dwc3/Makefile",
-     "kconfig_error": null,
-     "object": "drivers/usb/dwc3/dwc3-keystone.o",
-     "pivotal_symbols": [
-      "CONFIG_USB_DWC3_KEYSTONE"
-     ],
-     "verdict": false
     }
    ]
   },
@@ -2192,6 +2197,26 @@
    },
    "kconfig_errors": 0,
    "rows": [
+    {
+     "built": true,
+     "correct": true,
+     "failing_kind": null,
+     "first_failing": null,
+     "kconfig_error": null,
+     "object": "kernel/seccomp.o",
+     "pivotal_symbols": [],
+     "verdict": true
+    },
+    {
+     "built": true,
+     "correct": true,
+     "failing_kind": null,
+     "first_failing": null,
+     "kconfig_error": null,
+     "object": "net/mac80211/driver-ops.o",
+     "pivotal_symbols": [],
+     "verdict": true
+    },
     {
      "built": true,
      "correct": true,
@@ -2488,7 +2513,7 @@
      "failing_kind": null,
      "first_failing": null,
      "kconfig_error": null,
-     "object": "security/lsm_audit.o",
+     "object": "security/device_cgroup.o",
      "pivotal_symbols": [],
      "verdict": true
     },
@@ -2673,24 +2698,24 @@
      "verdict": true
     },
     {
-     "built": true,
+     "built": false,
      "correct": true,
-     "failing_kind": null,
-     "first_failing": null,
+     "failing_kind": "directory route",
+     "first_failing": "reached (built-in / obj-y route): drivers/usb/gadget/Makefile",
      "kconfig_error": null,
-     "object": "net/ipv6/xfrm6_policy.o",
+     "object": "drivers/usb/gadget/udc/m66592-udc.o",
      "pivotal_symbols": [],
-     "verdict": true
+     "verdict": false
     },
     {
-     "built": true,
+     "built": false,
      "correct": true,
-     "failing_kind": null,
-     "first_failing": null,
+     "failing_kind": "target-list line",
+     "first_failing": "obj-m in drivers/clk/ti/Makefile: clk-816x.o",
      "kconfig_error": null,
-     "object": "arch/x86/mm/cpu_entry_area.o",
+     "object": "drivers/clk/ti/clk-816x.o",
      "pivotal_symbols": [],
-     "verdict": true
+     "verdict": false
     },
     {
      "built": false,
@@ -2752,11 +2777,11 @@
      "built": false,
      "correct": true,
      "failing_kind": "composite membership",
-     "first_failing": "member of snd-hda-codec.o in sound/hda/common/Makefile: snd-hda-codec.o",
+     "first_failing": "member of snd-hda-scodec-cs35l56-i2c.o in sound/hda/codecs/side-codecs/Makefile: snd-hda-scodec-cs35l56-i2c.o",
      "kconfig_error": null,
-     "object": "sound/hda/common/beep.o",
+     "object": "sound/hda/codecs/side-codecs/cs35l56_hda_i2c.o",
      "pivotal_symbols": [
-      "CONFIG_SND_HDA_INPUT_BEEP"
+      "CONFIG_SND_HDA_SCODEC_CS35L56_I2C"
      ],
      "verdict": false
     },
@@ -2820,11 +2845,11 @@
      "built": false,
      "correct": true,
      "failing_kind": "target-list line",
-     "first_failing": "obj-m in sound/isa/Makefile: snd-azt2320.o",
+     "first_failing": "obj-m in sound/isa/opti9xx/Makefile: snd-miro.o",
      "kconfig_error": null,
-     "object": "sound/isa/snd-azt2320.o",
+     "object": "sound/isa/opti9xx/snd-miro.o",
      "pivotal_symbols": [
-      "CONFIG_SND_AZT2320"
+      "CONFIG_SND_MIRO"
      ],
      "verdict": false
     },
@@ -3044,11 +3069,11 @@
      "built": false,
      "correct": true,
      "failing_kind": "composite membership",
-     "first_failing": "member of snd-cmipci.o in sound/pci/Makefile: snd-cmipci.o",
+     "first_failing": "member of snd-als4000.o in sound/pci/Makefile: snd-als4000.o",
      "kconfig_error": null,
-     "object": "sound/pci/cmipci.o",
+     "object": "sound/pci/als4000.o",
      "pivotal_symbols": [
-      "CONFIG_SND_CMIPCI"
+      "CONFIG_SND_ALS4000"
      ],
      "verdict": false
     },
@@ -3233,30 +3258,6 @@
       "CONFIG_FB_HP300"
      ],
      "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "target-list line",
-     "first_failing": "obj-m in drivers/mfd/Makefile: max77759.o",
-     "kconfig_error": null,
-     "object": "drivers/mfd/max77759.o",
-     "pivotal_symbols": [
-      "CONFIG_MFD_MAX77759"
-     ],
-     "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): drivers/gpu/drm/nouveau/Kbuild",
-     "kconfig_error": null,
-     "object": "drivers/gpu/drm/nouveau/nvkm/subdev/pmu/gf100.o",
-     "pivotal_symbols": [
-      "CONFIG_DRM_NOUVEAU"
-     ],
-     "verdict": false
     }
    ]
   },
@@ -3264,9 +3265,9 @@
    "cases": 100,
    "correct": 100,
    "failing_kinds": {
-    "composite membership": 6,
+    "composite membership": 5,
     "directory route": 39,
-    "target-list line": 5
+    "target-list line": 6
    },
    "kconfig_errors": 0,
    "rows": [
@@ -3307,6 +3308,16 @@
      "first_failing": null,
      "kconfig_error": null,
      "object": "fs/select.o",
+     "pivotal_symbols": [],
+     "verdict": true
+    },
+    {
+     "built": true,
+     "correct": true,
+     "failing_kind": null,
+     "first_failing": null,
+     "kconfig_error": null,
+     "object": "scripts/mod/symsearch.o",
      "pivotal_symbols": [],
      "verdict": true
     },
@@ -3367,6 +3378,16 @@
      "first_failing": null,
      "kconfig_error": null,
      "object": "drivers/clocksource/i8253.o",
+     "pivotal_symbols": [],
+     "verdict": true
+    },
+    {
+     "built": true,
+     "correct": true,
+     "failing_kind": null,
+     "first_failing": null,
+     "kconfig_error": null,
+     "object": "scripts/kconfig/preprocess.o",
      "pivotal_symbols": [],
      "verdict": true
     },
@@ -3736,39 +3757,61 @@
      "failing_kind": null,
      "first_failing": null,
      "kconfig_error": null,
+     "object": "scripts/mod/file2alias.o",
+     "pivotal_symbols": [],
+     "verdict": true
+    },
+    {
+     "built": true,
+     "correct": true,
+     "failing_kind": null,
+     "first_failing": null,
+     "kconfig_error": null,
      "object": "mm/util.o",
      "pivotal_symbols": [],
      "verdict": true
     },
     {
-     "built": true,
+     "built": false,
      "correct": true,
-     "failing_kind": null,
-     "first_failing": null,
+     "failing_kind": "directory route",
+     "first_failing": "reached (built-in / obj-y route): drivers/crypto/Makefile",
      "kconfig_error": null,
-     "object": "arch/x86/kernel/io_delay.o",
+     "object": "drivers/crypto/hisilicon/zip/dae_main.o",
      "pivotal_symbols": [],
-     "verdict": true
+     "verdict": false
     },
     {
-     "built": true,
+     "built": false,
      "correct": true,
-     "failing_kind": null,
-     "first_failing": null,
+     "failing_kind": "directory route",
+     "first_failing": "reached (built-in / obj-y route): drivers/iio/Makefile",
      "kconfig_error": null,
-     "object": "kernel/irq/irqdesc.o",
+     "object": "drivers/iio/common/hid-sensors/hid-sensor-trigger.o",
      "pivotal_symbols": [],
-     "verdict": true
+     "verdict": false
     },
     {
-     "built": true,
+     "built": false,
      "correct": true,
-     "failing_kind": null,
-     "first_failing": null,
+     "failing_kind": "directory route",
+     "first_failing": "reached (built-in / obj-y route): drivers/net/wireless/Makefile",
      "kconfig_error": null,
-     "object": "kernel/exec_state.o",
+     "object": "drivers/net/wireless/mediatek/mt76/mt76x02_phy.o",
      "pivotal_symbols": [],
-     "verdict": true
+     "verdict": false
+    },
+    {
+     "built": false,
+     "correct": true,
+     "failing_kind": "target-list line",
+     "first_failing": "obj-m in drivers/i2c/busses/Makefile: scx200_acb.o",
+     "kconfig_error": null,
+     "object": "drivers/i2c/busses/scx200_acb.o",
+     "pivotal_symbols": [
+      "CONFIG_SCx200_ACB"
+     ],
+     "verdict": false
     },
     {
      "built": false,
@@ -3828,7 +3871,7 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/amd/acp/snd-acp-renoir.o",
+     "object": "sound/soc/amd/acp-da7219-max98357a.o",
      "pivotal_symbols": [],
      "verdict": false
     },
@@ -3860,7 +3903,7 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/mediatek/mt8189/mt8189-dai-pcm.o",
+     "object": "sound/soc/mediatek/mt8183/mt8183-dai-tdm.o",
      "pivotal_symbols": [],
      "verdict": false
     },
@@ -4090,7 +4133,7 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/ti/snd-soc-omap-twl4030.o",
+     "object": "sound/soc/tegra/tegra_pcm.o",
      "pivotal_symbols": [],
      "verdict": false
     },
@@ -4212,7 +4255,7 @@
      "failing_kind": "directory route",
      "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
      "kconfig_error": null,
-     "object": "sound/soc/amd/snd-acp-config.o",
+     "object": "sound/soc/amd/acp/snd-acp63.o",
      "pivotal_symbols": [],
      "verdict": false
     },
@@ -4250,9 +4293,9 @@
      "built": false,
      "correct": true,
      "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): sound/core/Makefile",
+     "first_failing": "reached (built-in / obj-y route): sound/aoa/Makefile",
      "kconfig_error": null,
-     "object": "sound/core/oss/mixer_oss.o",
+     "object": "sound/aoa/core/snd-aoa.o",
      "pivotal_symbols": [],
      "verdict": false
     },
@@ -4263,48 +4306,6 @@
      "first_failing": "reached (built-in / obj-y route): drivers/staging/Makefile",
      "kconfig_error": null,
      "object": "drivers/staging/nvec/nvec.o",
-     "pivotal_symbols": [],
-     "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): sound/soc/Makefile",
-     "kconfig_error": null,
-     "object": "sound/soc/amd/raven/pci-acp3x.o",
-     "pivotal_symbols": [],
-     "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "composite membership",
-     "first_failing": "member of kunit.o in lib/kunit/Makefile: kunit.o",
-     "kconfig_error": null,
-     "object": "lib/kunit/device.o",
-     "pivotal_symbols": [
-      "CONFIG_KUNIT"
-     ],
-     "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): drivers/net/wireless/Makefile",
-     "kconfig_error": null,
-     "object": "drivers/net/wireless/broadcom/brcm80211/brcmsmac/channel.o",
-     "pivotal_symbols": [],
-     "verdict": false
-    },
-    {
-     "built": false,
-     "correct": true,
-     "failing_kind": "directory route",
-     "first_failing": "reached (built-in / obj-y route): drivers/spi/Makefile",
-     "kconfig_error": null,
-     "object": "drivers/spi/spi-axiado.o",
      "pivotal_symbols": [],
      "verdict": false
     }

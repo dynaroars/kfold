@@ -1,51 +1,55 @@
 {
- "analysis_seconds": 2.82,
+ "analysis_seconds": 1.69,
  "census": {
   "by_category": {
    "modeled": {
-    "ConditionBlock:eq": 10,
-    "ConditionBlock:ifdef": 10,
-    "Function:addprefix": 2,
+    "ConditionBlock:eq": 14,
+    "ConditionBlock:ifdef": 15,
+    "Function:addprefix": 6,
     "Function:addsuffix": 10,
     "Function:call": 3,
     "Function:filter": 4,
-    "Function:foreach": 7,
+    "Function:findstring": 2,
+    "Function:foreach": 11,
     "Function:if": 12,
     "Function:patsubst": 37,
-    "Function:shell": 7,
-    "Function:subst": 6,
-    "Function:substitutionref": 16,
-    "Function:variableref": 3078,
-    "Rule": 32,
-    "SetVariable+=": 1719,
-    "SetVariable:=": 72,
-    "SetVariable=": 77,
+    "Function:shell": 8,
+    "Function:substitutionref": 18,
+    "Function:variableref": 3367,
+    "Function:wildcard": 1,
+    "Rule": 74,
+    "SetVariable+=": 1818,
+    "SetVariable:=": 104,
+    "SetVariable=": 142,
     "SetVariable?=": 2,
     "StaticPatternRule": 5
    },
    "out_of_scope": {
-    "Command": 30,
-    "EmptyDirective": 3
+    "Command": 88,
+    "EmptyDirective": 5
    },
    "unsupported": {
-    "Function:eval": 32
+    "ExportDirective": 5,
+    "Function:eval": 66
    }
   },
   "totals": {
-   "modeled": 5109,
-   "out_of_scope": 33,
-   "total": 5174,
-   "unsupported": 32
+   "modeled": 5653,
+   "out_of_scope": 93,
+   "total": 5817,
+   "unsupported": 71
   }
  },
  "kinds": {
   "member": 89,
-  "target": 1681
+  "program": 50,
+  "rule": 9,
+  "target": 1682
  },
- "makefile_instances": 191,
- "objects": 1770,
+ "makefile_instances": 196,
+ "objects": 1830,
  "parse_errors": [],
- "peak_rss_mb": 68.6,
+ "peak_rss_mb": 69.9,
  "profiles": {
   "sandbox_defconfig": {
    "members": {
@@ -55,7 +59,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 40,
+    "outside_universe": 8,
     "outside_universe_paths": [
      ".tmp_barebox.o",
      "arch/sandbox/board/defaultenv-sandbox.bbenv.o",
@@ -64,47 +68,15 @@
      "common/imd-barebox.pbl.o",
      "defaultenv/defaultenv-2-base.bbenv.o",
      "defaultenv/defaultenv-2-menu.bbenv.o",
-     "defaultenv/defaultenv-2-reboot-mode.bbenv.o",
-     "scripts/dtc/checks.o",
-     "scripts/dtc/data.o",
-     "scripts/dtc/dtc-lexer.lex.o",
-     "scripts/dtc/dtc-parser.tab.o",
-     "scripts/dtc/dtc.o",
-     "scripts/dtc/fdtget.o",
-     "scripts/dtc/flattree.o",
-     "scripts/dtc/fstree.o",
-     "scripts/dtc/libfdt/fdt.o",
-     "scripts/dtc/libfdt/fdt_empty_tree.o",
-     "scripts/dtc/libfdt/fdt_overlay.o",
-     "scripts/dtc/libfdt/fdt_ro.o",
-     "scripts/dtc/libfdt/fdt_rw.o",
-     "scripts/dtc/libfdt/fdt_strerror.o",
-     "scripts/dtc/libfdt/fdt_sw.o",
-     "scripts/dtc/libfdt/fdt_wip.o",
-     "scripts/dtc/livetree.o",
-     "scripts/dtc/srcpos.o",
-     "scripts/dtc/treesource.o",
-     "scripts/dtc/util.o",
-     "scripts/kconfig/conf.o",
-     "scripts/kconfig/confdata.o",
-     "scripts/kconfig/expr.o",
-     "scripts/kconfig/lexer.lex.o",
-     "scripts/kconfig/menu.o",
-     "scripts/kconfig/parser.tab.o",
-     "scripts/kconfig/preprocess.o",
-     "scripts/kconfig/symbol.o",
-     "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
-     "scripts/mod/modpost.o",
-     "scripts/mod/sumversion.o"
+     "defaultenv/defaultenv-2-reboot-mode.bbenv.o"
     ],
-    "overlap_pct": 92.0,
+    "overlap_pct": 98.4,
     "physical": 502,
     "precision_pct": 100.0,
-    "predicted": 462,
+    "predicted": 494,
     "recall_within_universe_pct": 100.0,
-    "tp": 462,
-    "universe": 1770
+    "tp": 494,
+    "universe": 1830
    },
    "targets": {
     "fn_within_universe": 0,
@@ -113,7 +85,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 51,
+    "outside_universe": 50,
     "outside_universe_paths": [
      ".tmp_barebox.o",
      "arch/sandbox/board/defaultenv-sandbox.bbenv.o",
@@ -163,22 +135,21 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
      "scripts/mod/modpost.o",
      "scripts/mod/sumversion.o"
     ],
-    "overlap_pct": 89.8,
+    "overlap_pct": 90.0,
     "physical": 502,
     "precision_pct": 100.0,
-    "predicted": 451,
+    "predicted": 452,
     "recall_within_universe_pct": 100.0,
-    "tp": 451,
-    "universe": 1681
+    "tp": 452,
+    "universe": 1682
    }
   }
  },
  "subject": "barebox",
  "variant": "full",
  "version": "2026.09.0",
- "z3_checks": 4948
+ "z3_checks": 4985
 }

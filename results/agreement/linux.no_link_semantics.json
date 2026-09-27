@@ -1,64 +1,65 @@
 {
- "analysis_seconds": 151.84,
+ "analysis_seconds": 52.43,
  "census": {
   "by_category": {
    "modeled": {
-    "ConditionBlock:eq": 295,
-    "ConditionBlock:ifdef": 169,
-    "Function:addprefix": 549,
+    "ConditionBlock:eq": 302,
+    "ConditionBlock:ifdef": 174,
+    "Function:addprefix": 561,
     "Function:addsuffix": 2,
     "Function:basename": 8,
     "Function:call": 96,
     "Function:dir": 2,
     "Function:filter": 25,
-    "Function:filter-out": 21,
-    "Function:findstring": 4,
-    "Function:foreach": 25,
+    "Function:filter-out": 23,
+    "Function:findstring": 6,
+    "Function:foreach": 35,
     "Function:if": 7,
-    "Function:notdir": 1,
-    "Function:or": 4,
+    "Function:notdir": 3,
+    "Function:or": 6,
     "Function:patsubst": 55,
-    "Function:shell": 38,
-    "Function:sort": 4,
+    "Function:shell": 39,
+    "Function:sort": 6,
     "Function:subst": 49,
     "Function:substitutionref": 11,
-    "Function:variableref": 44148,
-    "Function:wildcard": 12,
+    "Function:variableref": 44480,
+    "Function:wildcard": 13,
     "Function:words": 4,
-    "Rule": 330,
-    "SetVariable+=": 21759,
-    "SetVariable:=": 4039,
-    "SetVariable=": 1043,
+    "Rule": 381,
+    "SetVariable+=": 21844,
+    "SetVariable:=": 4089,
+    "SetVariable=": 1106,
     "SetVariable?=": 2,
-    "StaticPatternRule": 4
+    "StaticPatternRule": 6
    },
    "out_of_scope": {
-    "Command": 249,
-    "EmptyDirective": 37
+    "Command": 311,
+    "EmptyDirective": 30
    },
    "unsupported": {
+    "ExportDirective": 4,
     "Function:abspath": 2,
-    "Function:eval": 290
+    "Function:eval": 324
    }
   },
   "totals": {
-   "modeled": 72706,
-   "out_of_scope": 286,
-   "total": 73284,
-   "unsupported": 292
+   "modeled": 73335,
+   "out_of_scope": 341,
+   "total": 74006,
+   "unsupported": 330
   }
  },
  "kinds": {
   "extra": 8,
   "member": 16336,
-  "program": 7,
-  "rule": 112,
-  "target": 16380
+  "program": 45,
+  "rule": 121,
+  "target": 16381
  },
- "makefile_instances": 2215,
- "objects": 32843,
+ "makefile_instances": 2225,
+ "objects": 32891,
  "parse_errors": [],
- "peak_rss_mb": 197.3,
+ "peak_rss_mb": 210.0,
  "profiles": {
   "allmodconfig": {
    "members": {
@@ -213,46 +214,8 @@
      "security/smack/smack.o",
      "security/yama/yama.o"
     ],
-    "outside_universe": 69,
+    "outside_universe": 31,
     "outside_universe_paths": [
-     "scripts/dtc/checks.o",
-     "scripts/dtc/data.o",
-     "scripts/dtc/dtc-lexer.lex.o",
-     "scripts/dtc/dtc-parser.tab.o",
-     "scripts/dtc/dtc.o",
-     "scripts/dtc/fdtoverlay.o",
-     "scripts/dtc/flattree.o",
-     "scripts/dtc/fstree.o",
-     "scripts/dtc/libfdt/fdt.o",
-     "scripts/dtc/libfdt/fdt_addresses.o",
-     "scripts/dtc/libfdt/fdt_empty_tree.o",
-     "scripts/dtc/libfdt/fdt_overlay.o",
-     "scripts/dtc/libfdt/fdt_ro.o",
-     "scripts/dtc/libfdt/fdt_rw.o",
-     "scripts/dtc/libfdt/fdt_strerror.o",
-     "scripts/dtc/libfdt/fdt_sw.o",
-     "scripts/dtc/libfdt/fdt_wip.o",
-     "scripts/dtc/livetree.o",
-     "scripts/dtc/srcpos.o",
-     "scripts/dtc/treesource.o",
-     "scripts/dtc/util.o",
-     "scripts/elf-parse.o",
-     "scripts/kconfig/conf.o",
-     "scripts/kconfig/confdata.o",
-     "scripts/kconfig/expr.o",
-     "scripts/kconfig/lexer.lex.o",
-     "scripts/kconfig/menu.o",
-     "scripts/kconfig/parser.tab.o",
-     "scripts/kconfig/preprocess.o",
-     "scripts/kconfig/symbol.o",
-     "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
-     "scripts/mod/file2alias.o",
-     "scripts/mod/modpost.o",
-     "scripts/mod/sumversion.o",
-     "scripts/mod/symsearch.o",
-     "scripts/sorttable.o",
-     "scripts/tracepoint-update.o",
      "tools/objtool/arch/x86/decode.o",
      "tools/objtool/arch/x86/objtool-in.o",
      "tools/objtool/arch/x86/orc.o",
@@ -285,13 +248,13 @@
      "tools/objtool/str_error_r.o",
      "tools/objtool/weak.o"
     ],
-    "overlap_pct": 99.8,
+    "overlap_pct": 99.9,
     "physical": 29625,
     "precision_pct": 99.5,
-    "predicted": 29700,
+    "predicted": 29738,
     "recall_within_universe_pct": 100.0,
-    "tp": 29556,
-    "universe": 32843
+    "tp": 29594,
+    "universe": 32891
    },
    "targets": {
     "fn_within_universe": 0,
@@ -445,7 +408,7 @@
      "security/smack/smack.o",
      "security/yama/yama.o"
     ],
-    "outside_universe": 15696,
+    "outside_universe": 15695,
     "outside_universe_paths": [
      ".module-common.o",
      ".tmp_vmlinux0.kallsyms.o",
@@ -14348,7 +14311,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
      "scripts/mod/file2alias.o",
      "scripts/mod/modpost.o",
      "scripts/mod/sumversion.o",
@@ -16147,10 +16109,10 @@
     "overlap_pct": 47.0,
     "physical": 29625,
     "precision_pct": 99.0,
-    "predicted": 14073,
+    "predicted": 14074,
     "recall_within_universe_pct": 100.0,
-    "tp": 13929,
-    "universe": 16380
+    "tp": 13930,
+    "universe": 16381
    }
   },
   "debian": {
@@ -16283,25 +16245,8 @@
      "security/selinux/selinux.o",
      "security/yama/yama.o"
     ],
-    "outside_universe": 91,
+    "outside_universe": 74,
     "outside_universe_paths": [
-     "scripts/elf-parse.o",
-     "scripts/kconfig/conf.o",
-     "scripts/kconfig/confdata.o",
-     "scripts/kconfig/expr.o",
-     "scripts/kconfig/lexer.lex.o",
-     "scripts/kconfig/menu.o",
-     "scripts/kconfig/parser.tab.o",
-     "scripts/kconfig/preprocess.o",
-     "scripts/kconfig/symbol.o",
-     "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
-     "scripts/mod/file2alias.o",
-     "scripts/mod/modpost.o",
-     "scripts/mod/sumversion.o",
-     "scripts/mod/symsearch.o",
-     "scripts/sorttable.o",
-     "scripts/tracepoint-update.o",
      "tools/bpf/resolve_btfids/ctype.o",
      "tools/bpf/resolve_btfids/fixdep-in.o",
      "tools/bpf/resolve_btfids/fixdep.o",
@@ -16377,13 +16322,13 @@
      "tools/objtool/str_error_r.o",
      "tools/objtool/weak.o"
     ],
-    "overlap_pct": 99.5,
+    "overlap_pct": 99.6,
     "physical": 17191,
     "precision_pct": 99.3,
-    "predicted": 17221,
+    "predicted": 17238,
     "recall_within_universe_pct": 100.0,
-    "tp": 17100,
-    "universe": 32843
+    "tp": 17117,
+    "universe": 32891
    },
    "targets": {
     "fn_within_universe": 0,
@@ -16514,7 +16459,7 @@
      "security/selinux/selinux.o",
      "security/yama/yama.o"
     ],
-    "outside_universe": 11046,
+    "outside_universe": 11045,
     "outside_universe_paths": [
      ".module-common.o",
      ".tmp_vmlinux0.kallsyms.o",
@@ -26524,7 +26469,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
      "scripts/mod/file2alias.o",
      "scripts/mod/modpost.o",
      "scripts/mod/sumversion.o",
@@ -27563,13 +27507,13 @@
      "virt/kvm/vfio.o",
      "vmlinux.o"
     ],
-    "overlap_pct": 35.7,
+    "overlap_pct": 35.8,
     "physical": 17191,
     "precision_pct": 98.1,
-    "predicted": 6266,
+    "predicted": 6267,
     "recall_within_universe_pct": 100.0,
-    "tp": 6145,
-    "universe": 16380
+    "tp": 6146,
+    "universe": 16381
    }
   },
   "defconfig": {
@@ -27742,25 +27686,8 @@
      "sound/hda/core/snd-intel-sdw-acpi.o",
      "sound/soundcore.o"
     ],
-    "outside_universe": 48,
+    "outside_universe": 31,
     "outside_universe_paths": [
-     "scripts/elf-parse.o",
-     "scripts/kconfig/conf.o",
-     "scripts/kconfig/confdata.o",
-     "scripts/kconfig/expr.o",
-     "scripts/kconfig/lexer.lex.o",
-     "scripts/kconfig/menu.o",
-     "scripts/kconfig/parser.tab.o",
-     "scripts/kconfig/preprocess.o",
-     "scripts/kconfig/symbol.o",
-     "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
-     "scripts/mod/file2alias.o",
-     "scripts/mod/modpost.o",
-     "scripts/mod/sumversion.o",
-     "scripts/mod/symsearch.o",
-     "scripts/sorttable.o",
-     "scripts/tracepoint-update.o",
      "tools/objtool/arch/x86/decode.o",
      "tools/objtool/arch/x86/objtool-in.o",
      "tools/objtool/arch/x86/orc.o",
@@ -27793,13 +27720,13 @@
      "tools/objtool/str_error_r.o",
      "tools/objtool/weak.o"
     ],
-    "overlap_pct": 98.5,
+    "overlap_pct": 99.0,
     "physical": 3133,
-    "precision_pct": 95.0,
-    "predicted": 3246,
+    "precision_pct": 95.1,
+    "predicted": 3263,
     "recall_within_universe_pct": 100.0,
-    "tp": 3085,
-    "universe": 32843
+    "tp": 3102,
+    "universe": 32891
    },
    "targets": {
     "fn_within_universe": 0,
@@ -27970,7 +27897,7 @@
      "sound/hda/core/snd-intel-sdw-acpi.o",
      "sound/soundcore.o"
     ],
-    "outside_universe": 1654,
+    "outside_universe": 1653,
     "outside_universe_paths": [
      ".module-common.o",
      ".tmp_vmlinux0.kallsyms.o",
@@ -29504,7 +29431,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
      "scripts/mod/file2alias.o",
      "scripts/mod/modpost.o",
      "scripts/mod/sumversion.o",
@@ -29630,10 +29556,10 @@
     "overlap_pct": 47.2,
     "physical": 3133,
     "precision_pct": 90.2,
-    "predicted": 1640,
+    "predicted": 1641,
     "recall_within_universe_pct": 100.0,
-    "tp": 1479,
-    "universe": 16380
+    "tp": 1480,
+    "universe": 16381
    }
   },
   "tinyconfig": {
@@ -29650,32 +29576,15 @@
      "lib/crypto/libsha256.o",
      "mm/page-alloc.o"
     ],
-    "outside_universe": 16,
-    "outside_universe_paths": [
-     "scripts/elf-parse.o",
-     "scripts/kconfig/conf.o",
-     "scripts/kconfig/confdata.o",
-     "scripts/kconfig/expr.o",
-     "scripts/kconfig/lexer.lex.o",
-     "scripts/kconfig/menu.o",
-     "scripts/kconfig/parser.tab.o",
-     "scripts/kconfig/preprocess.o",
-     "scripts/kconfig/symbol.o",
-     "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
-     "scripts/mod/file2alias.o",
-     "scripts/mod/modpost.o",
-     "scripts/mod/sumversion.o",
-     "scripts/mod/symsearch.o",
-     "scripts/sorttable.o"
-    ],
-    "overlap_pct": 97.0,
+    "outside_universe": 0,
+    "outside_universe_paths": [],
+    "overlap_pct": 100.0,
     "physical": 528,
-    "precision_pct": 99.0,
-    "predicted": 517,
+    "precision_pct": 99.1,
+    "predicted": 533,
     "recall_within_universe_pct": 100.0,
-    "tp": 512,
-    "universe": 32843
+    "tp": 528,
+    "universe": 32891
    },
    "targets": {
     "fn_within_universe": 0,
@@ -29690,7 +29599,7 @@
      "lib/crypto/libsha256.o",
      "mm/page-alloc.o"
     ],
-    "outside_universe": 71,
+    "outside_universe": 70,
     "outside_universe_paths": [
      ".vmlinux.export.o",
      "arch/x86/boot/a20.o",
@@ -29756,7 +29665,6 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
      "scripts/mod/file2alias.o",
      "scripts/mod/modpost.o",
      "scripts/mod/sumversion.o",
@@ -29764,18 +29672,18 @@
      "scripts/sorttable.o",
      "vmlinux.o"
     ],
-    "overlap_pct": 86.6,
+    "overlap_pct": 86.7,
     "physical": 528,
     "precision_pct": 98.9,
-    "predicted": 462,
+    "predicted": 463,
     "recall_within_universe_pct": 100.0,
-    "tp": 457,
-    "universe": 16380
+    "tp": 458,
+    "universe": 16381
    }
   }
  },
  "subject": "linux",
  "variant": "no_link_semantics",
  "version": "7.2.8",
- "z3_checks": 105018
+ "z3_checks": 105144
 }

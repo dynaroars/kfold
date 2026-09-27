@@ -1,10 +1,10 @@
 {
- "analysis_seconds": 1.53,
+ "analysis_seconds": 1.56,
  "census": {
   "by_category": {
    "modeled": {
     "ConditionBlock:eq": 10,
-    "ConditionBlock:ifdef": 10,
+    "ConditionBlock:ifdef": 11,
     "Function:addprefix": 2,
     "Function:addsuffix": 10,
     "Function:call": 3,
@@ -13,13 +13,12 @@
     "Function:if": 12,
     "Function:patsubst": 37,
     "Function:shell": 7,
-    "Function:subst": 6,
-    "Function:substitutionref": 16,
-    "Function:variableref": 3078,
-    "Rule": 32,
-    "SetVariable+=": 1719,
-    "SetVariable:=": 72,
-    "SetVariable=": 77,
+    "Function:substitutionref": 18,
+    "Function:variableref": 3183,
+    "Rule": 34,
+    "SetVariable+=": 1783,
+    "SetVariable:=": 82,
+    "SetVariable=": 98,
     "SetVariable?=": 2,
     "StaticPatternRule": 5
    },
@@ -32,20 +31,21 @@
    }
   },
   "totals": {
-   "modeled": 5109,
+   "modeled": 5308,
    "out_of_scope": 33,
-   "total": 5174,
+   "total": 5373,
    "unsupported": 32
   }
  },
  "kinds": {
   "member": 89,
-  "target": 1681
+  "program": 50,
+  "target": 1682
  },
- "makefile_instances": 191,
- "objects": 1770,
+ "makefile_instances": 196,
+ "objects": 1821,
  "parse_errors": [],
- "peak_rss_mb": 67.9,
+ "peak_rss_mb": 68.2,
  "profiles": {
   "sandbox_defconfig": {
    "members": {
@@ -55,7 +55,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 40,
+    "outside_universe": 17,
     "outside_universe_paths": [
      ".tmp_barebox.o",
      "arch/sandbox/board/defaultenv-sandbox.bbenv.o",
@@ -65,26 +65,6 @@
      "defaultenv/defaultenv-2-base.bbenv.o",
      "defaultenv/defaultenv-2-menu.bbenv.o",
      "defaultenv/defaultenv-2-reboot-mode.bbenv.o",
-     "scripts/dtc/checks.o",
-     "scripts/dtc/data.o",
-     "scripts/dtc/dtc-lexer.lex.o",
-     "scripts/dtc/dtc-parser.tab.o",
-     "scripts/dtc/dtc.o",
-     "scripts/dtc/fdtget.o",
-     "scripts/dtc/flattree.o",
-     "scripts/dtc/fstree.o",
-     "scripts/dtc/libfdt/fdt.o",
-     "scripts/dtc/libfdt/fdt_empty_tree.o",
-     "scripts/dtc/libfdt/fdt_overlay.o",
-     "scripts/dtc/libfdt/fdt_ro.o",
-     "scripts/dtc/libfdt/fdt_rw.o",
-     "scripts/dtc/libfdt/fdt_strerror.o",
-     "scripts/dtc/libfdt/fdt_sw.o",
-     "scripts/dtc/libfdt/fdt_wip.o",
-     "scripts/dtc/livetree.o",
-     "scripts/dtc/srcpos.o",
-     "scripts/dtc/treesource.o",
-     "scripts/dtc/util.o",
      "scripts/kconfig/conf.o",
      "scripts/kconfig/confdata.o",
      "scripts/kconfig/expr.o",
@@ -93,18 +73,15 @@
      "scripts/kconfig/parser.tab.o",
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
-     "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
-     "scripts/mod/modpost.o",
-     "scripts/mod/sumversion.o"
+     "scripts/kconfig/util.o"
     ],
-    "overlap_pct": 92.0,
+    "overlap_pct": 96.6,
     "physical": 502,
     "precision_pct": 100.0,
-    "predicted": 462,
+    "predicted": 485,
     "recall_within_universe_pct": 100.0,
-    "tp": 462,
-    "universe": 1770
+    "tp": 485,
+    "universe": 1821
    },
    "targets": {
     "fn_within_universe": 0,
@@ -113,7 +90,7 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 51,
+    "outside_universe": 50,
     "outside_universe_paths": [
      ".tmp_barebox.o",
      "arch/sandbox/board/defaultenv-sandbox.bbenv.o",
@@ -163,22 +140,21 @@
      "scripts/kconfig/preprocess.o",
      "scripts/kconfig/symbol.o",
      "scripts/kconfig/util.o",
-     "scripts/mod/empty.o",
      "scripts/mod/modpost.o",
      "scripts/mod/sumversion.o"
     ],
-    "overlap_pct": 89.8,
+    "overlap_pct": 90.0,
     "physical": 502,
     "precision_pct": 100.0,
-    "predicted": 451,
+    "predicted": 452,
     "recall_within_universe_pct": 100.0,
-    "tp": 451,
-    "universe": 1681
+    "tp": 452,
+    "universe": 1682
    }
   }
  },
  "subject": "barebox",
  "variant": "no_rules",
  "version": "2026.09.0",
- "z3_checks": 4939
+ "z3_checks": 4973
 }

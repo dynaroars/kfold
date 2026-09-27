@@ -3,6 +3,7 @@
  "profiles": {
   "defconfig": {
    "local": {
+    "fn_kfold_kinds": {},
     "fn_within_universe": 0,
     "fn_within_universe_paths": [],
     "fp": 1,
@@ -55,6 +56,7 @@
     "universe": 625
    },
    "with_dirs": {
+    "fn_kfold_kinds": {},
     "fn_within_universe": 0,
     "fn_within_universe_paths": [],
     "fp": 1,

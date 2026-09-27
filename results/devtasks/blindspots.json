@@ -1,7 +1,7 @@
 {
  "rc": 0,
  "result": {
-  "blind_spots": 3199,
+  "blind_spots": 3209,
   "configs": [
    {
     "name": "allmodconfig",
@@ -16,12 +16,12 @@
     "path": "/home/tnguyen/git/projects/kfold/evidence/configs/linux/defconfig.config"
    }
   ],
-  "entries_with_blind_spots": 509,
+  "entries_with_blind_spots": 510,
   "maintainers": "/home/tnguyen/git/projects/kfold/work/prepared/linux-7.2.8/MAINTAINERS",
-  "objects_considered": 32829,
+  "objects_considered": 32877,
   "top_entries": [
    {
-    "blind_spots": 201,
+    "blind_spots": 204,
     "entry": "THE REST",
     "objects": [
      [
@@ -665,6 +665,18 @@
       "other: not enabled by any provided config (needs CONFIG_SAMPLE_QMI_CLIENT=y)"
      ],
      [
+      "scripts/genksyms/genksyms.o",
+      "other: not enabled by any provided config (needs CONFIG_GENKSYMS=y)"
+     ],
+     [
+      "scripts/genksyms/lex.lex.o",
+      "other: not enabled by any provided config (needs CONFIG_GENKSYMS=y)"
+     ],
+     [
+      "scripts/genksyms/parse.tab.o",
+      "other: not enabled by any provided config (needs CONFIG_GENKSYMS=y)"
+     ],
+     [
       "sound/ac97/ac97.o",
       "other: not enabled by any provided config (needs CONFIG_AC97_BUS_NEW=m)"
      ],
@@ -829,8 +841,8 @@
       "other: not enabled by any provided config (needs CONFIG_SND_SUN_DBRI=m)"
      ]
     ],
-    "percent": 9.7,
-    "total_objects": 2077
+    "percent": 9.8,
+    "total_objects": 2083
    },
    {
     "blind_spots": 138,
@@ -12641,6 +12653,42 @@
     "total_objects": 61
    },
    {
+    "blind_spots": 7,
+    "entry": "GENDWARFKSYMS",
+    "objects": [
+     [
+      "scripts/gendwarfksyms/cache.o",
+      "other: not enabled by any provided config (needs CONFIG_GENDWARFKSYMS=y)"
+     ],
+     [
+      "scripts/gendwarfksyms/die.o",
+      "other: not enabled by any provided config (needs CONFIG_GENDWARFKSYMS=y)"
+     ],
+     [
+      "scripts/gendwarfksyms/dwarf.o",
+      "other: not enabled by any provided config (needs CONFIG_GENDWARFKSYMS=y)"
+     ],
+     [
+      "scripts/gendwarfksyms/gendwarfksyms.o",
+      "other: not enabled by any provided config (needs CONFIG_GENDWARFKSYMS=y)"
+     ],
+     [
+      "scripts/gendwarfksyms/kabi.o",
+      "other: not enabled by any provided config (needs CONFIG_GENDWARFKSYMS=y)"
+     ],
+     [
+      "scripts/gendwarfksyms/symbols.o",
+      "other: not enabled by any provided config (needs CONFIG_GENDWARFKSYMS=y)"
+     ],
+     [
+      "scripts/gendwarfksyms/types.o",
+      "other: not enabled by any provided config (needs CONFIG_GENDWARFKSYMS=y)"
+     ]
+    ],
+    "percent": 100.0,
+    "total_objects": 7
+   },
+   {
     "blind_spots": 6,
     "entry": "ACPI FOR RISC-V (ACPI/riscv)",
     "objects": [
@@ -14129,8 +14177,8 @@
       "other: not enabled by any provided config (needs CONFIG_PROBE_EVENTS_BTF_ARGS=y)"
      ]
     ],
-    "percent": 5.9,
-    "total_objects": 68
+    "percent": 5.8,
+    "total_objects": 69
    },
    {
     "blind_spots": 4,
@@ -17477,8 +17525,8 @@
       "other: not enabled by any provided config (needs CONFIG_OF_PROMTREE=y)"
      ]
     ],
-    "percent": 1.7,
-    "total_objects": 60
+    "percent": 1.2,
+    "total_objects": 81
    },
    {
     "blind_spots": 1,
