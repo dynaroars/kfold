@@ -223,11 +223,15 @@ def object_conditions(runner, include_members=True, origins=None):
 
 
 def _norm(parent, word, maindir):
-    full = pathlib.Path(os.path.normpath(parent / word))
-    try:
-        return str(full.relative_to(maindir))
-    except ValueError:
-        return None
+    """word (relative to parent) as a path relative to maindir, or None if it
+    lies outside. String operations only: this runs millions of times."""
+    full = os.path.normpath(os.path.join(parent, word))
+    root = os.fspath(maindir)
+    if full == root:
+        return "."
+    if full.startswith(root) and full[len(root)] == "/":
+        return full[len(root) + 1:]
+    return None
 
 
 
@@ -241,12 +245,23 @@ class _RuleIndex:
         self.patterns = []   # (dir, target pattern, [(prereq pattern, cond)])
         self.submakes = {}   # target -> [(makefile dir, goal, cond)]
         self.seen = set()
+        self._matches = {}   # path -> instantiated prerequisite lists
+        self._makeable = {}  # (path, depth) -> bool
+        self._exists = {}
+
+    def exists(self, path):
+        e = self._exists.get(path)
+        if e is None:
+            e = self._exists[path] = os.path.exists(os.path.join(self.maindir, path))
+        return e
 
     def add_state(self, makefile, state):
         key = (makefile, id(state))
         if key in self.seen:
             return
         self.seen.add(key)
+        self._matches.clear()
+        self._makeable.clear()
         parent = makefile.parent
         for name, var in state.states.items():
             if not (name.startswith("__rule") and name.endswith("_t")):
@@ -258,8 +273,12 @@ class _RuleIndex:
                 if not isinstance(t, str):
                     continue
                 if "%" in t:
+                    ptext = _norm(parent, t.replace("%", "\0"), self.maindir)
+                    if ptext is None:
+                        continue
+                    pre, _, post = ptext.partition("\0")
                     ps = [(p, zsolver.conj(tc, pc)) for p, pc in (prereqs.valconds.items() if prereqs else [])]
-                    self.patterns.append((parent, t, ps))
+                    self.patterns.append((parent, pre, post, ps))
                     continue
                 tpath = _norm(parent, t, self.maindir)
                 if tpath is None:
@@ -278,11 +297,13 @@ class _RuleIndex:
 
     def _pattern_matches(self, path):
         """Instantiated prerequisites of each pattern rule matching path."""
-        for parent, pattern, ps in self.patterns:
-            ptext = _norm(parent, pattern.replace("%", "\0"), self.maindir)
-            if ptext is None:
-                continue
-            pre, _, post = ptext.partition("\0")
+        out = self._matches.get(path)
+        if out is None:
+            out = self._matches[path] = list(self._compute_matches(path))
+        return out
+
+    def _compute_matches(self, path):
+        for parent, pre, post, ps in self.patterns:
             if path.startswith(pre) and path.endswith(post) and len(path) >= len(pre) + len(post):
                 stem = path[len(pre):len(path) - len(post)]
                 inst = []
@@ -299,14 +320,21 @@ class _RuleIndex:
                 # implicit rules. Following them would build x_shipped,
                 # x_shipped_shipped, ... without end.
                 if post == "" and (pre == "" or pre.endswith("/")) and not all(
-                        (self.maindir / pp).exists() or pp in self.explicit for pp, _ in inst):
+                        self.exists(pp) or pp in self.explicit for pp, _ in inst):
                     continue
                 yield inst
 
     def makeable(self, path, depth=0):
         """GNU Make applies a pattern rule only if each prerequisite exists
         or can be made; this approximates that test."""
-        if (self.maindir / path).exists() or path in self.explicit or path in self.submakes:
+        key = (path, depth)
+        m = self._makeable.get(key)
+        if m is None:
+            m = self._makeable[key] = self._compute_makeable(path, depth)
+        return m
+
+    def _compute_makeable(self, path, depth):
+        if self.exists(path) or path in self.explicit or path in self.submakes:
             return True
         if depth > 3:
             return False
