@@ -5,7 +5,7 @@ all: check
 check: test busybox-check
 
 test:
-	PYTHONPATH=src python3 src/skbuild.py tests/paper_example/Makefile --rmtmp
+	KFOLD_CACHE=work/kfold-cache python3 -m pytest -q
 
 busybox-check:
 	PYTHONPATH=src python3 src/skbuild.py tests/busybox/Makfiles_only/busybox_orig --rmtmp

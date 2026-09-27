@@ -1,109 +1,81 @@
-# skbuild
+# kfold
 
-skbuild is a variability-aware Kbuild analyzer. It parses Makefile/Kbuild
-input, symbolically follows configuration-dependent assignments and
-conditionals, recursively visits selected subdirectories, and uses Z3 to
-report the condition under which each object participates in the build.
+kfold is a variability-aware analyzer for Kbuild-style Makefiles. It
+symbolically executes each Makefile once, keeping every Make variable as a
+map from words to Z3 conditions over Kconfig options. Conditionals are
+merged instead of forked. From that it computes the configuration condition
+under which each object file of the tree is built. It never runs Make, the
+compiler, or recipes (the only exception is `$(shell ...)` calls in
+Makefiles).
 
-Execution keeps a single symbolic state per Kbuild file: each Make variable
-holds a `word -> Z3 condition` map (`ds.VarG`/`ds.BaseState`), and a
-conditional (`ifeq`/`ifdef`) clones that state per branch, runs each branch
-against its clone, and merges the two clones back into one state gated by
-each branch's own guard (`symexe.ConditionBlock.sexe` /
-`_merge_branch_states`). This replaced an earlier design that forked a
-separate `Path` object per branch and exploded combinatorially (a ~30-line
-fixture already produced 32 forked paths); it mirrors the branch/merge
-architecture used by the sibling `cybolic` (CMake) analyzer.
-
-The implementation is pure Python (`src/`), using a Python 3 port of Mozilla's
-`pymake` (`src/pymake3`, provenance in `src/pymake3/UPSTREAM.md`) for parsing
-and Z3 (`src/helpers/zsolver.py`) for symbolic condition solving/simplification.
-A prior Lean 4 rewrite was attempted and has been retired; Python+Z3 is the
-canonical implementation going forward. See `PLAN.md` for the active work
-plan toward analyzing real Linux/BusyBox/coreboot Kbuild trees.
+Analyzed subjects: Linux, BusyBox, Barebox, U-Boot, and coreboot (see
+`experiments/README.md` for the exact releases and configurations).
 
 ## Requirements
 
-- Python 3 with the `z3-solver` package importable as `z3` (`pip install
-  z3-solver`, or a system package providing the `z3` Python bindings).
+- Python 3.9 or later (the evaluation used 3.14) and `z3-solver`
+  (`pip install -r requirements.txt`).
+- For the evaluation pipeline only: the build dependencies of each subject
+  (GCC, GNU Make, flex, bison, libelf, OpenSSL headers, rustc and bindgen for
+  Linux's Rust configurations) and about 60 GB of disk (the builds take
+  51 GB). The exact versions used are recorded in `results/environment.json`
+  and, per build, `results/builds.json`.
 
-## Usage
-
-```sh
-PYTHONPATH=src python3 src/skbuild.py <path to Makefile or Kbuild dir> [options]
-```
-
-Key options (see `python3 src/skbuild.py --help`):
-
-- `--nomp` — disable multiprocessing (recommended; see Known issues).
-- `--rmtmp` — remove the temporary result directory after the run instead of
-  printing its path.
-- `--build_dir=PATH` / `--src_dir=PATH` — compare against a build output
-  directory or check source coverage.
-- `--log_level {0..4}` — verbosity.
-
-Example:
+## Using kfold
 
 ```sh
-PYTHONPATH=src python3 src/skbuild.py tests/paper_example/Makefile --nomp --rmtmp
+pip install -e .                    # installs the `kfold` command
+cd path/to/linux                    # a tree with an skbuild.ini (see below)
+kfold analyze                       # analyze once; cached in ~/.cache/kfold
+kfold why drivers/net/foo.o --config .config   # why is it (not) built?
+kfold query drivers/net/foo.o       # kind, origins, and condition
+kfold config-for fix.patch          # a .config that compiles what a patch touches
+kfold blindspots                    # code no standard configuration builds
+kfold lint --diff fix.patch         # checkpatch-style Kbuild checks
 ```
 
-## Configuration
+Without installing: `PYTHONPATH=src python3 -m cli COMMAND ...`. Each
+analyzed tree needs an `skbuild.ini` naming its top-level directories and
+target lists. The settings used in the evaluation are in
+`experiments/settings/<subject>.ini`, and every entry is annotated with the
+Makefile lines it comes from.
 
-An `skbuild.ini` beside the analyzed tree configures symbolic domains and
-target prefixes (see `tests/busybox_skbuild.ini`, `tests/linux_skbuild.ini` for
-examples), e.g.:
+## Repository layout
 
-```ini
-[COMMON]
-use_tristate = no
-top_dirs = drivers fs kernel
-ignore_files = built-in.o
-ignore_dirs = scripts
-```
+| Path | Contents |
+|------|----------|
+| `src/` | the analyzer (`alg.py` traversal, `symexe.py` symbolic execution, `objects.py` object conditions and rule closure, `kconfig_compat.py`), the CLI (`src/cli`), and a Python 3 port of Mozilla's pymake parser (`src/pymake3`, provenance in `UPSTREAM.md`) |
+| `tools/` | helpers used by the CLI and the pipeline (`kfold_targets.py`, `kconfig_solver.py`, `bench_scaling.py`), older one-off analysis scripts, and `make_artifact.sh` |
+| `experiments/` | the evaluation pipeline, which produces every result; see `experiments/README.md` |
+| `results/` | its outputs: `agreement/`, `timing.json`, `kmax/`, `devtasks/`, `bench_scaling.json`, `kconfig_check.json`, `builds.json`, `manifest.json` (source hashes), `environment.json` |
+| `evidence/` | the configurations built (`configs/`), the object inventories of each build (`inventories/`), and the verified `config-for` configurations (`devtasks/config_for.tar.xz`) |
+| `tests/` | the pytest suite and its fixtures |
 
-## Reproducible baselines
+## Reproducing the evaluation
 
 ```sh
-tools/record_baseline.py --output-dir results/baselines/tree tests/paper_example/Makefile -- --nomp --rmtmp
+experiments/run_all.sh
 ```
 
-Records the pinned revision, dirty diff, command, machine, input digest,
-timing/RSS, and raw stdout/stderr for a run.
-
-Source acquisition (download/extract into a digest-verified workspace) is
-independent of analysis:
-
-```sh
-tools/acquire_source.py https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.tar.xz \
-  --output-dir results/workspaces/linux
-```
-
-## Known issues
-
-- `--nomp` is required today: the multiprocessing path in
-  `src/helpers/miscs.py` (`Miscs.run_mp`) fails to pickle closures on current
-  Python (`_pickle.PicklingError`). This is now dead code on the main
-  execution path (there is no longer a `Paths` list to parallelize merges
-  over) and should just be deleted rather than fixed.
-- The checked-in Linux snapshot (`tests/linux/linux_orig`) fails partway
-  through with a `pymake3` parser error
-  (`TypeError: '>=' not supported between instances of 'NoneType' and 'int'`
-  in `src/pymake3/parser.py`'s `getloc`, triggered by an "Unterminated
-  function call") on at least one real kernel Makefile construct. This is a
-  pre-existing `pymake3`/parser gap, not related to the symbolic-execution
-  engine; `tests/linux_skbuild.ini`'s own comments already document several
-  known-problematic subdirectories.
-- `tests/linux_skbuild.ini` uses a `[DEFAULT]` section; `settings.py` reads
-  `config['COMMON']`, so this file likely needs updating (or `settings.py`
-  needs to accept `[DEFAULT]`) before a full Linux run is attempted.
+It runs fetch, builds, the Kconfig model check, agreement and ablations,
+timing, Kmax, scaling, and the developer tasks, in that order. The Linux
+builds take hours and Kmax on Linux takes about 1.5 hours. Each step can be
+run alone; `experiments/README.md` describes each step, the deviations from
+stock builds, and how results are scored. The steps after the builds need
+only `evidence/` and the prepared trees, so the analysis can be rerun
+without rebuilding.
 
 ## Tests
 
 ```sh
-make test            # tests/paper_example smoke test
-make busybox-check    # full checked-in BusyBox snapshot: 37 kbuilds, ~0.6s
+KFOLD_CACHE=work/kfold-cache python3 -m pytest -q
 ```
 
-There is no differential test suite against a GNU Make oracle yet; see
-`PLAN.md`'s M4.
+Tests that need an analyzed Linux 7.2.8 tree are skipped unless its cache
+exists (`kfold analyze work/prepared/linux-7.2.8` with the same
+`KFOLD_CACHE`).
+
+## Packaging the artifact
+
+`tools/make_artifact.sh` writes `dist/kfold-artifact-<commit>.tar.xz` (the
+committed tree without `paper/`) and its SHA-256.

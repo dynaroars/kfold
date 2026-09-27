@@ -3,6 +3,7 @@
 # Long steps: the Linux builds (hours) and Kmax on Linux (about 1.5 hours).
 set -e
 cd "$(dirname "$0")/.."
+python3 experiments/environment.py
 python3 experiments/fetch.py
 python3 experiments/build.py
 python3 experiments/check_kconfig.py

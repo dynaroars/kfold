@@ -62,8 +62,10 @@ experiments/run_all.sh          # everything below, in order
 ## Toolchain and deviations from stock builds
 
 GCC 16.2.0 (Debian), GNU Make 4.4.1, rustc 1.95.0, bindgen 0.72.1, Python
-3.14.7, Z3 4.13.3, coreboot's own i386 cross toolchain (`make crossgcc-i386`,
-GCC 15.2.0) for coreboot. Recorded per build in `results/builds.json`.
+3.14.7, Z3 5.1.0, coreboot's own i386 cross toolchain (`make crossgcc-i386`,
+GCC 15.2.0) for coreboot. Recorded per build in `results/builds.json`; the
+machine and tool versions of the analysis runs are in `results/environment.json`
+(`environment.py`).
 
 * Linux Debian: `SYSTEM_TRUSTED_KEYS` and `SYSTEM_REVOCATION_KEYS` emptied
   (Debian's certificates are not in the tree). Four Debian-patch-only options
