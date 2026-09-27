@@ -66,3 +66,72 @@ def test_include_with_src_relative_path():
         assert kb.include_stats["spliced"] == 1
         members = kb.state.composite_members("drv")
         assert set(members) == {"main.o", "sub/extra.o"}
+
+
+def _y(solver, name):
+    sym, optd = solver.get_sort(name)
+    return sym == optd["y"]
+
+
+def test_eval_call_in_foreach():
+    # drivers/platform/x86/intel pattern: each listed target gets a
+    # composite through $(eval $(call ...)), under that target's guard.
+    kb, solver = analyze("""
+intel-target-$(CONFIG_HID) += hid.o
+intel-target-$(CONFIG_VBTN) += vbtn.o
+define INTEL_OBJ_TARGET
+intel-$(1)-y := $(1).o
+obj-$(2) += intel-$(1).o
+endef
+$(foreach target, $(basename $(intel-target-y)), $(eval $(call INTEL_OBJ_TARGET,$(target),y)))
+""")
+    obj_y = next(v for v in kb.state.target_files if v.name == "obj-y")
+    assert set(obj_y.valconds) == {"intel-hid.o", "intel-vbtn.o"}
+    assert solver.is_valid(obj_y.valconds["intel-hid.o"] == _y(solver, "CONFIG_HID"))
+    assert set(kb.state.composite_members("intel-hid")) == {"hid.o"}
+
+
+def test_eval_of_foreach_over_multiline_define():
+    # drivers/iommu/generic_pt/fmt pattern: one $(eval) of a $(foreach)
+    # whose pieces are multi-line define bodies.
+    kb, solver = analyze("""
+fmt-$(CONFIG_A) += a
+fmt-$(CONFIG_B) += b
+define create_format
+obj-$(2) += iommu_$(1).o
+kunit-y += kunit_$(1).o
+
+endef
+$(eval $(foreach f,$(fmt-y),$(call create_format,$(f),y)))
+""")
+    obj_y = next(v for v in kb.state.target_files if v.name == "obj-y")
+    assert set(obj_y.valconds) == {"iommu_a.o", "iommu_b.o"}
+    assert solver.is_valid(obj_y.valconds["iommu_b.o"] == _y(solver, "CONFIG_B"))
+
+
+def test_eval_appends_to_a_list_read_later():
+    # drivers/gpu/drm/msm pattern: evaluated text appends to a variable
+    # that a later assignment turns into composite members.
+    kb, solver = analyze("""
+GEN =
+define gen
+GEN += generated/$(1).json.c
+endef
+$(eval $(call gen,a2xx))
+$(eval $(call gen,a5xx))
+obj-$(CONFIG_MSM) += msm.o
+msm-y := core.o $(GEN:.c=.o)
+""")
+    assert set(kb.state.composite_members("msm")) == {
+        "core.o", "generated/a2xx.json.o", "generated/a5xx.json.o"}
+
+
+def test_eval_call_of_many_line_define_stays_small():
+    # coreboot src/drivers/spi pattern: a define whose every line has its own
+    # option; expanding the body as one string multiplied the alternatives.
+    body = "\n".join(f"$(1)-$(CONFIG_F{i}) += f{i}.c" for i in range(24))
+    kb, solver = analyze(f"define add_stage\n{body}\nendef\n"
+                         "$(eval $(call add_stage,obj))\n$(eval $(call add_stage,lib))\n")
+    obj_y = next(v for v in kb.state.target_files if v.name == "obj-y")
+    assert set(obj_y.valconds) == {f"f{i}.c" for i in range(24)}
+    assert solver.is_valid(obj_y.valconds["f7.c"] == _y(solver, "CONFIG_F7"))

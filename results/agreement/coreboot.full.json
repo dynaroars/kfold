@@ -1,56 +1,58 @@
 {
- "analysis_seconds": 17.94,
+ "analysis_seconds": 23.84,
  "census": {
   "by_category": {
    "modeled": {
     "ConditionBlock:eq": 692,
     "Function:addprefix": 41,
-    "Function:call": 309,
-    "Function:dir": 5,
-    "Function:filter": 42,
+    "Function:call": 592,
+    "Function:dir": 9,
+    "Function:error": 4,
+    "Function:filter": 57,
+    "Function:filter-out": 12,
     "Function:findstring": 1,
-    "Function:foreach": 14,
-    "Function:if": 27,
-    "Function:notdir": 3,
-    "Function:patsubst": 16,
-    "Function:shell": 25,
+    "Function:foreach": 60,
+    "Function:if": 51,
+    "Function:notdir": 11,
+    "Function:patsubst": 60,
+    "Function:shell": 41,
     "Function:sort": 7,
-    "Function:strip": 18,
-    "Function:subst": 9,
-    "Function:substitutionref": 9,
-    "Function:variableref": 7974,
-    "Function:wildcard": 47,
+    "Function:strip": 22,
+    "Function:subst": 19,
+    "Function:substitutionref": 11,
+    "Function:variableref": 9142,
+    "Function:wildcard": 55,
     "Include": 2,
-    "Rule": 359,
-    "SetVariable+=": 6097,
-    "SetVariable:=": 1007,
-    "SetVariable=": 702,
+    "Rule": 383,
+    "SetVariable+=": 6525,
+    "SetVariable:=": 1273,
+    "SetVariable=": 714,
     "SetVariable?=": 35
    },
    "out_of_scope": {
-    "Command": 722,
+    "Command": 746,
     "EmptyDirective": 177
    },
    "unsupported": {
     "ExportDirective": 3,
-    "Function:abspath": 7,
-    "Function:eval": 34
+    "Function:abspath": 13,
+    "Function:eval": 494
    }
   },
   "totals": {
-   "modeled": 17441,
-   "out_of_scope": 899,
-   "total": 18384,
-   "unsupported": 44
+   "modeled": 19819,
+   "out_of_scope": 923,
+   "total": 21252,
+   "unsupported": 510
   }
  },
  "kinds": {
-  "target": 5324
+  "target": 5444
  },
  "makefile_instances": 513,
- "objects": 5324,
+ "objects": 5444,
  "parse_errors": [],
- "peak_rss_mb": 104.2,
+ "peak_rss_mb": 104.8,
  "profiles": {
   "qemu-i440fx": {
    "members": {
@@ -60,23 +62,15 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 157,
+    "outside_universe": 149,
     "outside_universe_paths": [
-     "build/bootblock/drivers/spi/bitbang.o",
-     "build/bootblock/drivers/spi/spi-generic.o",
      "build/bootblock/mainboard/emulation/qemu-i440fx/static.o",
      "build/cpu/x86/sipi_vector.o",
-     "build/postcar/drivers/spi/bitbang.o",
-     "build/postcar/drivers/spi/spi-generic.o",
      "build/postcar/mainboard/emulation/qemu-i440fx/static.o",
-     "build/ramstage/drivers/spi/bitbang.o",
-     "build/ramstage/drivers/spi/spi-generic.o",
      "build/ramstage/mainboard/emulation/qemu-i440fx/irq_tables.o",
      "build/ramstage/mainboard/emulation/qemu-i440fx/mainboard.o",
      "build/ramstage/mainboard/emulation/qemu-i440fx/static.o",
      "build/rmodules_x86_32/cpu/x86/sipi_vector.o",
-     "build/romstage/drivers/spi/bitbang.o",
-     "build/romstage/drivers/spi/spi-generic.o",
      "build/romstage/mainboard/emulation/qemu-i440fx/romstage.o",
      "build/romstage/mainboard/emulation/qemu-i440fx/static.o",
      "build/util/cbfstool/LzFind.o",
@@ -220,13 +214,13 @@
      "build/util/vboot_lib/host/lib/subprocess.o",
      "build/util/vboot_lib/host/lib21/host_misc.o"
     ],
-    "overlap_pct": 74.9,
+    "overlap_pct": 76.2,
     "physical": 626,
     "precision_pct": 100.0,
-    "predicted": 469,
+    "predicted": 477,
     "recall_within_universe_pct": 100.0,
-    "tp": 469,
-    "universe": 5324
+    "tp": 477,
+    "universe": 5444
    },
    "targets": {
     "fn_within_universe": 0,
@@ -235,23 +229,15 @@
     "fp_build_failed": 0,
     "fp_build_failed_paths": [],
     "fp_paths": [],
-    "outside_universe": 157,
+    "outside_universe": 149,
     "outside_universe_paths": [
-     "build/bootblock/drivers/spi/bitbang.o",
-     "build/bootblock/drivers/spi/spi-generic.o",
      "build/bootblock/mainboard/emulation/qemu-i440fx/static.o",
      "build/cpu/x86/sipi_vector.o",
-     "build/postcar/drivers/spi/bitbang.o",
-     "build/postcar/drivers/spi/spi-generic.o",
      "build/postcar/mainboard/emulation/qemu-i440fx/static.o",
-     "build/ramstage/drivers/spi/bitbang.o",
-     "build/ramstage/drivers/spi/spi-generic.o",
      "build/ramstage/mainboard/emulation/qemu-i440fx/irq_tables.o",
      "build/ramstage/mainboard/emulation/qemu-i440fx/mainboard.o",
      "build/ramstage/mainboard/emulation/qemu-i440fx/static.o",
      "build/rmodules_x86_32/cpu/x86/sipi_vector.o",
-     "build/romstage/drivers/spi/bitbang.o",
-     "build/romstage/drivers/spi/spi-generic.o",
      "build/romstage/mainboard/emulation/qemu-i440fx/romstage.o",
      "build/romstage/mainboard/emulation/qemu-i440fx/static.o",
      "build/util/cbfstool/LzFind.o",
@@ -395,18 +381,18 @@
      "build/util/vboot_lib/host/lib/subprocess.o",
      "build/util/vboot_lib/host/lib21/host_misc.o"
     ],
-    "overlap_pct": 74.9,
+    "overlap_pct": 76.2,
     "physical": 626,
     "precision_pct": 100.0,
-    "predicted": 469,
+    "predicted": 477,
     "recall_within_universe_pct": 100.0,
-    "tp": 469,
-    "universe": 5324
+    "tp": 477,
+    "universe": 5444
    }
   }
  },
  "subject": "coreboot",
  "variant": "full",
  "version": "26.06",
- "z3_checks": 3330
+ "z3_checks": 4163
 }

@@ -1,5 +1,5 @@
 {
- "analysis_seconds": 2.84,
+ "analysis_seconds": 2.82,
  "census": {
   "by_category": {
    "modeled": {
@@ -9,16 +9,17 @@
     "Function:addsuffix": 10,
     "Function:call": 3,
     "Function:filter": 4,
-    "Function:foreach": 4,
+    "Function:foreach": 7,
     "Function:if": 12,
     "Function:patsubst": 37,
     "Function:shell": 7,
     "Function:subst": 6,
-    "Function:variableref": 3035,
+    "Function:substitutionref": 16,
+    "Function:variableref": 3078,
     "Rule": 32,
     "SetVariable+=": 1719,
     "SetVariable:=": 72,
-    "SetVariable=": 45,
+    "SetVariable=": 77,
     "SetVariable?=": 2,
     "StaticPatternRule": 5
    },
@@ -26,13 +27,15 @@
     "Command": 30,
     "EmptyDirective": 3
    },
-   "unsupported": {}
+   "unsupported": {
+    "Function:eval": 32
+   }
   },
   "totals": {
-   "modeled": 5015,
+   "modeled": 5109,
    "out_of_scope": 33,
-   "total": 5048,
-   "unsupported": 0
+   "total": 5174,
+   "unsupported": 32
   }
  },
  "kinds": {
@@ -42,7 +45,7 @@
  "makefile_instances": 191,
  "objects": 1770,
  "parse_errors": [],
- "peak_rss_mb": 68.8,
+ "peak_rss_mb": 68.6,
  "profiles": {
   "sandbox_defconfig": {
    "members": {

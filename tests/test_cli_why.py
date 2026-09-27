@@ -209,3 +209,19 @@ def test_why_linux_kconfig_explanation_and_suggestion(analysis, capsys):
     new_config = config_values(cfg)
     new_config.update(sc["diff"])
     assert analysis.is_built("fs/ext2/xattr.o", new_config)
+
+
+def test_explain_symbol_in_a_choice(tmp_path):
+    # A choice's prompt is on its menu node (kconfiglib Choice has no
+    # "prompts"); Linux's PREEMPT choice reached this path.
+    import kconfiglib
+    from kconfig_solver import KconfigSMT
+    from cli.commands import _why_kconfig as wk
+    (tmp_path / "Kconfig").write_text(
+        'choice\n\tprompt "Preemption Model"\n\tdefault PREEMPT_NONE\n'
+        'config PREEMPT_NONE\n\tbool "No"\nconfig PREEMPT_FULL\n\tbool "Full"\nendchoice\n')
+    ksmt = KconfigSMT(tmp_path / "Kconfig")
+    out = wk.explain_symbol(ksmt, kconfiglib, "PREEMPT_FULL", {"CONFIG_PREEMPT_NONE": "y"})
+    assert out["choice"] == {"prompt": "Preemption Model",
+                             "members": ["PREEMPT_NONE", "PREEMPT_FULL"],
+                             "currently_selected": "PREEMPT_NONE"}

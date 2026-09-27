@@ -165,7 +165,7 @@ def explain_symbol(ksmt, kconfiglib, name, config_values):
         ch = sym.choice
         cur_sel = next((s.name for s in ch.syms if cur_value(config_values, s.name) == "y"), None)
         out["choice"] = {
-            "prompt": ch.prompts[0][0] if ch.prompts else None,
+            "prompt": next((n.prompt[0] for n in ch.nodes if n.prompt), None),
             "members": [s.name for s in ch.syms],
             "currently_selected": cur_sel,
         }

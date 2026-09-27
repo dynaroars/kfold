@@ -19,6 +19,13 @@ DBG = pdb.set_trace
 class ExpansionBase(ABC):
     def __init__(self, solver):
         self.solver = solver
+        # $(eval TEXT): the guarded texts to execute as Makefile statements,
+        # and the guards of the enclosing $(call)/$(foreach) alternatives.
+        self.evals = []
+        self._ctx = []
+
+    def _note_call(self, vname):
+        """A $(call) of the variable ``vname`` (recorded by ExpansionDExe)."""
 
     @classmethod
     def combine(cls, ts, delim=''):
@@ -200,6 +207,8 @@ class ExpansionBase(ABC):
                     return self.do_CallFunction(elem, states)
                 elif isinstance(elem, functions.ForEachFunction):
                     return self.do_fun_Foreach(elem, states)
+                elif isinstance(elem, functions.EvalFunction):
+                    return self.do_fun_Eval(elem, states)
                 else:
                     raise NotImplementedError()
             except NotImplementedError:
@@ -266,6 +275,7 @@ class ExpansionBase(ABC):
                             d[v] = c
                 continue
 
+            self._note_call(vname)
             if vname in states:
                 local_states = dict(states)
                 from ds import VarG
@@ -278,7 +288,11 @@ class ExpansionBase(ABC):
                 for word, wcond in var_obj.valconds.items():
                     total_cond = zsolver.conj(vcond, wcond)
                     if self.solver.is_sat(total_cond):
-                        res = self.do_fake_expansion(str(word), local_states)
+                        self._ctx.append(total_cond)
+                        try:
+                            res = self.do_fake_expansion(str(word), local_states)
+                        finally:
+                            self._ctx.pop()
                         for rv, rc in res:
                             rc_tot = zsolver.conj(total_cond, rc)
                             if self.solver.is_sat(rc_tot):
@@ -301,22 +315,101 @@ class ExpansionBase(ABC):
                 continue
             words = list_str.split()
             accum = []
-            for w in words:
-                local_states = dict(states)
-                local_states[var_name] = VarG(
-                    var_name, {w: zsolver.T}, VarG.SIMPLY, self.solver.mysettings)
-                w_res = self.do_expansion(text_arg, local_states)
-                accum.append(w_res)
+            self._ctx.append(list_cond)
+            try:
+                for w in words:
+                    local_states = dict(states)
+                    local_states[var_name] = VarG(
+                        var_name, {w: zsolver.T}, VarG.SIMPLY, self.solver.mysettings)
+                    w_res = self.do_expansion(text_arg, local_states)
+                    accum.append(w_res)
+            finally:
+                self._ctx.pop()
             if not accum:
                 d[''] = list_cond
             else:
                 combined_words = []
                 for w_res in accum:
                     for w_val, w_c in w_res:
+                        # Keep newlines: a multi-line define body expanded
+                        # per word must stay one statement per line.
                         if self.solver.is_sat(w_c) and w_val.strip():
-                            combined_words.append(w_val.strip())
+                            combined_words.append(w_val.strip(" \t"))
                 d[" ".join(combined_words)] = list_cond
         return list(d.items()) if d else [('', zsolver.T)]
+
+    def do_fun_Eval(self, fun, states):
+        """$(eval TEXT) expands to nothing; each alternative of TEXT is
+        recorded with its guard (conjoined with the enclosing $(call) and
+        $(foreach) guards) for the enclosing statement to execute."""
+        assert isinstance(fun, functions.EvalFunction), fun
+        saved, self._words = self._words, False
+        try:
+            texts = self._eval_texts(fun._arguments[0], states)
+        finally:
+            self._words = saved
+        for text, cond in texts:
+            if not text.strip():
+                continue
+            cond = zsolver.mconj(self._ctx + [cond])
+            if self.solver.is_sat(cond):
+                self.evals.append((text, cond))
+        return [('', zsolver.T)]
+
+    _CALL_PARAM = re.compile(r"\$\$|\$\((\d+)\)|\$\{(\d+)\}")
+
+    def _eval_texts(self, exp, states):
+        """Guarded texts of an $(eval) argument. For $(call F,ARGS...) of a
+        defined F, as GNU Make's call does, only the parameters $(1), $(2),
+        ... are substituted and $$ becomes $; the remaining references are
+        left for the evaluated statements, which expand them at the same
+        point. Expanding a many-line body as one string would multiply the
+        alternatives of every reference in it. $(foreach) is followed word
+        by word; anything else is expanded as a string."""
+        elems = list(exp) if isinstance(exp, data.Expansion) else []
+        parts = [(e, f) for e, f in elems if not (isinstance(e, str) and not f and not e.strip())]
+        if len(parts) == 1 and parts[0][1]:
+            fun = parts[0][0]
+            if isinstance(fun, functions.CallFunction) and fun._arguments:
+                names = self.do_expansion(fun._arguments[0], states)
+                name = names[0][0].strip() if len(names) == 1 else None
+                if name in states and states[name].is_recurse:
+                    return self._call_texts(name, names[0][1], fun, states)
+            if isinstance(fun, functions.ForEachFunction):
+                from ds import VarG
+                var_name = fun._arguments[0].to_source().strip()
+                out = []
+                for list_str, list_cond in self.do_expansion(fun._arguments[1], states):
+                    if not self.solver.is_sat(list_cond):
+                        continue
+                    for w in list_str.split():
+                        local = dict(states)
+                        local[var_name] = VarG(var_name, {w: zsolver.T}, VarG.SIMPLY,
+                                               self.solver.mysettings)
+                        for t, c in self._eval_texts(fun._arguments[2], local):
+                            out.append((t, zsolver.conj(list_cond, c)))
+                return out
+        return self.do_expansion(exp, states)
+
+    def _call_texts(self, vname, vcond, fun, states):
+        self._note_call(vname)
+        args = [self.do_expansion(a, states) for a in fun._arguments[1:]]
+        combos = [([], vcond)]
+        for alts in args:
+            combos = [(vals + [v], zsolver.conj(c, ac)) for vals, c in combos for v, ac in alts]
+            combos = [(vals, c) for vals, c in combos if self.solver.is_sat(c)][:64]
+        out = []
+        for word, wcond in states[vname].valconds.items():
+            for vals, c in combos:
+                def sub(m, vals=vals):
+                    if m.group(0) == "$$":
+                        return "$"
+                    i = int(m.group(1) or m.group(2))
+                    return vals[i - 1] if 0 < i <= len(vals) else ""
+                cond = zsolver.conj(wcond, c)
+                if self.solver.is_sat(cond):
+                    out.append((self._CALL_PARAM.sub(sub, str(word)), cond))
+        return out
 
     def do_fun_ShellFunction(self, fun, states):
         assert isinstance(fun, functions.ShellFunction), fun
@@ -828,3 +921,6 @@ class ExpansionDExe(ExpansionBase):
         for name, _ in names:
             self.deps.add(name)
         return rs
+
+    def _note_call(self, vname):
+        self.deps.add(vname)

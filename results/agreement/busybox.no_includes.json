@@ -1,5 +1,5 @@
 {
- "analysis_seconds": 0.32,
+ "analysis_seconds": 0.33,
  "census": {
   "by_category": {
    "modeled": {
@@ -28,7 +28,7 @@
  "makefile_instances": 30,
  "objects": 625,
  "parse_errors": [],
- "peak_rss_mb": 65.6,
+ "peak_rss_mb": 65.7,
  "profiles": {
   "defconfig": {
    "members": {

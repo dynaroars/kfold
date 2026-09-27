@@ -103,3 +103,30 @@ def test_subdir_y_is_traversed():
     })
     predicted, _ = objects_under(root, {"CONFIG_S": "y"})
     assert "s/helper.o" in predicted
+
+
+def test_always_target_rule_prerequisites():
+    # kernel/trace: always-$(CONFIG_SRB) += srb.o.checked, and a pattern rule
+    # makes %.o.checked from %.o and base.o, which no list names.
+    root = make_tree({
+        "Kbuild": "obj-y += d/\n",
+        "d/Makefile": ("obj-$(CONFIG_SRB) += srb.o\n"
+                       "targets += base.o\n"
+                       "$(obj)/%.o.checked: $(obj)/%.o $(obj)/base.o FORCE\n"
+                       "\ttouch $@\n"
+                       "always-$(CONFIG_SRB) += srb.o.checked\n"),
+        "d/srb.c": "", "d/base.c": "",
+    }, "target_vars = obj- lib- extra- always-\n")
+    predicted, kinds = objects_under(root, {"CONFIG_SRB": "y"})
+    assert {"d/srb.o", "d/base.o"} <= predicted
+    assert kinds["d/base.o"] == "rule"
+    root = make_tree({
+        "Kbuild": "obj-y += d/\n",
+        "d/Makefile": ("obj-$(CONFIG_SRB) += srb.o\n"
+                       "$(obj)/%.o.checked: $(obj)/%.o $(obj)/base.o FORCE\n"
+                       "\ttouch $@\n"
+                       "always-$(CONFIG_SRB) += srb.o.checked\n"),
+        "d/srb.c": "", "d/base.c": "",
+    }, "target_vars = obj- lib- extra- always-\n")
+    predicted, _ = objects_under(root, {})
+    assert "d/base.o" not in predicted

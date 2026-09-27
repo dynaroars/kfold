@@ -1,7 +1,7 @@
 {
  "rc": 0,
  "result": {
-  "blind_spots": 3197,
+  "blind_spots": 3199,
   "configs": [
    {
     "name": "allmodconfig",
@@ -18,7 +18,7 @@
   ],
   "entries_with_blind_spots": 509,
   "maintainers": "/home/tnguyen/git/projects/kfold/work/prepared/linux-7.2.8/MAINTAINERS",
-  "objects_considered": 32750,
+  "objects_considered": 32829,
   "top_entries": [
    {
     "blind_spots": 201,
@@ -13261,8 +13261,8 @@
       "other: not enabled by any provided config (needs CONFIG_TEGRA_IOMMU_SMMU=y)"
      ]
     ],
-    "percent": 14.7,
-    "total_objects": 34
+    "percent": 11.1,
+    "total_objects": 45
    },
    {
     "blind_spots": 5,
@@ -13966,6 +13966,30 @@
    },
    {
     "blind_spots": 4,
+    "entry": "X86 PLATFORM DRIVERS",
+    "objects": [
+     [
+      "drivers/platform/x86/intel/atomisp2/intel_atomisp2_pm.o",
+      "other: not enabled by any provided config (needs CONFIG_INTEL_ATOMISP2_PM=m)"
+     ],
+     [
+      "drivers/platform/x86/intel/intel-chtdc_ti_pwrbtn.o",
+      "other: not enabled by any provided config (needs CONFIG_INTEL_CHTDC_TI_PWRBTN=m)"
+     ],
+     [
+      "drivers/platform/x86/intel/intel-turbo_max_3.o",
+      "other"
+     ],
+     [
+      "drivers/platform/x86/intel_p2sb.o",
+      "other"
+     ]
+    ],
+    "percent": 3.2,
+    "total_objects": 125
+   },
+   {
+    "blind_spots": 4,
     "entry": "PNP SUPPORT",
     "objects": [
      [
@@ -14105,8 +14129,8 @@
       "other: not enabled by any provided config (needs CONFIG_PROBE_EVENTS_BTF_ARGS=y)"
      ]
     ],
-    "percent": 6.0,
-    "total_objects": 67
+    "percent": 5.9,
+    "total_objects": 68
    },
    {
     "blind_spots": 4,
@@ -15435,22 +15459,6 @@
     ],
     "percent": 66.7,
     "total_objects": 3
-   },
-   {
-    "blind_spots": 2,
-    "entry": "X86 PLATFORM DRIVERS",
-    "objects": [
-     [
-      "drivers/platform/x86/intel/atomisp2/intel_atomisp2_pm.o",
-      "other: not enabled by any provided config (needs CONFIG_INTEL_ATOMISP2_PM=m)"
-     ],
-     [
-      "drivers/platform/x86/intel_p2sb.o",
-      "other"
-     ]
-    ],
-    "percent": 2.2,
-    "total_objects": 92
    },
    {
     "blind_spots": 2,

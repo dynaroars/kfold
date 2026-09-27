@@ -143,6 +143,7 @@ def object_conditions(runner, include_members=True, origins=None):
         return cond if g is None else zsolver.conj(cond, g)
     need_builtin = link_semantics and getattr(runner.mysettings, "need_builtin", False)
     builtin = builtin_guards(runner) if need_builtin else {}
+    roots = []  # non-object targets whose rules the closure follows
     for kb in runner.all_kbuilds:
         state, parent = kb.state, kb.makefile.parent
         for var in state.target_files:
@@ -173,6 +174,13 @@ def object_conditions(runner, include_members=True, origins=None):
                         note(rel, kb.makefile, var.name)
                 rel = target_path(word, names[0], parent, runner.maindir)
                 if rel is None:
+                    # Kbuild builds every always-y and extra-y target, e.g.
+                    # kernel/trace's simple_ring_buffer.o.checked, whose
+                    # pattern rule needs undefsyms_base.o.
+                    if family in ("always", "extra") and "$" not in word:
+                        root = _norm(parent, word, runner.maindir)
+                        if root is not None:
+                            roots.append((root, cond))
                     continue
                 if not include_members:
                     continue
@@ -209,7 +217,7 @@ def object_conditions(runner, include_members=True, origins=None):
                         _add(targets, kinds, rel, zsolver.conj(cond, mcond), "program")
                         note(rel, kb.makefile, f"object of program {prog} ({var.name})")
     if include_members and not os.environ.get("KFOLD_NO_RULES"):  # ablation switch
-        rule_closure(runner, targets, kinds, note)
+        rule_closure(runner, targets, kinds, note, roots)
     return targets, kinds
 
 
@@ -316,10 +324,11 @@ class _RuleIndex:
 
 
 
-def rule_closure(runner, targets, kinds, note=None):
-    """Objects that Kbuild builds only as prerequisites of selected files:
-    follow explicit and pattern rules, the implicit %.o <- %.c/%.S steps, and
-    sub-makes ($(MAKE) $(build)=DIR GOAL) into other directories."""
+def rule_closure(runner, targets, kinds, note=None, roots=()):
+    """Objects that Kbuild builds only as prerequisites of selected files
+    (and of ``roots``, guarded non-object targets): follow explicit and
+    pattern rules, the implicit %.o <- %.c/%.S steps, and sub-makes
+    ($(MAKE) $(build)=DIR GOAL) into other directories."""
     from alg import Run
     from kbuild import Kbuild
     solver = zsolver.ZSolver(runner.mysettings)
@@ -341,7 +350,7 @@ def rule_closure(runner, targets, kinds, note=None):
         kb.symexe()
         index.add_state(mk, kb.state)
 
-    work = list(targets.items())
+    work = list(targets.items()) + list(roots)
     for goal, sym in getattr(runner.mysettings, "entry_goals", []):
         g = zsolver.T
         if sym:

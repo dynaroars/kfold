@@ -37,10 +37,21 @@ evidence/legacy/ (untracked).
   (all need another architecture), 0 lost options; compile 40/40; why
   400/400. Tests: 130 pass.
 
+- 2026-09-26 evening: $(eval) support (src/expansion.py do_fun_Eval,
+  _eval_texts/_call_texts; src/symexe.py EmptyDirective executes the
+  evaluated text in dexe and sexe). $(eval $(call F,...)) substitutes only
+  F's parameters, as GNU call does (expanding a many-line body as one
+  string blew coreboot up to 26 GB). Rule closure also starts from
+  non-object always-/extra- targets (kernel/trace undefsyms_base.o).
+  why: fixed Choice.prompts crash. Full kfold-side rerun (work/rerun4.sh,
+  12 GB ulimit): Linux 0 FP / 0 in-set misses and every compiled object
+  outside U is a host tool (overlap without host tools 100% on all four);
+  coreboot 477 predicted, 0 FP.
+- paper/OUTLINE.tex is the main file (user, 2026-09-26): now uses
+  numbers.tex and the generated tables; evaluation ported from kfold.tex;
+  overview config-for example is stable commit 82699d1b727b. "Exact"
+  dropped from kfold.tex's title.
+
 ## To do next
-1. paper/OUTLINE.tex still has v6.6 numbers; port the new evaluation or
-   retire it in favor of kfold.tex (ask the user).
-2. Title says "Exact"; overlap is 97.0-99.5% (host tools and $(eval)
-   objects are outside U). Precision/in-set recall are exact. User decision.
-3. Possible kfold improvement: execute $(eval) (the only non-host Linux
-   objects kfold misses); coreboot mainboard entry settings.
+1. Possible kfold work: host tools (scripts/, tools/) via the top-level
+   Makefile's rules; coreboot mainboard entry settings.

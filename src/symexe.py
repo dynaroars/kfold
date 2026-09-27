@@ -6,7 +6,7 @@ import copy
 
 import z3
 
-from pymake3 import parserdata, data
+from pymake3 import parserdata, data, parser
 
 import helpers.vcommon as CM
 import helpers.zsolver as zsolver
@@ -518,7 +518,12 @@ class SetVariable(Statement):
 
         for name, _ in names:
             for val, _ in vals:
-                state.set_var(name, token, val, zsolver.T, self.solver)
+                if unexpanded and "$" in val:
+                    # As in sexe: deferred text stays whole (a define body
+                    # expanded by $(call) must not fall apart into words).
+                    state.set_var_dict(name, token, {val: zsolver.T}, zsolver.T, self.solver)
+                else:
+                    state.set_var(name, token, val, zsolver.T, self.solver)
 
         state.add_dep(self, lvals, ldeps, rvals, rdeps, deps)
 
@@ -697,8 +702,57 @@ class Include(Statement):
 
 
 class EmptyDirective(Statement):
+    """A line that is only an expansion. It has no effect unless it calls
+    $(eval TEXT): then each guarded alternative of TEXT (see
+    ``ExpansionBase.do_fun_Eval``) is parsed and executed here, under its
+    guard, as Makefile statements. The dependency pass executes them too,
+    so that the variables they define and read survive reduction; the two
+    passes number the evaluated statements apart, so a statement created
+    only in the symbolic pass is never looked up in the reduction."""
+
     def check_skip(self, ddb):
         raise NotImplementedError('check me')
+
+    @property
+    def has_eval(self):
+        if not isinstance(self.stmt, parserdata.EmptyDirective):
+            return False  # e.g. vpath
+        src = self.stmt_str
+        return "$(eval" in src or "${eval" in src
+
+    def _evaluated(self, myeval, state, tag):
+        myeval.do_expansion(self.stmt.exp, state.states)
+        loc = getattr(self.stmt.exp, "loc", None)
+        path = getattr(loc, "path", None) or "<eval>"
+        for k, (text, cond) in enumerate(myeval.evals):
+            try:
+                stmts = parser.parsestring(text, path)
+            except Exception as e:
+                mlog.warn(f"Failed to parse $(eval) text at {path}: {e}")
+                continue
+            mystmts = StatementList.create(stmts, self.sid + (tag, k))
+            mystmts.set_solver(self.solver)
+            yield mystmts, cond
+
+    def dexe(self, state, deps):
+        if not self.has_eval:
+            return
+        myeval = expansion.ExpansionDExe(self.solver)
+        for mystmts, _ in self._evaluated(myeval, state, "evald"):
+            mystmts.dexe(state, deps)
+        state.ddb.extra_roots |= set(myeval.deps)
+
+    def myreduce(self, ddb):
+        return self if self.has_eval else None
+
+    def sexe(self, state, guard, ddb):
+        if not self.has_eval:
+            return
+        myeval = expansion.ExpansionSExe(self.solver)
+        for mystmts, cond in self._evaluated(myeval, state, "evals"):
+            g = zsolver.conj(guard, cond)
+            if self.solver.is_sat(g):
+                mystmts.sexe(state, g, ddb)
 
 
 class ExportDirective(Statement):

@@ -1,5 +1,5 @@
 {
- "analysis_seconds": 5.29,
+ "analysis_seconds": 5.26,
  "census": {
   "by_category": {
    "modeled": {
@@ -7,29 +7,31 @@
     "ConditionBlock:ifdef": 102,
     "Function:call": 3,
     "Function:filter": 2,
-    "Function:foreach": 3,
+    "Function:foreach": 11,
     "Function:if": 6,
     "Function:shell": 1,
     "Function:subst": 2,
-    "Function:substitutionref": 7,
-    "Function:variableref": 8201,
-    "Rule": 41,
+    "Function:substitutionref": 15,
+    "Function:variableref": 8335,
+    "Rule": 49,
     "SetVariable+=": 3667,
-    "SetVariable:=": 71,
-    "SetVariable=": 33,
+    "SetVariable:=": 117,
+    "SetVariable=": 77,
     "SetVariable?=": 1
    },
    "out_of_scope": {
-    "Command": 24,
+    "Command": 32,
     "EmptyDirective": 4
    },
-   "unsupported": {}
+   "unsupported": {
+    "Function:eval": 82
+   }
   },
   "totals": {
-   "modeled": 12192,
-   "out_of_scope": 28,
-   "total": 12220,
-   "unsupported": 0
+   "modeled": 12440,
+   "out_of_scope": 36,
+   "total": 12558,
+   "unsupported": 82
   }
  },
  "kinds": {
@@ -41,7 +43,7 @@
  "makefile_instances": 319,
  "objects": 3750,
  "parse_errors": [],
- "peak_rss_mb": 76.6,
+ "peak_rss_mb": 76.4,
  "profiles": {
   "sandbox_defconfig": {
    "members": {
@@ -391,5 +393,5 @@
  "subject": "uboot",
  "variant": "no_includes",
  "version": "2026.07",
- "z3_checks": 7818
+ "z3_checks": 7895
 }

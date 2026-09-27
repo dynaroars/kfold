@@ -80,6 +80,9 @@ def agreement():
             for k, val in r.items():
                 define(val, s, config, k)
             rows[(s, config)] = r
+    linux = [r for (s, _), r in rows.items() if s == "linux"]
+    if linux:
+        define(min(r["overlapnohost"] for r in linux), "linux", "min", "overlapnohost")
     return rows
 
 
@@ -140,6 +143,13 @@ def ablations():
             if not d:
                 continue
             define(full["objects"] - d["objects"], s, v, "lost", "objects")
+            if s == "linux" and v == "no_includes" and "allmodconfig" in d["profiles"]:
+                # Compiled allmodconfig objects that leave U without splicing.
+                base = set(full["profiles"]["allmodconfig"]["members"]["outside_universe_paths"])
+                lost = [x for x in d["profiles"]["allmodconfig"]["members"]["outside_universe_paths"]
+                        if x not in base]
+                for name, prefix in (("amd", "drivers/gpu/drm/amd/"), ("nouveau", "drivers/gpu/drm/nouveau/")):
+                    define(sum(x.startswith(prefix) for x in lost), s, v, "allmodconfig", "lost", name)
             for c, p in d["profiles"].items():
                 m = p["members"]
                 define(m["fp"] - m["fp_build_failed"], s, v, c, "fp")

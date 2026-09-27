@@ -44,7 +44,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.6,
+   "seconds": 7.4,
    "stderr_tail": "",
    "subject": "ASoC: amd: acp: bounds-check SoundWire link ID in machine drivers"
   },
@@ -63,7 +63,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 8.3,
+   "seconds": 8.1,
    "stderr_tail": "",
    "subject": "smb: client: reject short Next offsets in parse_server_interfaces()"
   },
@@ -79,7 +79,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.1,
+   "seconds": 7.3,
    "stderr_tail": "",
    "subject": "net: ip_tunnel: initialize `options_len` before referencing options"
   },
@@ -95,7 +95,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.2,
+   "seconds": 6.9,
    "stderr_tail": "",
    "subject": "ALSA: hda: trace PCM open only after assigning a stream"
   },
@@ -127,7 +127,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 9.8,
+   "seconds": 9.7,
    "stderr_tail": "",
    "subject": "net: remove WARN_ON_ONCE() from the dev_fill_forward_path() loop check"
   },
@@ -147,7 +147,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 6.8,
+   "seconds": 6.6,
    "stderr_tail": "",
    "subject": "spi: virtio: Use the per-transfer bits per word"
   },
@@ -166,7 +166,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 6.7,
+   "seconds": 6.6,
    "stderr_tail": "",
    "subject": "dmaengine: mmp_pdma: fix wrong sg length in mmp_pdma_prep_slave_sg()"
   },
@@ -184,7 +184,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.0,
+   "seconds": 6.9,
    "stderr_tail": "",
    "subject": "Input: xpad - add support for Victrix Pro BFG Controller"
   },
@@ -203,7 +203,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.1,
+   "seconds": 7.0,
    "stderr_tail": "",
    "subject": "netfilter: flowtable: hold reference on ct until flow is released"
   },
@@ -219,7 +219,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 8.2,
+   "seconds": 8.0,
    "stderr_tail": "",
    "subject": "mm: filemap: retain mapped dropbehind folios"
   },
@@ -235,7 +235,7 @@
     "CONFIG_DRM_MSM": "m",
     "CONFIG_DRM_MSM_DSI": "y",
     "CONFIG_DRM_MSM_KMS": "y",
-    "CONFIG_DRM_MSM_MDP5": "y",
+    "CONFIG_DRM_MSM_MDP4": "y",
     "CONFIG_OF": "y"
    },
    "objects": [
@@ -243,7 +243,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 9.1,
+   "seconds": 9.2,
    "stderr_tail": "",
    "subject": "drm/msm/dsi: round the byte clock rate after reparenting to the PHY PLL"
   },
@@ -277,7 +277,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.4,
+   "seconds": 7.2,
    "stderr_tail": "",
    "subject": "btrfs: take commit root semaphore when iterating in mark_block_group_to_copy()"
   },
@@ -295,7 +295,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 8.0,
+   "seconds": 7.8,
    "stderr_tail": "",
    "subject": "wifi: wlcore: release runtime PM ref on regdomain config failure"
   },
@@ -311,7 +311,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.3,
+   "seconds": 7.5,
    "stderr_tail": "",
    "subject": "wifi: mac80211: add HE 6 GHz capability in the scan elems len"
   },
@@ -387,7 +387,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.0,
+   "seconds": 6.9,
    "stderr_tail": "",
    "subject": "dmaengine: pxa: fix double counting of the hw descriptors"
   },
@@ -407,7 +407,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 6.7,
+   "seconds": 6.8,
    "stderr_tail": "",
    "subject": "Input: soc_button_array - fix MS Surface Pro 11 probe failure"
   },
@@ -428,7 +428,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 6.8,
+   "seconds": 6.5,
    "stderr_tail": "",
    "subject": "soundwire: dmi-quirks: Disable ghost Realtek on Asus GX651AX"
   },
@@ -465,7 +465,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.7,
+   "seconds": 7.4,
    "stderr_tail": "",
    "subject": "firmware: arm_scpi: reject DVFS OPP count above MAX_DVFS_OPPS"
   },
@@ -483,7 +483,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.7,
+   "seconds": 7.6,
    "stderr_tail": "",
    "subject": "drm/gud: fix out-of-bounds write in gud_plane_atomic_check()"
   },
@@ -522,7 +522,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.1,
+   "seconds": 6.9,
    "stderr_tail": "",
    "subject": "PCI: imx6: Move clock enable after core reset assertion"
   },
@@ -535,8 +535,8 @@
    },
    "fragment": {
     "CONFIG_BT": "m",
+    "CONFIG_BT_HCIVHCI": "m",
     "CONFIG_DEV_COREDUMP": "y",
-    "CONFIG_DRM_ETNAVIV": "m",
     "CONFIG_WANT_DEV_COREDUMP": "y"
    },
    "objects": [
@@ -545,7 +545,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 8.1,
+   "seconds": 7.5,
    "stderr_tail": "",
    "subject": "Bluetooth: coredump: Quiesce dump work on unregister"
   },
@@ -565,7 +565,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 8.1,
+   "seconds": 7.3,
    "stderr_tail": "",
    "subject": "ntfs: account for MFT records added during allocation"
   },
@@ -584,7 +584,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 6.8,
+   "seconds": 7.1,
    "stderr_tail": "",
    "subject": "wifi: libipw: reject TKIP frames without a full MIC"
   },
@@ -638,7 +638,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 6.9,
+   "seconds": 7.1,
    "stderr_tail": "",
    "subject": "x86/microcode/intel: Reject problematic loading on Granite Rapids systems"
   },
@@ -670,7 +670,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.8,
+   "seconds": 7.6,
    "stderr_tail": "",
    "subject": "wifi: cfg80211: restore netns_immutable on failures"
   },
@@ -689,7 +689,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 6.8,
+   "seconds": 7.0,
    "stderr_tail": "",
    "subject": "i2c: imx: release DMA channels on probe error"
   },
@@ -712,7 +712,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.3,
+   "seconds": 7.5,
    "stderr_tail": "",
    "subject": "phy: mediatek: phy-mtk-hdmi-mt8195: Fix PLL calc divisor overflow"
   },
@@ -730,7 +730,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.8,
+   "seconds": 7.7,
    "stderr_tail": "",
    "subject": "drop_monitor: use raw_cpu_ptr() in tracepoint probes"
   },
@@ -748,7 +748,7 @@
    ],
    "rc_make": 0,
    "rc_olddefconfig": 0,
-   "seconds": 7.2,
+   "seconds": 6.9,
    "stderr_tail": "",
    "subject": "drm/xe/mmio_gem: use write-back mapping for dummy page"
   }
