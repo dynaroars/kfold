@@ -1,0 +1,18 @@
+mainmenu "SmartConfig fixture"
+config PARENT
+	bool "Parent"
+config CHILD
+	bool "Child"
+	depends on PARENT
+config MODE_A
+	bool "Mode A"
+config MODE_B
+	bool "Mode B"
+choice
+	prompt "Mode"
+	default MODE_A
+	config MODE_A
+		bool "Mode A"
+	config MODE_B
+		bool "Mode B"
+endchoice

@@ -1,0 +1,35 @@
+# env / secrets
+.env
+.env~
+.env.*
+!.env.example
+
+# python / uv
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# autokernel artifacts
+.autokernel/
+.git_upstream_backup/
+snapshots/
+snapshot-*/
+root-snapshot-*/
+*.kfrag.local
+# Runtime caches written next to snapshots during interactive use.
+# Test fixtures explicitly check in their own caches so tests are
+# deterministic across hosts (CI runners lack the relevant /lib/modules).
+loadable_modinfo_cache
+!tests/fixtures/**/loadable_modinfo_cache
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+get-docker.sh

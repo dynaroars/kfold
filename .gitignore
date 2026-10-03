@@ -1,0 +1,13 @@
+# Root .gitignore for kfold umbrella repository
+smartconfig/root-snapshot-*/
+smartconfig/.git_upstream_backup/
+
+# Python caches and virtual environments
+.venv/
+__pycache__/
+*.py[cod]
+
+# Editor and OS
+.DS_Store
+*.swp
+*~

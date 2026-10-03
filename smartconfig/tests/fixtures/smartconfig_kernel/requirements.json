@@ -1,0 +1,9 @@
+{
+  "requirements": [
+    {
+      "id": "child-capability",
+      "condition": {"symbol": "CHILD", "equals": "y"},
+      "rationale": "The example capability needs the child feature."
+    }
+  ]
+}
