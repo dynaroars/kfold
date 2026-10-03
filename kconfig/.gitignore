@@ -1,0 +1,18 @@
+# Generated formula files from kclause
+work/formulas_5_4_4/
+work/formulas_7_2_8/
+work/logs/
+
+# Lean build artifacts
+.lake/
+lean/.lake/
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.log
+paper/*.out
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class

@@ -1,0 +1,39 @@
+= Overall analysis =
+Over 4 select constructs, unmet dependency analysis resulted in: 4 safe, 0 alarm.
+0 of 0 alarms were successfully validated. Test cases couldn't verify the remaining 0 alarms.
+The analysis was done in 97.81 seconds.
+
+= Timing results (seconds) =
+Prefetch arch formulas     : 92.09
+Identify constructs        : 0.02
+Optimized SAT pass         : 0.03
+Precise SAT pass           : 5.67
+Test case generation       : 0.00
+Verification               : 0.00
+
+= Per-stage results =
+
+== Identification of select constructs & udd analysis through syntax ==
+4 select constructs identified in the architecture.
+0 select constructs were found udd safe through syntax analysis.
+4 select constructs were found udd alarm through syntax analysis.
+
+== Optimized SAT pass ==
+4 select constructs with alarms from the previous stage were checked during optimized SAT pass.
+0 select constructs were found udd SAFE through optimized SAT pass.
+4 select constructs were found udd ALARM through optimized SAT pass.
+
+== Precise SAT pass ==
+4 select constructs with alarms from the previous stage were checked during precise SAT pass.
+4 select constructs were found udd SAFE through precise SAT pass.
+0 select constructs were found udd ALARM through precise SAT pass.
+
+== Test case generation ==
+0 select constructs with alarms from the previous stage were considered for test case generation, totaling 0 models with 0 due to generic and 0 due to SAT options.
+0 test cases were generated.
+
+== Verification ==
+0 test cases were used during verification to verify alarms for 0 select constructs.
+For 0 constructs, all test cases verified the alarm.
+For 0 constructs, at least one test verified the alarm, thus, proving the existince of the udd.
+For 0 constructs, none of the test cases verified the alarm, thus, false positive of kismet.
