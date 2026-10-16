@@ -149,3 +149,30 @@ So far we have this within `boot/`
 
 2 directories, 3 files
 ```
+3. Install `dosfstool`
+
+`dosfstools` is a package of utilities for creating, checking and repairing FAT file systems
+
+```bash
+sudo pacman -Sy dosfstools mtools
+```
+
+then make boot a FAT file system using
+
+```bash
+mkfs -t fat boot
+```
+
+4. Make `boot` bootable with syslinux
+
+```bash
+syslinux boot
+```
+
+5. Copy `bzImage` and `init.cpio` to `boot`
+
+```bash
+sudo mount -o loop boot mnt
+sudo cp bzImage mnt/
+sudo cp init.cpio mnt/
+```
