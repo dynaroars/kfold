@@ -1,0 +1,3 @@
+[submodule "tutorial/linux"]
+	path = tutorial/linux
+	url = https://github.com/torvalds/linux
