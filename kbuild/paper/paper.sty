@@ -1,0 +1,64 @@
+% Shared preamble for paper.tex (PLDI 2027 / acmart, acmsmall).
+% Loaded via \usepackage{paper}.
+
+\AtBeginDocument{%
+  \providecommand\BibTeX{{Bib\TeX}}}
+
+\usepackage{amsmath}
+% do not load amssymb or amsthm: acmart provides them (amssymb would clash on \Bbbk).
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{xspace}
+\usepackage{enumitem}
+\usepackage[linesnumbered,ruled,vlined,norelsize]{algorithm2e}
+\SetAlgorithmName{Alg.}{Algorithm}{List of Algorithms}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+\usepackage{subcaption}
+\renewcommand{\thesubfigure}{(\alph{subfigure})}
+\captionsetup[sub]{labelformat=simple}
+\providecommand*{\subfigureautorefname}{Figure}
+
+% acmart numbers definitions with the theorem counter; alias the counter so
+% \autoref prints "Definition N" (same fix as the FSE 2027 orbit paper).
+\usepackage{aliascnt}
+\theoremstyle{acmplain}
+\newtheorem{theorem}{Theorem}[section]
+\theoremstyle{acmdefinition}
+\newaliascnt{definition}{theorem}
+\newtheorem{definition}[definition]{Definition}
+\aliascntresetthe{definition}
+\theoremstyle{acmplain}
+\providecommand*{\definitionautorefname}{Definition}
+\providecommand*{\theoremautorefname}{Theorem}
+
+
+
+% Macros
+\newcommand{\tool}{\textsc{kfold}}
+\newcommand{\eg}{\emph{e.g.}}
+\newcommand{\placeholder}{\textcolor{red}{placeholder: add later}}
+
+% Comments (set usecomment to true while drafting)
+\usepackage{etoolbox}
+\newtoggle{usecomment}
+\newcommand{\tl}[1]{\iftoggle{usecomment}{{\color{blue!60!black}{[TL]: #1}}}{}}
+\newcommand{\hd}[1]{\iftoggle{usecomment}{{\color{blue!40!cyan}{[HD]: #1}}}{}}
+\newcommand{\tvn}[1]{\iftoggle{usecomment}{{\color{red}{[TVN]: #1}}}{}}
+\settoggle{usecomment}{false}
+
+% \autoref names (every theorem-like environment would otherwise print "Theorem")
+\providecommand*{\figureautorefname}{Fig.}
+\renewcommand*{\figureautorefname}{Fig.}
+\renewcommand*{\tableautorefname}{Tab.}
+\renewcommand*{\equationautorefname}{Eq.}
+\renewcommand*{\sectionautorefname}{\S}
+\renewcommand*{\subsectionautorefname}{\S}
+\renewcommand*{\subsubsectionautorefname}{\S}
+\renewcommand*{\appendixautorefname}{App.}
+\renewcommand*{\algorithmautorefname}{Alg.}
+\providecommand*{\lineautorefname}{line}
+\renewcommand*{\definitionautorefname}{Def.}
+\renewcommand*{\theoremautorefname}{Thm.}
