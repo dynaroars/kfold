@@ -51,8 +51,8 @@ Will see `Kernel: arch/x86/boot/bzImage is ready  (#1)` and it is the path to th
 
 ```bash
 cd ..
-mkdir boot
-cp linux/arch/x86/boot/bzImage boot
+mkdir -p boot
+cp linux/arch/x86/boot/bzImage boot/
 ```
 
 # How to build user space
@@ -82,7 +82,7 @@ this option links the C library and everything else into the busybox executable.
 Reason: A tiny system made of just a kernel and an initramfs has no /lib and no dynamic loader (ld-linux.so).
 A dynamically linked busybox would fail at boot with "No such file or directory" (the missing interpreter), and the kernel would panic with "Attempted to kill init".
 
-Also, choose (Settings -> Networking Utilities -> tc) and disable it to avoid network incompatibility.
+Also, choose (Networking Utilities -> tc) and disable it to avoid network incompatibility.
 
 3. Build the busybox
 
@@ -93,10 +93,11 @@ make -j24
 
 4. Gather necessary things into `boot` directory
 
+`initramfs` is the initial file system the kernel loads after booting.
+We will put busybox over there using `make install`.
+
 ```bash
 mkdir -p ../boot/initramfs
-make CONFIG_PREFIX=../boot/initramfs install
+make CONFIG_PREFIX="$(realpath ../boot/initramfs)" install
+cd ..
 ```
-
-`initramfs` is the initial file system the kernel loads after booting.
-We will put busybox over there.
