@@ -175,4 +175,22 @@ syslinux boot
 sudo mount -o loop boot mnt
 sudo cp bzImage mnt/
 sudo cp init.cpio mnt/
+sudo umount mnt
+```
+
+# Boot the image
+
+Turn it on with `qemu`
+```bash
+qemu-system-x86_64 boot
+```
+
+On a separated terminal, connect to the vm using vnc
+```bash
+vncviewer localhost:5900
+```
+
+If prompt by the bootloader to locate the kernel image, type
+```bash
+/bzImage -initrd=/init.cpio
 ```
