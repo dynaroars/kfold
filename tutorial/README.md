@@ -101,3 +101,51 @@ mkdir -p ../boot/initramfs
 make CONFIG_PREFIX="$(realpath ../boot/initramfs)" install
 cd ..
 ```
+
+5. Create the init script
+
+To start the `/bin/sh` shell when the kernel finished booting up
+
+```text: boot/initramfs/init
+#!/bin/sh
+
+/bin/sh
+```
+
+Then
+
+```bash
+rm boot/initramfs/linuxrc
+chmod +x boot/initramfs/init
+```
+
+6. Pack the content into a cpio archive, which is the format the kernel expects for an initramfs
+
+```bash
+find . | cpio -o  -H newc > ../init.cpio
+```
+
+# Create the bootable image
+
+1. Install `syslinux` (the bootloader)
+
+```bash
+sudo pacman -Sy syslinux
+```
+
+2. Create the boot file
+```bash
+cd boot
+dd if=/dev/zero of=boot bs=1M count=50
+```
+
+So far we have this within `boot/`
+```text
+.
+├── boot
+├── bzImage
+├── init.cpio
+└── initramfs
+
+2 directories, 3 files
+```
