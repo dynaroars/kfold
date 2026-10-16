@@ -21,10 +21,10 @@
   Appends add guarded words, an overwrite re-guards the words it replaces, and path merging joins the two arms of a conditional into one symbolic state, so the state grows with the number of words instead of the number of paths.
   The resulting build conditions are SMT formulae that a solver can check and satisfy.
 
-  We evaluate \tool{} on Linux \NLinuxVersion{} and four other \texttt{kbuild}-based systems by comparing its build conditions under concrete configurations with the source files built by fresh builds.
-  On four Linux configurations, from \texttt{tinyconfig} to \texttt{allmodconfig}, the predicted files agree with the built files, with no false positive and no miss, from \NLinuxTinyconfigTp{} to \NLinuxAllmodconfigTp{} files.
-  \tool{} analyzes the \NLinuxInstances{} Makefile instances of the Linux x86 tree in \NLinuxSeconds{}\,s.
-  The build conditions explain the build status of all \NWhyCases{} sampled Linux files and, combined with a Kconfig model, produce configurations for \NConfigforSelectable{} of the \NConfigforCommits{} commits of a Linux stable update that touch C or assembly files.
+  We evaluate \tool{} on Linux 7.2.8 and four other \texttt{kbuild}-based systems by comparing its build conditions under concrete configurations with the source files built by fresh builds.
+  On four Linux configurations, from \texttt{tinyconfig} to \texttt{allmodconfig}, the predicted files agree with the built files, with no false positive and no miss, from 512 to 29,556 files.
+  \tool{} analyzes the 2,215 Makefile instances of the Linux x86 tree in 143.1\,s.
+  The build conditions explain the build status of all 400 sampled Linux files and, combined with a Kconfig model, produce configurations for 384 of the 402 commits of a Linux stable update that touch C or assembly files.
 \end{abstract}
 
 \begin{CCSXML}
@@ -47,6 +47,74 @@
 \section{Background}\label{sec:background}
 
 \section{Motivating Example}\label{sec:example}
+
+This section follows one Kbuild Makefile through \tool{} to show what a build condition is and how the symbolic state stays small.
+Kbuild is the part of the Linux build system that uses Make to decide which source files are included in the kernel build, and Kconfig is the language that declares the configuration options and their dependencies.
+A Kconfig option is a tristate option when it takes the value \texttt{y} (built into the kernel), \texttt{m} (built as a loadable module), or unset.
+A Kbuild Makefile lists files in goal definitions: \texttt{obj-y} names the files built into the kernel and \texttt{obj-m} names the files built as modules.
+A line such as \texttt{obj-\$(CONFIG\_EXT4\_FS) += ext4.o} computes the name of the goal definition from the value of an option.
+
+\autoref{lst:example} is adapted from the Makefile of the Linux \texttt{ext4} file system.
+A developer who changes a file of this directory and sees a successful build may ask why \texttt{ext4.o} was not compiled, and which options would compile it.
+Running Make answers this question for the one configuration at hand.
+A build condition answers it for every configuration: a logical formula over configuration options that states when the file is built.
+
+\begin{figure}[t]
+\begin{lstlisting}[style=kbuild]
+obj-$(CONFIG_EXT4_FS) += ext4.o
+obj-$(CONFIG_EXT4_KUNIT_TESTS) := ext4-inode-test.o
+ifeq ($(CONFIG_FS_VERITY),y)
+  EXTRA := verity
+else
+  EXTRA := crypto
+endif
+obj-y += $(EXTRA).o
+ext4-inode-test-y += inode-test.o
+\end{lstlisting}
+\caption{Makefile adapted from Linux \texttt{fs/ext4/Makefile}. Only line~1 is verbatim; lines~2 and~9 are adapted and lines~3--8 are constructed to add an overwrite, a conditional, and a composite object.}
+\Description{A nine-line Kbuild Makefile with an append, an overwrite, a conditional assignment, and a composite file.}
+\label{lst:example}
+\end{figure}
+
+Let $E_y$ and $E_m$ stand for \texttt{CONFIG\_EXT4\_FS=y} and \texttt{=m}, $T_y$ and $T_m$ for the same values of \texttt{CONFIG\_\allowbreak EXT4\_\allowbreak KUNIT\_\allowbreak TESTS}, and $V$ for \texttt{CONFIG\_FS\_VERITY=y}.
+\tool{} executes the Makefile symbolically and keeps each Make variable as a set of words, each guarded by a path condition over these options, so that the membership of each word is a value summary in the sense of MultiSE~\cite{sen2015multise}.
+Line~1 adds \texttt{ext4.o} to \texttt{obj-y} under $E_y$ and to \texttt{obj-m} under $E_m$.
+Line~2 is an overwrite that applies under only some options: under $T_y$ it replaces \texttt{obj-y} with \texttt{ext4-inode-test.o}, and under $T_m$ it replaces \texttt{obj-m}.
+\tool{} therefore adds \texttt{ext4-inode-test.o} to \texttt{obj-y} under $T_y$ and to \texttt{obj-m} under $T_m$, and keeps \texttt{ext4.o} only where the overwrite does not apply, which is $E_y \land \neg T_y$ for \texttt{obj-y} and $E_m \land \neg T_m$ for \texttt{obj-m}.
+Lines~3--7 assign \texttt{EXTRA} in both arms of a conditional; path merging joins the two arms into one symbolic state in which \texttt{EXTRA} is \texttt{verity} under $V$ and \texttt{crypto} under $\neg V$.
+Line~8 then expands into two words with complementary conditions, and line~9 makes \texttt{inode-test.o} a member of the composite object \texttt{ext4-inode-test.o}, so it is built whenever its parent is.
+\autoref{tab:example} lists the resulting build conditions.
+They are local to this Makefile: the condition of a file also includes the condition under which Kbuild descends into the directory \texttt{fs/ext4/}.
+
+\begin{table}[t]
+\centering\footnotesize
+\caption{Build conditions of the files built by \autoref{lst:example}.}
+\label{tab:example}
+\begin{tabular}{lll}
+\toprule
+File & Built into the kernel (\texttt{obj-y}) & Built as a module (\texttt{obj-m}) \\
+\midrule
+\texttt{ext4.o} & $E_y \land \neg T_y$ & $E_m \land \neg T_m$ \\
+\texttt{ext4-inode-test.o} & $T_y$ & $T_m$ \\
+\texttt{inode-test.o} & $T_y$ & $T_m$ \\
+\texttt{verity.o} & $V$ & --- \\
+\texttt{crypto.o} & $\neg V$ & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The build conditions answer the developer's question directly.
+Evaluated on the configuration at hand, they explain why \texttt{ext4.o} is absent, for example because $T_y$ holds.
+Combined with the constraints of Kconfig, they are satisfiability modulo theories (SMT) formulae from which a solver finds a configuration that builds \texttt{ext4.o} by satisfying $E_y \land \neg T_y$.
+\tool{} offers these two uses as the commands \texttt{why} and \texttt{config-for}.
+A satisfying assignment still needs to be checked against Kconfig and a real build, which \autoref{sec:eval} reports.
+
+The symbolic execution of Kbuild Makefiles by Nguyen and Nguyen~\cite{nguyen2020kbuild} forks a symbolic state at every conditional and reduces the number of paths by path merging and by split-merge.
+In this example, the two tristate options and the conditional give $3 \times 3 \times 2 = 18$ paths before merging, and every further independent conditional can double the number.
+The two goal definitions above hold six guarded words in total, and each further append adds one more.
+MultiSE~\cite{sen2015multise} introduced value summaries to avoid this growth in paths, and Kmax~\cite{gazzillo2017kmax} also localizes configuration explosion to the statement level.
+
+In short, guarded words per variable and path merging at each conditional give one build condition per file at a cost that grows with the number of words, so the conditions can be used for the questions that developers ask about a build.
 
 \section{Approach}\label{sec:approach}
 

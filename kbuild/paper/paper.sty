@@ -14,6 +14,13 @@
 \usepackage[linesnumbered,ruled,vlined,norelsize]{algorithm2e}
 \SetAlgorithmName{Alg.}{Algorithm}{List of Algorithms}
 \usepackage{listings}
+\lstdefinelanguage{kbuild}{
+  morekeywords={ifeq,ifneq,ifdef,ifndef,else,endif,include},
+  morecomment=[l]{\#}, sensitive=true}
+\lstdefinestyle{kbuild}{language=kbuild, basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\bfseries, commentstyle=\itshape, numbers=left,
+  numberstyle=\tiny, numbersep=6pt, xleftmargin=1.5em, columns=fullflexible,
+  keepspaces=true, showstringspaces=false}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,calc}
 \usepackage{subcaption}
