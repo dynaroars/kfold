@@ -26,6 +26,8 @@ git clone https://github.com/torvalds/linux --depth=1
 
 4. Configure build options
 
+Open up the interactive ncurse menu to select the build options.
+
 ```bash
 cd linux
 make menuconfig
