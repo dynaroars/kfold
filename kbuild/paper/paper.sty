@@ -14,6 +14,9 @@
 \usepackage[linesnumbered,ruled,vlined,norelsize,noend]{algorithm2e}
 \SetAlgorithmName{Alg.}{Algorithm}{List of Algorithms}
 \SetAlgoCaptionSeparator{.}
+% generated table bodies (table/xxx.tex); \@@input avoids the file hooks of \input,
+% which break the last row of a tabular before \bottomrule
+\makeatletter\newcommand{\tablebody}[1]{\@@input table/#1.tex }\makeatother
 \usepackage{listings}
 \lstdefinelanguage{kbuild}{
   morekeywords={ifeq,ifneq,ifdef,ifndef,else,endif,include},

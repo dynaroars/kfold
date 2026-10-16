@@ -23,7 +23,7 @@
 
   % We evaluate \tool{} on Linux 7.2.8 and four other \texttt{kbuild}-based systems by comparing its build conditions under concrete configurations with the source files built by fresh builds.
   % On four Linux configurations, from \texttt{tinyconfig} to \texttt{allmodconfig}, the predicted files agree with the built files, with no false positive and no miss, from 512 to 29,556 files.
-  % \tool{} analyzes the 2,215 Makefile instances of the Linux x86 tree in 143.1\,s.
+  % \tool{} analyzes the 2,215 Makefile instances of the Linux x86 tree in 143.1\,s. \tl{abstract time, instance count, and RSS come from numbers.tex, which disagrees with results/timing.json (48.2\,s, 2,225 instances, 214.6\,MB for Linux); confirm which is current}
   % The build conditions explain the build status of all 400 sampled Linux files and, combined with a Kconfig model, produce configurations for 384 of the 402 commits of a Linux stable update that touch C or assembly files.
 \end{abstract}
 
@@ -302,17 +302,111 @@
   Moreover, $\Phi_M(o)$ captures the constraints encoded in Kbuild Makefiles alone; Kconfig inter-option dependencies (\texttt{depends on}, \texttt{select}, and \texttt{choice} blocks) are conjoined separately during solver queries (\autoref{sec:approach:use}).
   Consequently, any satisfying assignment produced by the SMT solver is treated as a candidate configuration that must be validated by running the Kconfig configurator and executing a concrete build, as evaluated in \autoref{sec:eval}.
 
-\section{Implementation}
-  \label{sec:impl}
+\section{Implementation}\label{sec:impl}
 
-\section{Evaluation}
-  \label{sec:eval}
-  \subsection{Experimental Setup}
-    \label{sec:setup}
-  \subsection{RQ1}
-    \label{sec:rq1}
-  \subsection{RQ2}
-    \label{sec:rq2}
+This section describes the implementation of \tool{}, its project configuration format, and its command-line analyses.
+\tool{} is implemented in Python.
+Following Kmax~\cite{gazzillo2017kmax} and Nguyen and Nguyen~\cite{nguyen2020kbuild}, it parses Makefiles into abstract syntax trees (ASTs) using \texttt{pymake3}, our Python~3 port of the Mozilla \texttt{pymake} parser, and represents guards and build conditions as quantifier-free formulae in the Z3 SMT solver~\cite{demoura2008z3}.
+Each configuration option is encoded as a finite enumeration sort in Z3 over two values ($\{\texttt{y}, \text{unset}\}$ for the Boolean domain) or three values ($\{\texttt{y}, \texttt{m}, \text{unset}\}$ for projects that enable the tristate domain).
+Guards are constructed from equality predicates over these option sorts using logical conjunction, disjunction, and negation, and \tool{} simplifies each formula eagerly after every Boolean operation~\cite{sen2015multise}.
+
+During worklist traversal (\autoref{alg:extract}), \tool{} queries Z3 to check guard satisfiability, prune infeasible directory routes, and restrict child states.
+To avoid redundant parsing and evaluation when a subdirectory Makefile is reached along multiple routes, \tool{} serializes the post-execution symbolic state of each Makefile---together with its recorded explicit rules---into a disk cache keyed by canonical file path; a subsequent visit under a new residual guard $\delta$ loads the cached state and conjoins $\delta$ directly (\autoref{line:exec} of \autoref{alg:extract}).
+Because a Makefile can be re-evaluated under multiple residual guards across the directory hierarchy, the number of Makefile instances processed during a full-tree analysis can exceed the number of distinct Makefile files in the source tree.
+Alongside the build conditions, \tool{} records provenance metadata for each target object: the contributing Makefiles, goal definitions, and explicit rules, as well as the \texttt{include} directives resolved or left unresolved and any Makefiles that failed to parse.
+
+Project-specific settings specify the entry Makefiles and Kbuild conventions of \autoref{sec:approach:dirs} and \autoref{sec:approach:objects}.
+Each project configuration declares the top-level entry directories (each optionally guarded by an enabling configuration option), the entry build goals, the recognized goal-definition prefixes and their aliases, fixed variable bindings such as \texttt{SRCARCH=x86}, the top-level link targets, the option domain (Boolean or tristate), and toggles for the three Kbuild linking semantics of \autoref{sec:approach:objects}.
+We extract these declarations directly from each project's top-level Makefiles and annotate every entry with the source lines from which it is derived.
+For Linux x86, the project configuration specifies ten entry directories (three of them conditionally guarded), two entry goals, and fixed bindings for the architecture variables \texttt{SRCARCH} and \texttt{BITS}~\cite{gazzillo2017kmax}.
+
+\tool{} provides a command-line interface that answers the developer queries of \autoref{sec:approach:use} over a cached whole-tree analysis.
+The whole-tree cache stores the build condition, target classification, and provenance of every extracted object; it is keyed by a cryptographic digest of the analyzer source and project settings, and tracks the timestamps of all read Makefiles and included files so that modifying any build file automatically invalidates the cache.
+Given an object file and a concrete \texttt{.config}, the \texttt{why} command reports a condition chain that traces the directory reachability route to the object's Makefile, the goal definition or composite object that selects the file, and the truth value of each clause under the given \texttt{.config}.
+When an object is omitted from the build, \texttt{why} pinpoints the first falsified conjunct in the condition chain and lists the configuration options responsible.
+
+For the \texttt{config-for} command, \tool{} constructs a Kconfig feature model $K$ using \texttt{kconfiglib} (extended to parse newer Kconfig syntax) and slices $K$ to the cone of influence of the options referenced in the touched objects' build conditions.
+In $K$, each option is bounded above by its \texttt{depends on} constraints and below by incoming \texttt{select} clauses, and an option may be enabled only when activated by a \texttt{select}, an \texttt{imply}, a visible user prompt, or an active \texttt{default} attribute.
+Because $K$ abstracts away the priority order among multiple active defaults, it over-approximates the set of valid Kconfig assignments.
+When invoked with verification enabled, \texttt{config-for} writes the solver's candidate assignment as a configuration fragment, runs the kernel configurator (\texttt{make olddefconfig}) to materialize a valid \texttt{.config}, and verifies both that the requested option settings are preserved and that \tool{} predicts every target object under the resulting configuration.
+Finally, the \texttt{blindspots} command evaluates the extracted build conditions across a corpus of configurations and reports build-system blind spots---source files that remain uncompiled under every configuration in the corpus---grouped by their subsystem entries in \texttt{MAINTAINERS}.
+The implementation of \tool{} and all evaluation scripts are available in the anonymized artifact.
+
+\section{Evaluation}\label{sec:eval}
+
+We evaluate \tool{} to determine how accurately its build conditions predict the object files produced by concrete builds, how its consolidated state representation scales relative to path-forking symbolic execution and Kmax, how effectively its build conditions support developer maintenance tasks, and how each component of its design contributes to accuracy.
+Specifically, we investigate four research questions:
+\begin{description}
+\item[RQ1 (Build Agreement)] When the extracted build conditions are evaluated under concrete configurations, how accurately do the predicted object sets match the ground-truth object files compiled by full builds?
+\item[RQ2 (Scalability)] How do the running time and memory consumption of \tool{} scale with the number of conditional assignments compared with path-forking symbolic execution and Kmax, and what is the cost of analyzing entire project trees?
+\item[RQ3 (Developer Tasks)] Can the extracted build conditions explain why source files are included or excluded in a build, synthesize valid configurations to compile files modified by real-world commits, and identify uncompiled blind spots across standard configurations?
+\item[RQ4 (Comparison and Ablation)] How does \tool{} compare with Kmax in build agreement on the same concrete builds, and how much do \texttt{include} inlining, rule closure, and Kbuild link semantics contribute to \tool{}'s precision and recall?
+\end{description}
+
+\subsection{Experimental Setup}\label{sec:setup}
+
+\emph{Subjects.}
+\autoref{tab:subjects} summarizes the five open-source Kbuild systems and concrete configurations used in our evaluation: Linux 7.2.8, BusyBox 1.38.0, Barebox 2026.09.0, Das U-Boot 2026.07, and coreboot 26.06.
+Linux and BusyBox are the two benchmark systems evaluated by Kmax~\cite{gazzillo2017kmax} and Nguyen and Nguyen~\cite{nguyen2020kbuild}, allowing a direct comparison on established subjects.
+Barebox, Das U-Boot, and coreboot are widely used bootloader and firmware codebases whose Kbuild dialects introduce stage-specific goal-definition prefixes (\eg, for secondary program loaders and ROM stages), testing whether \tool{} generalizes across Kbuild variants~\cite{gazzillo2017kmax}.
+Each subject tree is unpacked from an official release tarball and verified against its published SHA-256 checksum where available (Linux, BusyBox, and coreboot).
+For BusyBox, we run \texttt{make gen\_build\_files} before analysis because BusyBox generates several of its Kbuild Makefiles from templates during build preparation.
+For Linux, we evaluate four representative configurations that span the configuration space: \texttt{tinyconfig} (i386) and \texttt{allmodconfig} (x86-64) represent the minimal and maximal kernel builds, \texttt{defconfig} is the standard default x86-64 kernel configuration, and the Debian x86-64 configuration represents a production distribution kernel~\cite{nguyen2020kbuild}.
+Each of the remaining four subjects is evaluated on its standard default or sandbox configuration.
+
+\begin{table}[t]
+\centering\footnotesize
+\caption{Subjects, configurations, and the number of object files in each fresh build.}
+\label{tab:subjects}
+\begin{tabular}{lllr}
+\toprule
+Subject & Version & Configuration & Objects \\
+\midrule
+\tablebody{subjects}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\emph{Ground-Truth Builds.}
+Following Nguyen and Nguyen~\cite{nguyen2020kbuild}, we establish ground truth for each configuration $c$ by running a clean concrete build and recording the compiled \texttt{.o} object files.
+Each configuration is built from scratch with \texttt{make -k -j8}, where \texttt{-k} instructs Make to continue compiling independent targets past any individual compile error so that the ground-truth inventory is complete.
+Build times range from 2.6 minutes for Linux \texttt{tinyconfig} to 100.2 minutes for Linux \texttt{allmodconfig}.
+The ground-truth object set $B_c$ for configuration $c$ comprises all \texttt{.o} files emitted in the build tree, excluding the post-processing \texttt{*.mod.o} stubs generated by \texttt{modpost}.
+
+We modify stock configurations only when required by the host toolchain or missing external assets:
+in the Debian kernel configuration, we clear the trusted and revocation key-path strings because Debian's signing certificates are external to the upstream kernel tree, and \texttt{olddefconfig} drops four Debian-specific patch options;
+in Linux \texttt{allmodconfig}, we disable \texttt{WERROR}, \texttt{DRM\_WERROR}, and \texttt{DRM\_AMDGPU\_WERROR} so warnings under GCC~16.2 do not abort compilation;
+in coreboot, we set \texttt{CONFIG\_PAYLOAD\_NONE=y} to avoid cloning the external SeaBIOS repository during the build;
+and in U-Boot, we pass \texttt{NO\_PYTHON=1} because its device-tree Python wrapper invokes removed Python~2 APIs, which causes only the final \texttt{binman} image-packaging step to fail after all object files have been compiled.
+In BusyBox, \texttt{networking/tc.c} fails to compile against modern Linux kernel headers; we record such compile-time failures---along with downstream targets identified via \texttt{make -n} that Make skipped due to a failed prerequisite---separately from analysis false positives.
+
+\emph{Metrics.}
+For a subject codebase, \tool{} extracts a universe $U$ of target objects and maps each object $o \in U$ to its build condition $\Phi_M(o)$.
+Substituting the concrete option settings of a configuration $c$ into each condition yields the predicted object set $P_c = \{o \in U \mid c \models \Phi_M(o)\}$.
+When evaluating $\Phi_M(o)$ under $c$, any option that is omitted from \texttt{.config} or marked ``\texttt{is not set}'' takes the value unset; the Linux analysis uses the tristate option domain.
+Comparing the predicted set $P_c$ against the ground-truth build inventory $B_c$, we measure true positives $TP = |P_c \cap B_c|$, false positives $FP = |P_c \setminus B_c|$, in-universe false negatives $FN_U = |(B_c \cap U) \setminus P_c|$, and out-of-universe built objects $O = |B_c \setminus U|$.
+From these counts we report precision $TP / (TP + FP)$ and overall build overlap $TP / |B_c|$.
+Whereas $FN_U$ measures imprecision in the symbolic execution of extracted Makefiles (extracted objects whose build condition evaluated to false despite being built), the overlap metric $TP / |B_c|$ penalizes the analysis for every built object outside the extracted universe $U$, such as arch-specific boot payloads under \texttt{arch/x86/boot/} invoked via top-level \texttt{bzImage} recipes.
+
+\emph{Baselines and Ablations.}
+We compare \tool{} against Kmax~\cite{gazzillo2017kmax} (\texttt{kmaxall} v4.10) on Linux and BusyBox by evaluating Kmax's extracted Boolean conditions under the same concrete configurations and scoring them against $B_c$ using the same metrics.
+In RQ2, we evaluate scalability on synthetic Kbuild Makefiles containing $k$ independent conditional blocks, comparing \tool{} against a conventional path-forking symbolic executor (which forks a symbolic state at each conditional branch~\cite{nguyen2020kbuild}) and against Kmax.
+In RQ4, we conduct an ablation study that disables three design components of \tool{} one at a time: static \texttt{include} inlining (\texttt{no\_includes}), transitive prerequisite closure over explicit rules (\texttt{no\_rules}), and the three Kbuild linking and reachability rules of \autoref{sec:approach:objects} (\texttt{no\_link\_semantics}).
+
+\emph{Experimental Environment.}
+All static analyses and concrete builds were executed on a workstation equipped with an Intel Core i7-7700 CPU (8 logical cores) and 31\,GiB of RAM running Debian GNU/Linux, with Python 3.14.7, Z3 5.1.0, GNU Make 4.4.1, and GCC 16.2.0.
+Linux configurations that enable Rust support were compiled with \texttt{rustc} 1.95.0 and \texttt{bindgen} 0.72.1, and coreboot was compiled using its bundled i386 cross-compilation toolchain.
+Each static analysis run executes as a single-threaded process.
+For whole-tree performance measurements, we run each tool three times per subject on an idle system (load average below 1.0) and report the median wall-clock running time and peak resident set size (RSS).
+\tl{environment.json records kfold\_dirty = true; pin the commit before submission. Confirm that the builds ran on the same machine, and which of numbers.tex and results/timing.json is current.}
+
+\subsection{RQ1: Build Agreement}\label{sec:rq1}
+
+\subsection{RQ2: Scalability}\label{sec:rq2}
+
+\subsection{RQ3: Developer Tasks}\label{sec:rq3}
+
+\subsection{RQ4: Comparison and Ablation}\label{sec:rq4}
 
 \section{Related Work}
   \label{sec:related}
