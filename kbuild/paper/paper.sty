@@ -11,8 +11,9 @@
 \usepackage{xcolor}
 \usepackage{xspace}
 \usepackage{enumitem}
-\usepackage[linesnumbered,ruled,vlined,norelsize]{algorithm2e}
+\usepackage[linesnumbered,ruled,vlined,norelsize,noend]{algorithm2e}
 \SetAlgorithmName{Alg.}{Algorithm}{List of Algorithms}
+\SetAlgoCaptionSeparator{.}
 \usepackage{listings}
 \lstdefinelanguage{kbuild}{
   morekeywords={ifeq,ifneq,ifdef,ifndef,else,endif,include},
@@ -37,6 +38,10 @@
 \newaliascnt{definition}{theorem}
 \newtheorem{definition}[definition]{Definition}
 \aliascntresetthe{definition}
+\theoremstyle{acmplain}
+\newaliascnt{proposition}{theorem}
+\newtheorem{proposition}[proposition]{Proposition}
+\aliascntresetthe{proposition}
 \theoremstyle{acmplain}
 \providecommand*{\definitionautorefname}{Definition}
 \providecommand*{\theoremautorefname}{Theorem}
@@ -66,6 +71,9 @@
 \renewcommand*{\subsubsectionautorefname}{\S}
 \renewcommand*{\appendixautorefname}{App.}
 \renewcommand*{\algorithmautorefname}{Alg.}
-\providecommand*{\lineautorefname}{line}
+\providecommand*{\AlgoLineautorefname}{line}
+\renewcommand*{\AlgoLineautorefname}{line}
 \renewcommand*{\definitionautorefname}{Def.}
 \renewcommand*{\theoremautorefname}{Thm.}
+\providecommand*{\propositionautorefname}{Prop.}
+\renewcommand*{\propositionautorefname}{Prop.}
