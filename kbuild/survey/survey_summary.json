@@ -1,0 +1,849 @@
+{
+ "ranking": [
+  {
+   "id": "D1",
+   "rank": 1,
+   "use_in_paper": "motivation + RQ3 object-level coverage-gap measurement",
+   "one_line": "Compile-test burden is documented by kernel policy and canned configs miss code, but gap numbers are one-group line-level and demand for a tool is unshown."
+  },
+  {
+   "id": "D9",
+   "rank": 2,
+   "use_in_paper": "RQ3 task (soundness of not-built verdict) + related work",
+   "one_line": "Strongest independent demand (CNA, CRA, six tool groups) but kernel-cve-triage already ships the verdict; contribute measured accuracy and explanation."
+  },
+  {
+   "id": "D2",
+   "rank": 3,
+   "use_in_paper": "RQ3 task (config-for, object-level, head-to-head)",
+   "one_line": "Solved at line level by klocalizer/krepair; kfold can only claim exactness, explanation, verified multi-file result and smaller change set if measured."
+  },
+  {
+   "id": "D4",
+   "rank": 4,
+   "use_in_paper": "RQ3 task (blindspots with arch/Kconfig/actionable partition) + one motivation sentence",
+   "one_line": "Anecdotal but consistent maintainer chore; no shipped whole-tree report; effect size must be re-derived and separated from arch-gating."
+  },
+  {
+   "id": "D10",
+   "rank": 5,
+   "use_in_paper": "RQ3 task (counterfactual sufficiency of why)",
+   "one_line": "Kbuild half exact, Kconfig half limited; kmax has view-kbuild and unsat-core so the differentiator is per-.config conjunct plus measured accuracy."
+  },
+  {
+   "id": "D11",
+   "rank": 6,
+   "use_in_paper": "base-config variant of config-for + related work (ICSE 2025)",
+   "one_line": "syzbot ci guesses options with an LLM and ICSE 2025 already applied krepair; KUnit failures are mostly Kconfig drift."
+  },
+  {
+   "id": "D5",
+   "rank": 7,
+   "use_in_paper": "sub-table inside blindspots task",
+   "one_line": "Real but rare Makefile-guard bugs; checkkconfigsymbols, Kmax 2017 and kconfiglint cover class (a); only unsat-under-K is distinctive and its yield is unknown."
+  },
+  {
+   "id": "D8",
+   "rank": 8,
+   "use_in_paper": "worked examples in config-for task; intro/discussion use case",
+   "one_line": "Mostly Kconfig, ABI and judgement chores; object-level delta is redundant with RQ1 accuracy; demand is documentation only."
+  },
+  {
+   "id": "D6",
+   "rank": 9,
+   "use_in_paper": "related work + small skip table on existing harness",
+   "one_line": "Per-patch small covers exist (krepair, JMake); skipping fixed matrices is answerable from build logs; no operator request found."
+  },
+  {
+   "id": "D7",
+   "rank": 10,
+   "use_in_paper": "related work + limitation",
+   "one_line": "Only Makefile-logic changes are visible to a condition diff; FEVER, Passos and distro ABI checks are prior art; Debian evidence is single-source."
+  },
+  {
+   "id": "D3",
+   "rank": 11,
+   "use_in_paper": "limitation sentence",
+   "one_line": "Stable breakage exists (at least four build-fix releases in 14 months) but causes are missing prerequisites, toolchain and headers, not object selection."
+  }
+ ],
+ "rq3_recommendation": "Keep the three existing tasks and add one. Priority order. (0) Prerequisite already in hand: object-level accuracy against the four real inventories plus the 400 why verdicts, with a Kmax same-object comparison; reuse it everywhere. (1) NEW: triage a fix commit against a .config (D9). For all objects x 4 configs and the 402 .c/.S commits of v7.2.7..v7.2.8 (a CVE-like proxy, not CVEs), measure false 'not built' (target 0), agreement, commit-level drops, with non-x86 and header-only commits as separate buckets; baselines are Kmax kreader formulas evaluated as kernel-cve-triage does, cvehound's parser if callable, and always-relevant; classify every disagreement and test the kreader-error path; time the whole-tree table against kmaxall on one machine. About 4-6 person-days, minutes of compute. (2) config-for (D2) with three bases (defconfig, Debian with the DLN2 and GPIB requests as worked examples, the syzbot ci config as D11 variant): solved rate, options changed, olddefconfig retention, compile success (reconcile 40 vs 384), failure taxonomy of the 18 with non-x86 split, baselines naive leaf-symbol and predicted allyesconfig plus make file.o; optional klocalizer on about 30 commits only with user approval, one process at a time, smoke test first. (3) blindspots (D4) re-derived with Debian added and composite/intermediate artifacts removed; partition into arch-gated, unreachable under K, actionable; false-blind rate against inventories; 40 stratified actionable objects verified by config-for, olddefconfig and compile; baselines randconfig curve and a Kmax-formula script; fold in the D5 split (undefined symbol / unsat / BROKEN, both Makefile condition and K must over-approximate), checkkconfigsymbols as superset baseline and a 100-defect mutation test. (4) why (D10): counterfactual sufficiency on 100 absent objects per config against baselines nearest-Makefile-symbol, Kmax-formula symbols and why-without-K, with a 50-case hand check of Kconfig-side reasons labelled a limitation. (5) Optional exploratory skip table (D6 plus bisect): per commit and config, commits whose touched objects are all unbuilt, sound only when no header, Kconfig, Makefile or script is touched, with git bisect pathspec and ccache as baselines; do not infer it from the 72 percent figure (289 of 402 commits have at least one, not all, unbuilt object under defconfig). D7 and D3 stay related work and limitations. State up front: object granularity (no #ifdef, headers, toolchain, runtime), x86 entry, K is an over-approximation used only by config-for, no first claim, demand evidenced by policy and operator artifacts rather than surveys. Introduction claims: submit checklist and netdev profile (config choice is the submitter's); krepair 'no assurance' sentence cited once with caveats plus Torvalds 2025; maintainers patching gaps by hand (Golaszewski 2025, Kitt 2022, Hovold 2025, Rini 2022); kernel CNA rule and EU CRA dates for CVE applicability; syzbot ci LLM prompt and manually maintained all_tests.config as operators guessing configs.",
+ "bibliography": [
+  {
+   "key": "krepair24",
+   "title": "krepair (exact title not captured in the dossiers): repairing Linux configurations so that patches are compiled",
+   "authors": "Yildiran, Oh, Lawall, Gazzillo",
+   "venue": "ESEC/FSE 2024 (PACMSE vol. 1 FSE, DOI 10.1145/3643746)",
+   "year": "2024",
+   "url": "https://arxiv.org/abs/2404.17966",
+   "supports": "No-assurance sentence; patch-line coverage 21.7/29.2/88.5/98.5 on 507 patches; 97 percent need one config; 11 percent cross-compile; header-only 2 percent; timings kclause 2-3 min, kmax 10-15 min, caching; cite as one source with line-level caveats"
+  },
+  {
+   "key": "icse25",
+   "title": "A Little Goes a Long Way: Tuning Configuration Selection for Continuous Kernel Fuzzing",
+   "authors": "Hasanov, Nagy, Gazzillo",
+   "venue": "ICSE 2025",
+   "year": "2025",
+   "url": "https://www.paulgazzillo.com/papers/icse25.pdf",
+   "supports": "syz-kconf covers 43.2 percent of patched lines, 98.6 percent after krepair; 35 vs 13 bugs; median 76 options changed; D11 prior art"
+  },
+  {
+   "key": "kmax17",
+   "title": "Kmax (ESEC/FSE 2017; full title not captured in the dossiers)",
+   "authors": "Gazzillo",
+   "venue": "ESEC/FSE 2017",
+   "year": "2017",
+   "url": "https://paulgazzillo.com/papers/esecfse17.pdf",
+   "supports": "Per-file Kbuild conditions; Table 2 orphaned and unbuildable file counts (v3.19, BusyBox 1.25.0); 77.52 s per architecture; validation only of the file set"
+  },
+  {
+   "key": "kmaxrepo",
+   "title": "kmax: analysis tools for Kconfig and Kbuild constraints (README)",
+   "authors": "Gazzillo and contributors",
+   "venue": "GitHub",
+   "year": "2026",
+   "url": "https://github.com/paulgazz/kmax",
+   "supports": "klocalizer, koverage, kismet; 72 stars; limitation 'some lines may still be omitted'; kismet credited to 0-day"
+  },
+  {
+   "key": "kmaxadv",
+   "title": "kmax docs/advanced.md",
+   "authors": "Gazzillo and contributors",
+   "venue": "GitHub docs",
+   "year": "2026",
+   "url": "https://github.com/paulgazz/kmax/blob/master/docs/advanced.md",
+   "supports": "'The extracted formulas may not be exact.'; 'Passing multiple architectures is not supported.'; --view-kbuild, --show-unsat-core, koverage statuses, BusyBox workflow, tristate -T"
+  },
+  {
+   "key": "kmax308",
+   "title": "kmax issue 308: arch-specific unit satisfiable on x86_64",
+   "authors": "external reporter and maintainer",
+   "venue": "GitHub issue (cite by number)",
+   "year": "2026",
+   "url": "https://github.com/paulgazz/kmax/issues/308",
+   "supports": "One independent CI user of Kmax; one-architecture-at-a-time limit"
+  },
+  {
+   "key": "kmaxpypi",
+   "title": "kmax 4.10 on PyPI",
+   "authors": "Gazzillo",
+   "venue": "PyPI",
+   "year": "2026",
+   "url": "https://pypi.org/project/kmax/",
+   "supports": "Release 2026-08-18; install requirements; limits"
+  },
+  {
+   "key": "kmaxbugs",
+   "title": "kmax docs/bugs_found.md",
+   "authors": "Gazzillo and contributors",
+   "venue": "GitHub docs",
+   "year": "2026",
+   "url": "https://raw.githubusercontent.com/paulgazz/kmax/master/docs/bugs_found.md",
+   "supports": "0-day integration is kismet (May 2022), not klocalizer"
+  },
+  {
+   "key": "oss22",
+   "title": "OSS NA 2022 krepair slides",
+   "authors": "Gazzillo, Yildiran",
+   "venue": "Open Source Summit NA",
+   "year": "2022",
+   "url": "https://paulgazzillo.com/files/oss2022.pdf",
+   "supports": "v5.13: 13,411 commits, 1,177 header-only, 1,296 non-x86; DVB leak timeline; same group as krepair"
+  },
+  {
+   "key": "tartler11",
+   "title": "Configuration Coverage in the Analysis of Large-Scale System Software",
+   "authors": "Tartler et al.",
+   "venue": "PLOS 2011",
+   "year": "2011",
+   "url": "https://sigops.org/s/conferences/sosp/2011/workshops/plos/02-tartler.pdf",
+   "supports": "Covering problem stated; allyesconfig 78.49 vs 94.40 percent of #ifdef blocks on Linux 2.6.35 x86; dead blocks 1,778; silent Kconfig overwrite"
+  },
+  {
+   "key": "jmake17",
+   "title": "JMake: Dependable Compilation for Kernel Janitors",
+   "authors": "Lawall, Muller",
+   "venue": "DSN 2017",
+   "year": "2017",
+   "url": "https://inria.hal.science/hal-01555711v1",
+   "supports": "Prior art for 'were my changed lines compiled'; fixed config set; allyesconfig plus right arch sufficient for most commits"
+  },
+  {
+   "key": "patchlens",
+   "title": "Automated Detection of Configuration-Specific Security Vulnerabilities via Patch Analysis (PatchLens)",
+   "authors": "de Sant'Anna Paixao, Santos, da Mota Silveira Neto, Menasche, Figueiredo, de Almeida",
+   "venue": "FSE 2026 (PACMSE, DOI 10.1145/3808126)",
+   "year": "2026",
+   "url": "https://arxiv.org/abs/2606.25863",
+   "supports": "Per-patch impact conditions with Kbuild upward walk; 1,192 Linux patches, 88.67 percent resolved; header limit; competitor for D9"
+  },
+  {
+   "key": "fcc",
+   "title": "Inferring 1-Minimal Trigger Configurations for Assessing Linux Kernel CVE Triggerability (FCC)",
+   "authors": "not captured",
+   "venue": "ISSTA 2026 (arXiv 2608.15225)",
+   "year": "2026",
+   "url": "https://arxiv.org/abs/2608.15225",
+   "supports": "Options silently rolled back by olddefconfig; olddefconfig feedback loop; adjacent to D11"
+  },
+  {
+   "key": "configfix",
+   "title": "ConfigFix (title not captured in dossiers)",
+   "authors": "Franz et al.",
+   "venue": "ICSE SEIP 2021 (arXiv 2012.15342)",
+   "year": "2020",
+   "url": "https://arxiv.org/pdf/2012.15342",
+   "supports": "Xconfig does not show which parts of a constraint are unmet; Kconfig-side conflict resolution; merge status unverified"
+  },
+  {
+   "key": "hubaux12",
+   "title": "A User Survey of Configuration Challenges in Linux and eCos",
+   "authors": "Hubaux, Xiong, Czarnecki",
+   "venue": "VaMoS 2012",
+   "year": "2012",
+   "url": "https://gsd.uwaterloo.ca/sites/default/files/vamos12-survey.pdf",
+   "supports": "97 respondents, 81 usable; 20 percent need a few dozen minutes to activate an inactive option; Kconfig half, not Kbuild"
+  },
+  {
+   "key": "nadi13",
+   "title": "Linux Variability Anomalies: What Causes Them and How Do They Get Fixed?",
+   "authors": "Nadi, Dietrich, Tartler, Holt, Lohmann",
+   "venue": "MSR 2013",
+   "year": "2013",
+   "url": "https://cris.fau.de/publications/118685644",
+   "supports": "Anomalies persist about 6 releases; typos are not the common cause; #ifdef level, not Kbuild"
+  },
+  {
+   "key": "fever16",
+   "title": "FEVER: Extracting Feature-oriented Changes from Commits",
+   "authors": "Dintzner, van Deursen, Pinzger",
+   "venue": "MSR 2016",
+   "year": "2016",
+   "url": "https://repository.tudelft.nl/file/File_7b9c13b0-d3ed-4d30-84a1-5de5ecaef4b9",
+   "supports": "Prior art for Makefile-mapping changes per commit; 82.6 percent accuracy on 300 commits; file-level, text-based"
+  },
+  {
+   "key": "passos15",
+   "title": "Coevolution of variability models and related software artifacts (title from URL slug)",
+   "authors": "Passos et al.",
+   "venue": "EMSE 2015",
+   "year": "2015",
+   "url": "https://gsd.uwaterloo.ca/sites/default/files/paper_0.pdf",
+   "supports": "Manual catalogue of 500+ Linux commits; prior art for D7"
+  },
+  {
+   "key": "elsharkawy17",
+   "title": "An Empirical Study of Configuration Mismatches in Linux",
+   "authors": "El-Sharkawy, Krafczyk, Schmid",
+   "venue": "SPLC 2017",
+   "year": "2017",
+   "url": "https://arxiv.org/abs/2110.05828",
+   "supports": "80 mismatches in Linux 4.4.1, about two-thirds may cause misconfiguration"
+  },
+  {
+   "key": "nguyen20",
+   "title": "Nguyen and Nguyen 2020, symbolic execution of make with Z3 (title unverified)",
+   "authors": "Nguyen, Nguyen",
+   "venue": "ICSME 2020 per dossiers (unverified)",
+   "year": "2020",
+   "url": "https://roars.dev/pubs/nguyen2020using2.pdf",
+   "supports": "Closest Makefile symbolic-execution prior art; ran out of memory on large Linux Makefiles; basic merging"
+  },
+  {
+   "key": "zhou15",
+   "title": "Zhou et al. 2015, SYMake (RELENG workshop; title unverified)",
+   "authors": "Zhou et al.",
+   "venue": "RELENG 2015",
+   "year": "2015",
+   "url": "https://download.hrz.tu-darmstadt.de/pub/FB20/Dekanat/Publikationen/Crossing/Zhou_RELENG_15_pdf",
+   "supports": "Earliest symbolic execution of Makefiles for presence conditions; no sub-make; tested on artificial Makefiles"
+  },
+  {
+   "key": "nguyen22",
+   "title": "Analyzing build code with CMake (title unverified)",
+   "authors": "Nguyen et al.",
+   "venue": "unverified",
+   "year": "2022",
+   "url": "https://roars.dev/pubs/nguyen2022analyzing.pdf",
+   "supports": "KBuild-style techniques handle only three-valued options; challenges for build-condition extraction"
+  },
+  {
+   "key": "kismet21",
+   "title": "Kismet / kclause paper (title not captured)",
+   "authors": "not captured",
+   "venue": "ESEC/FSE 2021",
+   "year": "2021",
+   "url": "https://paulgazzillo.com/papers/esecfse21.pdf",
+   "supports": "Formal Kconfig semantics (kclause); 781 unmet-dependency alarms; Kconfig-bug finding outside kfold scope"
+  },
+  {
+   "key": "varexec",
+   "title": "Variational execution comparison with symbolic execution (arXiv 1809.04193, title not captured)",
+   "authors": "not captured",
+   "venue": "arXiv",
+   "year": "2018",
+   "url": "https://arxiv.org/pdf/1809.04193",
+   "supports": "Definition of variational execution; merge strategy; kfold belongs to this family"
+  },
+  {
+   "key": "typechef",
+   "title": "TypeChef (OOPSLA 2011; title and authors not captured)",
+   "authors": "not captured",
+   "venue": "OOPSLA 2011",
+   "year": "2011",
+   "url": "https://www.cs.cmu.edu/~ckaestne/pdf/oopsla11_typechef.pdf",
+   "supports": "Variability-aware parsing of unpreprocessed C; handles #ifdef inside files, which kfold does not"
+  },
+  {
+   "key": "superc12",
+   "title": "SuperC (PLDI 2012; title and authors not captured)",
+   "authors": "not captured",
+   "venue": "PLDI 2012",
+   "year": "2012",
+   "url": "https://www.paulgazzillo.com/papers/pldi12.pdf",
+   "supports": "Fork/merge discipline at static conditionals; source of klocalizer #ifdef constraints"
+  },
+  {
+   "key": "multise",
+   "title": "Multi-SE value summaries (title not captured)",
+   "authors": "Sen et al.",
+   "venue": "unverified",
+   "year": "2015",
+   "url": "https://people.eecs.berkeley.edu/~ksen/papers/multise.pdf",
+   "supports": "Guarded-value state merging, structurally close to kfold variables"
+  },
+  {
+   "key": "kuznetsov12",
+   "title": "Efficient state merging in symbolic execution",
+   "authors": "Kuznetsov et al.",
+   "venue": "PLDI 2012",
+   "year": "2012",
+   "url": "https://www.plai.ifi.lmu.de/publications/pldi12-statemerging.pdf",
+   "supports": "Reference state-merging technique; merged disjunctions are hard for SMT solvers"
+  },
+  {
+   "key": "liebig13",
+   "title": "Scalable analysis of variable software (FSE 2013; title not captured)",
+   "authors": "not captured",
+   "venue": "ESEC/FSE 2013",
+   "year": "2013",
+   "url": "https://www.cs.cmu.edu/~ckaestne/pdf/fse13.pdf",
+   "supports": "Lifted analysis beats most sampling while complete; justifies one all-configurations pass"
+  },
+  {
+   "key": "kdocsubmit",
+   "title": "Submit checklist",
+   "authors": "Linux kernel documentation",
+   "venue": "docs.kernel.org",
+   "year": "2026",
+   "url": "https://docs.kernel.org/process/submit-checklist.html",
+   "supports": "Config choice left to the submitter; hard-to-test Kconfig combinations"
+  },
+  {
+   "key": "kdocnetdev",
+   "title": "Networking subsystem maintainer profile",
+   "authors": "Linux kernel documentation",
+   "venue": "docs.kernel.org",
+   "year": "2026",
+   "url": "https://docs.kernel.org/process/maintainer-netdev.html",
+   "supports": "allyesconfig and allmodconfig with W=1 minimum"
+  },
+  {
+   "key": "kdockvm",
+   "title": "KVM x86 maintainer profile",
+   "authors": "Linux kernel documentation",
+   "venue": "docs.kernel.org",
+   "year": "2026",
+   "url": "https://docs.kernel.org/process/maintainer-kvm-x86.html",
+   "supports": "Exhaustive Kconfig building infeasible"
+  },
+  {
+   "key": "kdoccve",
+   "title": "CVE assignments (kernel CNA)",
+   "authors": "Linux kernel documentation",
+   "venue": "docs.kernel.org",
+   "year": "2026",
+   "url": "https://docs.kernel.org/process/cve.html",
+   "supports": "CVE applicability left to the user"
+  },
+  {
+   "key": "kdockconfiglang",
+   "title": "Kconfig language: COMPILE_TEST",
+   "authors": "Linux kernel documentation",
+   "venue": "docs.kernel.org",
+   "year": "2026",
+   "url": "https://docs.kernel.org/kbuild/kconfig-language.html",
+   "supports": "COMPILE_TEST encouraged to increase build coverage; manual mechanism"
+  },
+  {
+   "key": "cracr",
+   "title": "Regulation (EU) 2024/2847 (Cyber Resilience Act)",
+   "authors": "European Union",
+   "venue": "EUR-Lex CELEX:32024R2847",
+   "year": "2024",
+   "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R2847",
+   "supports": "Article 14 from 2026-09-11; application from 2027-12-11"
+  },
+  {
+   "key": "openvex",
+   "title": "OpenVEX specification",
+   "authors": "OpenVEX",
+   "venue": "GitHub",
+   "year": "n.d.",
+   "url": "https://github.com/openvex/spec/blob/main/OPENVEX-SPEC.md",
+   "supports": "vulnerable_code_not_present justification maps to a not-built file"
+  },
+  {
+   "key": "siemens25",
+   "title": "Triaging CVEs for the Linux Kernel (slides)",
+   "authors": "Steiger (Siemens)",
+   "venue": "Open Source Summit slides",
+   "year": "2025",
+   "url": "https://opensource.siemens.com/events/2025/slides/Christoph_Steiger__Triaging_CVEs_for_the_Linux_Kernel.pdf",
+   "supports": "90-95 percent not relevant for CIP defconfig (own claim, mixed checks); goals Be fast and No false negatives; VEX output"
+  },
+  {
+   "key": "cipreadme",
+   "title": "kernel-cve-triage README",
+   "authors": "Siemens / CIP",
+   "venue": "GitLab",
+   "year": "2026",
+   "url": "https://gitlab.com/cip-project/cip-kernel/kernel-cve-triage/-/raw/main/README.md",
+   "supports": "Filtered 2658/2953; per-check successes/runs; tailored to our use case; formula generation expensive"
+  },
+  {
+   "key": "cipkmax",
+   "title": "kernel-cve-triage kmax.py",
+   "authors": "Siemens / CIP",
+   "venue": "GitLab source",
+   "year": "2026",
+   "url": "https://gitlab.com/cip-project/cip-kernel/kernel-cve-triage/-/raw/main/src/cve_triage/triage/kmax.py",
+   "supports": "kreader --show-constraints evaluated as Boolean over enabled options; no Kconfig model"
+  },
+  {
+   "key": "cipintro",
+   "title": "kernel-cve-triage checks/introduced_by.py",
+   "authors": "Siemens / CIP",
+   "venue": "GitLab source",
+   "year": "2026",
+   "url": "https://gitlab.com/cip-project/cip-kernel/kernel-cve-triage/-/raw/main/src/cve_triage/triage/checks/introduced_by.py",
+   "supports": "Header expansion with depth limit; built=None fail-open path"
+  },
+  {
+   "key": "cipirc",
+   "title": "CIP IRC meeting 2024-08-22",
+   "authors": "CIP developers",
+   "venue": "Linux Foundation IRC log",
+   "year": "2024",
+   "url": "https://ircbot.wl.linuxfoundation.org/meetings/cip/2024/08/cip.2024-08-22-13.02.log.txt",
+   "supports": "Formula generation 5-10 min; accuracy checked on three kernel versions"
+  },
+  {
+   "key": "cvehound",
+   "title": "cvehound",
+   "authors": "evdenis",
+   "venue": "GitHub",
+   "year": "2026",
+   "url": "https://github.com/evdenis/cvehound",
+   "supports": "Heuristic Kbuild parser; ifdefs are not checked; unknown files counted as affected"
+  },
+  {
+   "key": "sbomcve",
+   "title": "sbom-cve-check",
+   "authors": "Bootlin",
+   "venue": "GitHub",
+   "year": "2026",
+   "url": "https://github.com/bootlin/sbom-cve-check",
+   "supports": "Compiled-source filtering from debug-info builds; not-applicable-config"
+  },
+  {
+   "key": "kcvepruner",
+   "title": "KCVEPruner",
+   "authors": "Ossillate",
+   "venue": "GitHub and KubeCon India 2026 slides",
+   "year": "2026",
+   "url": "https://github.com/ossillate-inc/kcvepruner",
+   "supports": "Build-tree based CVE pruning; work in progress, no validation"
+  },
+  {
+   "key": "lynx",
+   "title": "Copy Fail / Dirty Frag embedded Linux device risk",
+   "authors": "Lynx",
+   "venue": "vendor blog",
+   "year": "2026",
+   "url": "https://www.lynx.com/blog/copy-fail-dirty-frag-embedded-linux-device-risk",
+   "supports": "Counter-evidence: config alone is insufficient for applicability"
+  },
+  {
+   "key": "garmin25",
+   "title": "Improving Build Time SBoMs",
+   "authors": "Watt (Garmin)",
+   "venue": "LPC 2025 Build Systems MC",
+   "year": "2025",
+   "url": "https://lpc.events/event/19/contributions/2020/",
+   "supports": "Downstream demand to discard vulnerabilities for non-compiled source"
+  },
+  {
+   "key": "syzpatch",
+   "title": "syzbot ci patch_triage.go",
+   "authors": "Google syzkaller",
+   "venue": "GitHub source",
+   "year": "2026",
+   "url": "https://raw.githubusercontent.com/google/syzkaller/master/pkg/aflow/flow/fuzzing/patch_triage.go",
+   "supports": "LLM EnableConfigs prompt and name-existence validation"
+  },
+  {
+   "key": "syzglobal",
+   "title": "syz-cluster global-config.yaml",
+   "authors": "Google syzkaller",
+   "venue": "GitHub source",
+   "year": "2026",
+   "url": "https://raw.githubusercontent.com/google/syzkaller/master/syz-cluster/overlays/gke/prod/global-config.yaml",
+   "supports": "All nine production targets use upstream-apparmor-kasan.config"
+  },
+  {
+   "key": "syzfuzz",
+   "title": "syz-cluster workflow fuzz main.go",
+   "authors": "Google syzkaller",
+   "venue": "GitHub source",
+   "year": "2026",
+   "url": "https://api.github.com/repos/google/syzkaller/contents/syz-cluster/workflow/fuzz/main.go",
+   "supports": "Symbol-hash skip; unreached patched area treated as fine; base and patched configs"
+  },
+  {
+   "key": "kunitallconfig",
+   "title": "tools/testing/kunit/configs/all_tests.config",
+   "authors": "Linux kernel",
+   "venue": "torvalds/linux",
+   "year": "2026",
+   "url": "https://github.com/torvalds/linux/blob/master/tools/testing/kunit/configs/all_tests.config",
+   "supports": "The config is manually maintained; UML scope"
+  },
+  {
+   "key": "kunitprime",
+   "title": "lib: Ensure prime numbers tests are included in KUnit test runs (4ea404fdbc39)",
+   "authors": "Brown",
+   "venue": "Linux commit",
+   "year": "2025",
+   "url": "https://api.github.com/repos/torvalds/linux/commits/4ea404fdbc39",
+   "supports": "KUnit dependency drift: select removed, tests silently not built"
+  },
+  {
+   "key": "kunitiommu",
+   "title": "iommupt: Fix the kunit building (cefd81e76a8c)",
+   "authors": "Gunthorpe",
+   "venue": "Linux commit",
+   "year": "2026",
+   "url": "https://api.github.com/repos/torvalds/linux/commits/cefd81e76a8c",
+   "supports": "Hand-written kunitconfig broken by GENERIC_PT becoming unselectable"
+  },
+  {
+   "key": "lkmloctn",
+   "title": "LKML Octeon COMPILE_TEST thread",
+   "authors": "Roeck, Le Moal, Herring",
+   "venue": "LKML mirror",
+   "year": "2023",
+   "url": "https://lkml.rescloud.iu.edu/2306.2/07959.html",
+   "supports": "allmodconfig misses a Kconfig choice alternative; named config is the working unit"
+  },
+  {
+   "key": "lkmlairoha",
+   "title": "LKML Airoha UART COMPILE_TEST thread",
+   "authors": "Larsson, Kroah-Hartman",
+   "venue": "LKML mirror",
+   "year": "2025",
+   "url": "https://lkml.iu.edu/hypermail/linux/kernel/2502.1/00947.html",
+   "supports": "Trial-and-error discovery of config conditions"
+  },
+  {
+   "key": "lkmltorvalds",
+   "title": "Torvalds on build testing, Feb 2025",
+   "authors": "Torvalds",
+   "venue": "LKML mirror",
+   "year": "2025",
+   "url": "https://lkml.iu.edu/2502.3/06618.html",
+   "supports": "build testing very limited in the configuration sense"
+  },
+  {
+   "key": "lkmlgpio",
+   "title": "gpio: extend build coverage with COMPILE_TEST=y",
+   "authors": "Golaszewski",
+   "venue": "LKML mirror",
+   "year": "2025",
+   "url": "https://lkml.rescloud.iu.edu/2504.1/01019.html",
+   "supports": "Drivers not built by allmodconfig; manual COMPILE_TEST"
+  },
+  {
+   "key": "lkmlhovold",
+   "title": "dmaengine bcm2835 COMPILE_TEST",
+   "authors": "Hovold (reply by Koul)",
+   "venue": "LKML mirror",
+   "year": "2025",
+   "url": "https://lkml.iu.edu/2511.2/04659.html",
+   "supports": "Wider build coverage via COMPILE_TEST; count Hovold as one source"
+  },
+  {
+   "key": "kitt22",
+   "title": "ASoC rt1016 missing Kconfig and Makefile",
+   "authors": "Kitt",
+   "venue": "patchew",
+   "year": "2022",
+   "url": "https://patchew.org/linux/20220405171158.2168762-1-steve@sk2.org/",
+   "supports": "A driver no config could build"
+  },
+  {
+   "key": "kozlowski22",
+   "title": "omap-gpmc COMPILE_TEST thread",
+   "authors": "Kozlowski, Quadros",
+   "venue": "LKML mirror",
+   "year": "2022",
+   "url": "https://lkml.iu.edu/hypermail/linux/kernel/2204.1/07260.html",
+   "supports": "Manual multi-arch burden on submitters"
+  },
+  {
+   "key": "khan26",
+   "title": "rtl8723bs staging thread",
+   "authors": "Khan",
+   "venue": "LKML mirror",
+   "year": "2026",
+   "url": "https://lkml.iu.edu/2603.3/01784.html",
+   "supports": "Counter-evidence: compile testing isn't sufficient (reviewer, hardware)"
+  },
+  {
+   "key": "lwnfratti",
+   "title": "LWN comment on stable build failures",
+   "authors": "anonymous commenter",
+   "venue": "LWN",
+   "year": "2026",
+   "url": "https://lwn.net/Articles/1061840/",
+   "supports": "Only direct statement of the which-config-builds-this-file need (weak authority)"
+  },
+  {
+   "key": "lwnsummit25",
+   "title": "Best practices for linux-next (Maintainers Summit 2025)",
+   "authors": "Corbet",
+   "venue": "LWN",
+   "year": "2025",
+   "url": "https://lwn.net/Articles/1050027/",
+   "supports": "Some repositories get no testing; allmodconfig can hide problems (Corbet wording)"
+  },
+  {
+   "key": "lwnkmax",
+   "title": "Kconfig configuration space article",
+   "authors": "Alden",
+   "venue": "LWN",
+   "year": "2025",
+   "url": "https://lwn.net/Articles/1034811/",
+   "supports": "32,468 x86_64 options at 6.16; Kmax in 0-day (loose wording)"
+  },
+  {
+   "key": "lwncip",
+   "title": "CIP kernel team CVE handling",
+   "authors": "Corbet",
+   "venue": "LWN",
+   "year": "2025",
+   "url": "https://lwn.net/Articles/1049604/",
+   "supports": "Automated first filter by CIP config; about 2,000 CVE entries per month for 6.1"
+  },
+  {
+   "key": "lwnstable26",
+   "title": "New stable kernels to address build failures",
+   "authors": "LWN",
+   "venue": "LWN",
+   "year": "2026",
+   "url": "https://lwn.net/Articles/1061524/",
+   "supports": "6.12.76, 6.6.129, 6.1.166 build-fix releases; no cause stated"
+  },
+  {
+   "key": "lwnkbuild",
+   "title": "Kbuild and Kconfig maintainership",
+   "authors": "LWN",
+   "venue": "LWN",
+   "year": "2025",
+   "url": "https://lwn.net/Articles/1032722/",
+   "supports": "Kbuild odd fixes, Kconfig unmaintained after Yamada stepped down"
+  },
+  {
+   "key": "lwnccache",
+   "title": "Kernel build time and ccache",
+   "authors": "LWN",
+   "venue": "LWN",
+   "year": "2026",
+   "url": "https://lwn.net/Articles/1093398/",
+   "supports": "960 s clean vs about 90 s fully cached build; ceiling for build-skip savings"
+  },
+  {
+   "key": "stablelkft",
+   "title": "LKFT 5.15.197-rc1 report and dropped replies",
+   "authors": "LKFT, Kroah-Hartman",
+   "venue": "LKML mirror",
+   "year": "2025",
+   "url": "https://lkml.iu.edu/hypermail/linux/kernel/2512.0/07713.html",
+   "supports": "Stable-rc build failures: arm 15/101, mips 22/22, powerpc 3/22; causes are prerequisites and toolchain"
+  },
+  {
+   "key": "stables390",
+   "title": "6.1.136-rc1 s390 virtio_ccw report",
+   "authors": "Rosato, Kroah-Hartman",
+   "venue": "mail-archive",
+   "year": "2025",
+   "url": "https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg2589470.html",
+   "supports": "Missing-prerequisite backport; dropped"
+  },
+  {
+   "key": "kernelci20",
+   "title": "KernelCI community survey 2020",
+   "authors": "KernelCI",
+   "venue": "kernelci.org",
+   "year": "2020",
+   "url": "https://kernelci.org/?p=109",
+   "supports": "Top need per-patch testing; nothing on build configuration"
+  },
+  {
+   "key": "lkftslides",
+   "title": "Faster Linux Kernel Testing with Linaro's Open-Source Tools and LKFT Automation (slides)",
+   "authors": "Roxell et al.",
+   "venue": "foss-north 2025",
+   "year": "2025",
+   "url": "https://foss-north.se/2025/slides/aroxell-kerneltesting-slides.pdf",
+   "supports": "About 430k builds in 2024; pains are fragmented CI and slow feedback, not config analysis"
+  },
+  {
+   "key": "nipa",
+   "title": "netdev NIPA",
+   "authors": "linux-netdev",
+   "venue": "GitHub",
+   "year": "2026",
+   "url": "https://github.com/linux-netdev/nipa",
+   "supports": "Two allmodconfig-based build checks; manual skip"
+  },
+  {
+   "key": "zeroday26",
+   "title": "0-day tip/urgent report 2026-03",
+   "authors": "kernel test robot",
+   "venue": "LKML mirror",
+   "year": "2026",
+   "url": "https://lkml.iu.edu/2603.0/05564.html",
+   "supports": "configs tested 27, skipped 48; no per-object statement"
+  },
+  {
+   "key": "uboot_rini",
+   "title": "U-Boot net driver removals (Rini)",
+   "authors": "Rini",
+   "venue": "mail-archive",
+   "year": "2022",
+   "url": "https://www.mail-archive.com/u-boot@lists.denx.de/msg436281.html",
+   "supports": "Drivers not enabled by any board, removed by hand"
+  },
+  {
+   "key": "uboot_glass",
+   "title": "U-Boot build-coverage question",
+   "authors": "Glass",
+   "venue": "mail-archive",
+   "year": "2012",
+   "url": "https://www.mail-archive.com/u-boot@lists.denx.de/msg98954.html",
+   "supports": "Question posed on code no board enables (not a tool request)"
+  },
+  {
+   "key": "buildman",
+   "title": "U-Boot buildman documentation",
+   "authors": "U-Boot project",
+   "venue": "docs",
+   "year": "2026",
+   "url": "https://docs.u-boot-project.org/en/latest/build/buildman.html",
+   "supports": "File-to-board mapping listed as an unfinished idea"
+  },
+  {
+   "key": "barebox25",
+   "title": "barebox: build and test sandbox allyesconfig in CI",
+   "authors": "Fatoum",
+   "venue": "mail-archive",
+   "year": "2025",
+   "url": "https://www.mail-archive.com/barebox@lists.infradead.org/msg52399.html",
+   "supports": "Blanket config in CI to catch compile-time breakage"
+  },
+  {
+   "key": "debianbug",
+   "title": "Debian bug 1118653 (MASQUERADE after 6.17)",
+   "authors": "Debian kernel team and reporter",
+   "venue": "Debian BTS",
+   "year": "2025",
+   "url": "https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1118653",
+   "supports": "D7 anecdote; narrative must follow the verified timeline (reopened, only disabled on -rt)"
+  },
+  {
+   "key": "debianwish",
+   "title": "Debian wishlist bug 1126062 (enable MFD_DLN2)",
+   "authors": "reporter",
+   "venue": "Debian BTS",
+   "year": "2026",
+   "url": "https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1126062",
+   "supports": "Driver-enable request listing options by hand; worked example for config-for"
+  },
+  {
+   "key": "checksym",
+   "title": "scripts/checkkconfigsymbols.py",
+   "authors": "Linux kernel",
+   "venue": "torvalds/linux",
+   "year": "2026",
+   "url": "https://github.com/torvalds/linux/blob/master/scripts/checkkconfigsymbols.py",
+   "supports": "Text-level undefined-symbol check covering Makefile lines; baseline for D5 class (a)"
+  },
+  {
+   "key": "kconfiglint",
+   "title": "as3668 fix citing kconfiglint (d92e7ca6)",
+   "authors": "Levin",
+   "venue": "Linux commit",
+   "year": "2026",
+   "url": "https://github.com/torvalds/linux/commit/d92e7ca6931910e72ebbed7ff96f4f74c24cf0d8.patch",
+   "supports": "Undefined Makefile symbol left a driver unbuilt; kconfiglint tool source not located"
+  },
+  {
+   "key": "kconfirm",
+   "title": "Kconfirm v4 cover letter",
+   "authors": "Braha",
+   "venue": "LKML mirror",
+   "year": "2026",
+   "url": "https://lkml.iu.edu/2607.3/03886.html",
+   "supports": "Kconfig-level dead-code checker; 1282 alarms; complementary, not competing"
+  },
+  {
+   "key": "gitbisect",
+   "title": "git bisect documentation",
+   "authors": "Git project",
+   "venue": "git-scm.com",
+   "year": "n.d.",
+   "url": "https://git-scm.com/docs/git-bisect",
+   "supports": "Pathspec limiting; skip only for untestable commits; baseline for bisect-skip idea"
+  },
+  {
+   "key": "syzbisect",
+   "title": "syzkaller pkg/bisect/bisect.go",
+   "authors": "Google syzkaller",
+   "venue": "GitHub source",
+   "year": "2026",
+   "url": "https://raw.githubusercontent.com/google/syzkaller/master/pkg/bisect/bisect.go",
+   "supports": "Post-hoc no-op change detection by binary signature; closest bisect prior art"
+  },
+  {
+   "key": "bergmann26",
+   "title": "Large scale kernel build testing on a desktop",
+   "authors": "Bergmann",
+   "venue": "Kernel Recipes 2026 (Speaker Deck)",
+   "year": "2026",
+   "url": "https://speakerdeck.com/ennael/large-scale-kernel-build-testing-on-a-desktop",
+   "supports": "Dominant practice is private randconfig sampling; no coverage measure"
+  }
+ ],
+ "open_questions": [
+  "lore.kernel.org returned HTTP 403 throughout, so all mailing-list evidence comes from partial mirrors and a summarizing fetch tool: no list-wide count of which-CONFIG-builds-X requests, no search for klocalizer or koverage mentions on the lists, no check of 0-day or Kbuild-maintainer statements; claims of the form no maintainer asked for this are unverified, and the web-search budget also ran out so newer competitors may be missing.",
+  "No klocalizer or Kmax head-to-head has been run on the same objects: unknown whether kextract's v7.1 parser handles Linux 7.2.8, the default-invocation Kmax runtime and memory on this machine (the saved run used -T and took 6275 s and 28.5 GB), how Kmax treats tristate in the default path, and whether the units-only path ever calls Java.",
+  "How Intel 0-day chooses configs per patch is undocumented; if it uses klocalizer or Kmax the novelty of D1, D2 and D6 shrinks.",
+  "config_for_compile.json showed 40 sampled commits compiled in one verifier's read while the task statement says 384 verified; reconcile before publishing.",
+  "kfold timing is reported as 57.96 s (agreement file), 138.7 s (STATUS.md) and about a minute; the blindspots count of 3,209 includes composite or intermediate artifacts and must be re-derived; the 18 unsolved commits are not split by architecture; the 35 non-.c/.S commits (Rust, DTS, tools, docs) are not characterised; header-only share is 2 percent (krepair) vs 8.8 percent (2022 slides).",
+  "Whether the kernel-cve-triage fail-open path (kreader error stored as built=None leading to no file is compiled) triggers in practice is untested; header expansion and multi-arch behaviour were read through a summarizer.",
+  "Unverified items: JMake details beyond the DSN abstract, Passos et al. full text, Nguyen and Nguyen 2020 title and venue, PatchLens repository location, Kconfirm and ConfigFix merge status, Debian GPIB amd64 outcome, the 6.12.27 build-fix claim, authors and titles of several PL references.",
+  "Stakeholders not heard: Kbuild and Kconfig maintainers, Intel 0-day operators, KernelCI/LKFT/syzbot operators beyond public files, stable maintainers, distro kernel teams, Rust-for-Linux, recent COMPILE_TEST campaign authors; demand is evidenced by policy and operator artifacts only, and the only direct statement of the need is one anonymous LWN comment.",
+  "Whether a sound build-condition skip rule yields a non-trivial fraction of skippable commits (bisect or CI matrix) is unmeasured; the 289 of 402 figure counts commits with at least one unbuilt object, not all unbuilt; no Linux-specific prior art on this was found but the search was incomplete."
+ ]
+}

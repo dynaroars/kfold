@@ -1,0 +1,77 @@
+=== PROBLEM P6: Dead objects and Makefile bugs: Makefile entries guarded by undefined or unsatisfiable symbols (H5)
+who: Kbuild/Kconfig maintainers, subsystem maintainers, janitors/cleanup authors (Bulwahn), kernel researchers
+strength: Moderate. About 14 claims. Many independent LKML anecdotes and one small academic study; no statistics on frequency in recent kernels. The gpib claim (2) is an inference about the consequence. Claim 3 is #ifdef-level. Claims 164 and 296 are snippets only.
+existing: scripts/checkkconfigsymbols.py (text match on undefined symbols), manual cleanup patches, kismet/Kconfirm (Kconfig side only), 2011 undertaker dead-block work.
+gap: Condition-level detection: objects whose build condition is unsatisfiable under the Kconfig model, mutually conflicting, or overridden. checkkconfigsymbols only finds undefined references, not unreachable objects. The yield on 7.2.8 and the other trees is unknown.
+fit: object-selection - Exactly what the object condition exposes (unsat or undefined-symbol conditions). Overlaps P5; needs a Kconfig model to prove unsatisfiability. The evidence is anecdotal, so a measurement of how many such objects exist on 7.2.8 is needed to turn it into a result.
+
+--- supporting claims
+[2] (pain_point/anecdote, 2025-01-08) A staging/gpib Makefile referred to a Kconfig symbol that does not exist, GPIB_TNT4882, where the real symbol is GPIB_NI_PCI_ISA. The fetched page does not say outright that the object was never built, so that consequence is an inference. The mismatch was found by comparing Makefiles; no tool is named.
+    quote: "refers to the non-existing config GPIB_TNT4882"
+    source: Re: [PATCH] staging: gpib: refer to correct config symbol in tnt4882 Makefile | Lukas Bulwahn (patch author), reply with Acked-by from Arnd Bergmann | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/hypermail/linux/kernel/2501.1/00790.html
+    candidate_problem: Kbuild Makefile bug where the object's build condition mentions an undefined symbol. kfold's blindspots or build-condition output flags objects whose condition is unsatisfiable or references an undeclared option.
+
+[3] (pain_point/anecdote, 2021-12-27) Dead code guarded by a Kconfig option that never existed went unnoticed in the kernel tree. Bulwahn's cleanup removed it, and Linus Walleij reviewed it. This is C-preprocessor-level dead code, outside kfold's file granularity; a Kbuild analog is the gpib Makefile case above.
+    quote: "The config DBX500_PRCMU_QOS_POWER was never introduced in the kernel repository."
+    source: Re: [PATCH] mfd: db8500-prcmu: remove dead code for a non-existing config | Linus Walleij (reply to Lukas Bulwahn) | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/hypermail/linux/kernel/2112.3/01759.html
+    candidate_problem: Out of scope for kfold (ifdef-level dead code, handled today by checkkconfigsymbols.py per search snippets). Useful for scoping the paper.
+
+[99] (pain_point/anecdote, 2013) Nadi et al. (MSR 2013) study variability anomalies spread over code, Kconfig and Makefiles (Kbuild): anomalies arise from incomplete patches that change Kconfig definitions without propagating to the rest of the system, and persist for several releases before being fixed. Supports the need for cross-artifact (Kconfig/Kbuild/code) consistency checking; abstract has no counts.
+    quote: "variability anomalies are often introduced through incomplete patches that change KCONFIG definitions"
+    source: Linux Variability Anomalies: What Causes Them and How Do They Get Fixed? | Sarah Nadi, Christian Dietrich, Reinhard Tartler, Richard C. Holt, Daniel Lohmann | 10th Working Conference on Mining Software Repositories (MSR 2013), pp. 111-120 | https://cris.fau.de/publications/118685644
+    candidate_problem: Patches that change Kconfig/Kbuild inconsistently; objects silently unbuildable (blindspots)
+
+[100] (statistic/statistic, 2013) Same MSR 2013 study: anomalies persist across releases before fixes, which means unbuildable or dead configuration-dependent artifacts can sit unnoticed.
+    quote: "variability anomalies exist for several releases in the kernel before they get fixed."
+    source: Linux Variability Anomalies: What Causes Them and How Do They Get Fixed? | Nadi, Dietrich, Tartler, Holt, Lohmann | MSR 2013 | https://cris.fau.de/publications/118685644
+    candidate_problem: Long-lived anomalies in Kconfig/Kbuild (blindspots)
+
+[101] (statistic/statistic, 2017 (arXiv 2021-10-12)) El-Sharkawy, Krafczyk, Schmid: manual analysis of 80 mismatches between the Kconfig variability model and what the build system or code realizes in Linux 4.4.1; about two-thirds may lead to kernel misconfigurations. Relevant to Kconfig/Kbuild mismatch (kfold's object conditions could expose them). Venue/date per the fetched arXiv page (SPLC 2017; arXiv posted Oct 2021).
+    quote: "about two-thirds of the configuration mismatches may actually lead to kernel misconfigurations"
+    source: An Empirical Study of Configuration Mismatches in Linux | Sascha El-Sharkawy, Adam Krafczyk, Klaus Schmid | SPLC 2017; arXiv 2110.05828 | https://arxiv.org/abs/2110.05828
+    candidate_problem: Kconfig vs Kbuild/code mismatches (blindspots, why)
+
+[132] (existing_tool/tool, 2015) scripts/checkkconfigsymbols.py finds Kconfig symbols that are referenced in the tree but never defined. It has -c (check one commit), -d (diff commit range) and similar-symbol suggestions, and it requires a clean Git tree. It detects undefined symbols in source and Makefiles by text matching, not build conditions, so it is orthogonal to kfold (it would not tell whether an object is built). I did not confirm current maintenance status.
+    quote: "Find Kconfig symbols that are referenced but not defined."
+    source: [PATCH v3] checkkconfigsymbols.py: make it Git aware (and script header at https://gem5.googlesource.com/arm/linux/+/gem5/v4.4/scripts/checkkconfigsymbols.py) |  | LKML. Details are from 2015 posts; the current script has changed. | https://lkml.iu.edu/hypermail/linux/kernel/1503.2/00190.html
+    candidate_problem: Undefined-symbol checks exist; build-condition checks do not
+
+[161] (pain_point/anecdote, 2025-01-08) Objects silently never built because the Makefile names a Kconfig symbol that does not exist. 2025-01 Lukas Bulwahn patch to staging gpib; 2015-12 Peter Ujfalusi patch for serial 8250_of (never compiled; after fixing, two missing-header compile errors surfaced); 2007-07 Robert P. J. Day posted a tree-wide list of dead CONFIG variables in Makefiles. Recurring across 18 years.
+    quote: "the Makefile in the tnt4882 directory refers to the non-existing config GPIB_TNT4882."
+    source: Re: [PATCH] staging: gpib: refer to correct config symbol in tnt4882 Makefile | Lukas Bulwahn (patch); Arnd Bergmann (Acked-by) | LKML | https://lkml.iu.edu/hypermail/linux/kernel/2501.1/00790.html
+    candidate_problem: Detect objects whose build condition is unsatisfiable or references undefined symbols (dead Makefile entries, never-built files); blindspots command.
+
+[162] (pain_point/anecdote, 2015-12-18) Serial 8250_of driver never compiled because Kconfig used SERIAL_OF_PLATFORM while the Makefile expected SERIAL_8250_OF; fixing it exposed compile errors that had been hidden.
+    quote: "The 8250_of never compiled since in the Kconfig we have SERIAL_OF_PLATFORM"
+    source: [PATCH v2] serial: 8250: of: Fix the driver and actually compile the 8250_of | Peter Ujfalusi | LKML | https://lkml.iu.edu/hypermail/linux/kernel/1512.2/02084.html
+    candidate_problem: Objects that no configuration can build (condition mismatch between Kconfig and Makefile).
+
+[163] (pain_point/anecdote, 2007-07-06) Dead CONFIG variables in kernel Makefiles listed tree-wide in 2007 (e.g. obj-$(CONFIG_RXRPC) in net/Makefile, CONFIG_USB_OHCI_AT91 in drivers/usb/Makefile); foundational evidence that Makefile references to nonexistent symbols accumulate and are found by ad hoc scripts.
+    quote: "here's a list of such variables in Makefiles"
+    source: dead CONFIG variables in kernel Makefiles | Robert P. J. Day | LKML | https://lkml.iu.edu/hypermail/linux/kernel/0707.0/1748.html
+    candidate_problem: Static detection of Makefile entries guarded by non-existent or unsatisfiable symbols.
+
+[164] (existing_tool/tool, 2022-10) scripts/checkkconfigsymbols.py is what kernel developers use to find references to non-existent Kconfig symbols; Bulwahn cites it when validating cleanups (2022 thread, via search snippet; page not opened). It works on symbol references, not on object build conditions or reachability.
+    quote: "I validated my patch by running ./scripts/checkkconfigsymbols.py and determining if there are still invalid config references."
+    source: Re: [PATCH] arm/configs: Update config files for removed symbols | Lukas Bulwahn | LKML | https://lkml.iu.edu/hypermail/linux/kernel/2210.3/06409.html
+    candidate_problem: Dead/never-built object detection (existing symbol-reference check is weaker than condition satisfiability).
+
+[199] (pain_point/anecdote, 2010-07) Early evidence on never-built code: the 2010 VAMOS effort (Dietrich, Egger) found source blocks guarded by Kconfig symbols that do not exist, unreachable from any build; counts per area were 33 cases in arch/arm, 10 in arch/um, 3 in sound/. A maintainer replied that one such file (percpu_km.c) was new code waiting to be used, so some unbuilt code is intentional. Foundational and about #ifdef/Kconfig dead code, not Makefile object granularity.
+    quote: "Dead Config in mm/percpu.c"
+    source: Dead Config in mm/percpu.c | Christian Dietrich / VAMOS group | LKML | https://lkml.iu.edu/hypermail/linux/kernel/1007.2/01718.html
+    candidate_problem: Objects or code that no configuration ever builds ('blindspots') exist and are partly intentional.
+
+[294] (statistic/statistic, 2021) An arXiv study of Linux 4.4.1 manually analysed 80 configuration mismatches, where variability implemented in the build system or code differs from the Kconfig model. Roughly two-thirds may cause misconfigurations. This supports the existence of Kbuild-side variability inconsistencies, but at a small sample size and an old kernel.
+    quote: "about two-thirds of the configuration mismatches may actually lead to kernel misconfigurations"
+    source: An Empirical Study of Configuration Mismatches in Linux |  | arXiv 2110.05828 | https://arxiv.org/abs/2110.05828
+    candidate_problem: variability inconsistencies between Kbuild/code and Kconfig (supporting, but not a rarity or frequency estimate for Makefile bugs)
+
+[295] (pain_point/anecdote, 2021-05) A 2021 Kbuild patch fixed media sti Makefiles that used := on CONFIG-guarded objects, overriding other entries. This is a concrete example of a Makefile-level variability bug, the sort symbolic execution of Makefiles can surface. It is one anecdote, so it does not establish frequency.
+    quote: "fix obj-$(config) logic at sti makefiles, using "+=", instead of ":=""
+    source: [PATCH] media: sti: fix obj-$(config) targets | Mauro Carvalho Chehab | LKML | https://lkml.iu.edu/hypermail/linux/kernel/2105.2/03157.html
+    candidate_problem: Makefile variability bugs: real but found one patch at a time (frequency unknown)
+
+[296] (counter_evidence/anecdote, 2014) The Kbuild maintainer's cleanup direction is to remove special constructs and make Makefiles simpler (for example removing obj-n and lib-n). This shows Kbuild Makefiles are being kept simple by policy, which is the argument that Makefile-level variability bugs are rare. Dated 2014, search-result snippet.
+    quote: "Simpler makefiles seem better."
+    source: Re: [PATCH 3/3] kbuild: remove obj-n and lib-n handling | Masahiro Yamada | LKML | https://lkml.rescloud.iu.edu/1410.0/00967.html
+    candidate_problem: are Makefile variability bugs rare? (kbuild policy favors simplicity)

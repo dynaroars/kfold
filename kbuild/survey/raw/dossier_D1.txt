@@ -1,0 +1,265 @@
+=== PROBLEM P1: Patches never built by the author or by CI (H1)
+who: Patch authors, subsystem maintainers, linux-next integrators, CI operators
+strength: Strong. About 27 claims. Statistics exist (507-patch krepair study, 13,411-commit v5.13 slide data, 36,115 0-day reports). Sources are partly independent (academic measurement plus maintainer remarks on LKML/LWN), but most numbers come from one research group. Counter-weight: bots catch hard breaks after merge (193).
+existing: 0-day/kernel test robot, linux-next daily builds, KernelCI, TuxSuite, syzbot patch testing; krepair/klocalizer for repair; allmodconfig on x86_64 as the Torvalds proxy.
+gap: No pre-posting, per-object answer to 'is each touched object built by the configs I (or CI) used'. There is no per-object coverage report for bots. Header-only patches (about 2%) and #ifdef arms are not covered at object level.
+fit: partial - The object-level question (is the touched .o built under config X, and under which configs) is exactly kfold's output. The headline statistics are line-level and include #ifdef and header cases that kfold cannot see, so object coverage will be higher than the quoted line coverage. Do not reuse the numbers as kfold's gap without re-measuring at object level.
+
+--- supporting claims
+[4] (pain_point/anecdote, 2026-04-01) Maintainers receive many patches that were only compiled, and they say so. Andrew Lunn (netdev, Apr 2026) lists compile-tested-only patches as a normal case that reviewers must plan around. This supports a tool that at least guarantees the touched objects really build, but it does not show developers want object-level conditions.
+    quote: "The flip side to this is that we get a lot of patches which are compile tested only."
+    source: Re: [PATCH net-next v4 1/2] r8152: Add support for 5Gbit Link Speeds and EEE | Andrew Lunn | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/hypermail/linux/kernel/2604.0/01820.html
+    candidate_problem: config-for: a patch is often only compile tested, so a verified minimal config that builds exactly the touched objects makes that claim credible.
+
+[9] (pain_point/anecdote, 2017-06-07) Mauro Chehab (media maintainer) explained in 2017 why code that builds only on non-x86 hardware is a blind spot. The kernel Coverity instance sees only code that builds on x86. His per-patch i386 builds miss non-x86 breakage, and his test flow needs COMPILE_TEST to find git-bisect breakages. This is foundational, not 2023+.
+    quote: "the Coverity instance we use on Kernel works only for the code that builds on x86."
+    source: Re: [PATCH v9 9/9] media: venus: enable building of Venus video driver | Mauro Carvalho Chehab | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/hypermail/linux/kernel/1706.0/05161.html
+    candidate_problem: blindspots grouped by architecture or maintainer: objects that no common configuration (and tool) covers. Verbatim from the same page: 'if some patch breaks the build, I won't detect until too late.' and 'our test workflow relies on it, in order to identify git bisect breakages.' The 2018 media seri
+
+[31] (pain_point/anecdote, 2014-08-20) Kernel Summit 2014: the linux-next maintainer was amazed at how often allmodconfig build tests fail and noted code reaches linux-next that was never compiled. Foundational but old (2014). Cited from the 'Weekly Edition' big page; the article is 'The state of linux-next' by Jonathan Corbet, and the speaker is Stephen Rothwell (not Rostedt).
+    quote: "sometimes, developers are putting code into linux-next that clearly has never been compiled."
+    source: The state of linux-next (in LWN Weekly Edition for August 21, 2014) | Jonathan Corbet | LWN.net | https://lwn.net/Articles/608614/bigpage
+    candidate_problem: blindspots / why: code that is never compiled by any tested config; allmodconfig as the de facto 'builds everything' proxy
+
+[36] (pain_point/anecdote, 2024-05-17) Guenter Roeck on a GitLab CI proposal: patches should build, and random people should not need to report build failures to submitters. Another participant says KernelCI mostly tests multiple changes together, whereas per-push tests would catch issues earlier.
+    quote: "it should not be necessary for random people to report build failures to the submitters."
+    source: GitLab CI for the kernel | Daroc Alden (Guenter Roeck quoted) | LWN.net | https://lwn.net/Articles/972713/
+    candidate_problem: config-for: tell a submitter before posting which .config builds the objects their patch touches
+
+[48] (pain_point/anecdote, 2022-06-22) Gazzillo/Yildiran (UCF), Open Source Summit NA, 22 June 2022: there are many ways to select .config files for testing but no guarantee that a committed change is ever built. Slides also say that if the .config does not build the patch, it cannot be tested, and that even compile-time errors get committed.
+    quote: "key problem: lots of ways to select .config files for testing but no guarantee that committed changes get built"
+    source: Krepair: Automatically Repairing .config Files to Cover Patches (slides) | Paul Gazzillo, Necip Yildiran | Open Source Summit North America 2022 (slides on author site) | https://paulgazzillo.com/files/oss2022.pdf
+    candidate_problem: Does the config I (or the CI) build actually compile the files my patch touches? Per-object build conditions answer this directly.
+
+[49] (statistic/statistic, 2022-06-22) Same slides, v5.13 x86 commits: of 13,411 commits, defconfig fully covers 1,688 and leaves 8,853 not covered; one randconfig covers 2,189 and leaves 8,333 not covered (1,296 non-x86 and 1,177 header-only excluded). Slide title: 'unlikely to build a commit with typical .config files'.
+    quote: "unlikely to build a commit with typical .config files"
+    source: Krepair slides, slide 7 (bar chart) | Paul Gazzillo, Necip Yildiran | Open Source Summit North America 2022 | https://paulgazzillo.com/files/oss2022.pdf
+    candidate_problem: Typical CI configs (defconfig, one randconfig) miss most commits; knowing per-object conditions lets one pick or repair a config cheaply.
+
+[50] (pain_point/statistic, 2022-06-22) Slides explain why allyesconfig/allmodconfig is not the answer: it still misses code due to mutually exclusive options and multiple architectures, takes 3 hours vs 20 minutes for defconfig, may not boot, may be too large for constrained devices, and cannot do representative performance testing.
+    quote: "slow to build (3 hours vs. 20 minutes for defconfig)"
+    source: Krepair slides, slide 8 'why not just use allyesconfig or allmodconfig?' | Paul Gazzillo, Necip Yildiran | Open Source Summit North America 2022 | https://paulgazzillo.com/files/oss2022.pdf
+    candidate_problem: Need minimal-delta configs that build a given set of objects, not maximal configs.
+
+[53] (existing_tool/tool, 2024) FSE 2024 krepair paper (same authors plus Oh, Lawall): single randconfig gives 29.2% average patch coverage, defconfig 21.7%, allyesconfig 88.5%, krepair on defconfig 98.5% while keeping build about 10x faster than allyesconfig; in Intel 0-day's 36,115 build-test reports, 63% used randconfig, 15% allyesconfig, 7% defconfig; sample of 507 patches out of about 71,000. Direct prior art for 'config-for PATCH'.
+    quote: "a single random configuration file only achieves 29.2% patch coverage on average"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | arXiv (FSE 2024 paper) | https://arxiv.org/html/2404.17966v1
+    candidate_problem: config-for PATCH is already addressed by krepair (line-level, incl. #ifdef); kfold must show an advantage (object-level, Kbuild-semantics fidelity, explainability, speed).
+
+[77] (statistic/statistic, 2024-07) krepair paper (Yildiran, Oh, Lawall, Gazzillo, FSE 2024). On 507 sampled patches (from about 71,000 in one year), the default config (defconfig) covers only 21.7% of patch lines on average, allyesconfig covers 88.5%, and krepair's repaired configs reach 98.5% while changing under 1.53% of the base config in 99% of patches. Key problem statistic: standard fast configs do not build what patches touch.
+    quote: "compared to 21.7% for the default configuration file, defconfig"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Necip Fazil Yildiran, Jeho Oh, Julia Lawall, Paul Gazzillo | Proc. ACM Softw. Eng. 1 (FSE 2024), doi 10.1145/3643746; arXiv 2404.17966 | https://arxiv.org/abs/2404.17966
+    candidate_problem: Patch not built by any standard config (config-for)
+
+[78] (statistic/statistic, 2024-07) Analysis of Intel 0-day build-test reports (Oct 2019 - Aug 2022, 36,115 reports containing configs) shows which configs the CI actually uses: randconfig dominates, allyesconfig is 15%, defconfig and allmodconfig 7% each. Tells us what CI operators build today.
+    quote: "amounting to 22,702 configurations, or 63% of the total"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | FSE 2024 (arXiv 2404.17966, section 2) | https://arxiv.org/abs/2404.17966
+    candidate_problem: Objects no standard config builds (blindspots); CI config choice
+
+[79] (statistic/statistic, 2024-07) Random configs are a poor way to cover patches: a single randconfig covers 29.2% of a patch on average and ten random configs plateau near 75%, while each added config adds build time. allyesconfig takes about four hours versus about 20 minutes for default or krepair configs and is too large to boot on some machines.
+    quote: "plateauing at around 75% with 10 random configuration files"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | FSE 2024 (arXiv 2404.17966, sections 1-2) | https://arxiv.org/abs/2404.17966
+    candidate_problem: Build-time explosion when maximizing coverage; minimal-change config
+
+[81] (pain_point/anecdote, 2024-07) Anecdote: a Linux memory leak that syzkaller can detect stayed in the kernel for months because the config option guarding the buggy code was not enabled in syzbot's fixed config set; found only after a later default-config change. Shows fuzzers/CI have object-level blind spots that go unnoticed.
+    quote: "remained in the kernel for months, because the configuration option controlling inclusion of the buggy code was not enabled"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | FSE 2024 (section 2) | https://arxiv.org/abs/2404.17966
+    candidate_problem: Code/objects never built by the CI or fuzzer configs (blindspots)
+
+[84] (need/anecdote, 2011-10) Open problem stated: a Linux developer who modified files wants to be sure every edited line compiles before submitting a patch, but finding the covering configurations is tedious by hand. Same paper reports some files (kernel/sched_fair.c) need seven configs and that more than 90% of files reach full #ifdef coverage with at most two configs.
+    quote: "a sometimes difficult, but always tedious and error-prone task"
+    source: Configuration Coverage in the Analysis of Large-Scale System Software | Tartler, Lohmann, Dietrich, Egger, Sincero | PLOS 2011 / SIGOPS OSR 2012 | https://sigops.org/s/conferences/sosp/2011/workshops/plos/02-tartler.pdf
+    candidate_problem: Patch not built by any standard config (config-for)
+
+[111] (statistic/statistic, 2024-04-27 (arXiv); FSE 2024) krepair evaluation (FSE 2024): 507 random patches sampled from about 71,000 mainline patches (2021-09-19 to 2022-09-18). Mean patch coverage was 98.5% for krepair-repaired defconfig, 88.5% for allyesconfig, 21.7% for defconfig and 29.2% for a single randconfig. Fewer than 1.53% of defconfig options changed for 99% of patches. allyesconfig builds take about 4 hours versus about 20 minutes for defconfig or repaired configs (10.5x faster). krepair runtime is a few minutes for most runs. A kfold evaluation must compare against these numbers.
+    quote: "98.5% on average"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | FSE 2024 / PACMSE (DOI 10.1145/3643746), arXiv 2404.17966 | https://arxiv.org/html/2404.17966
+    candidate_problem: Per-patch config coverage; baseline numbers a competing approach must beat
+
+[113] (statistic/statistic, 2022) Slides from the krepair group, covering the same 507-patch sample, give mean patch coverage of defconfig 22%, randconfig 30% and syzbot 42%. allyesconfig covers about 89% of patch lines but is not bootable, has no variation and builds slowly. They argue that a typical .config rarely builds a given commit. The FSE paper also reports that 63% of 0-day build-test reports use randconfig and 15% use allyesconfig. The 22/30/42 baseline figures come from slide-deck search snippets, not from the paper's own text.
+    quote: "defconfig covers 22% of patch lines on average, randconfig 30%, and syzbot 42%"
+    source: Open Source Summit 2022 slides (Gazzillo group) | Gazzillo group | Open Source Summit (slides); numbers corroborated via search-result summary of fse24.pdf and oss2022.pdf. The PDF text itself was not readable by the fetcher. | https://paulgazzillo.com/files/oss2022.pdf
+    candidate_problem: Existing CI configs rarely build the code a patch touches
+
+[125] (pain_point/anecdote, 2018-05-14) The 0-day/kernel test robot gives no complete guarantee of config coverage. A maintainer said some configs are only rarely or never tested on his tree, and the 0-day maintainer replied there is no 100% guarantee. The Gazzillo group describes 0-day as using built-in defconfig, allnoconfig, allyesconfig, allmodconfig and hundreds of randconfigs, and the FSE paper reports 63% of 0-day reports are randconfig.
+    quote: "some configs are only rarely (never?) tested on my linux-0day tree"
+    source: Re: [Ksummit-discuss] bug-introducing patches | Boris Brezillon; reply by Fengguang Wu | ksummit-discuss mailing list. A 2018 anecdote, older than the 2023-2026 window. | https://lkml.rescloud.iu.edu/1805.1/04746.html
+    candidate_problem: Maintainers cannot tell which configs/objects CI actually builds
+
+[126] (pain_point/anecdote, 2018-05-14) The 0-day build report from the same thread admits limited coverage, and the user also asked whether a failing config is listed. The failed m68k/allmodconfig was not in the list of tested configs. This supports a 'blindspots' style need: which configs/objects are never built by the CI configs.
+    quote: "But the failed config (m68k/allmodconfig) is not listed?"
+    source: Re: [Ksummit-discuss] bug-introducing patches | Geert Uytterhoeven (quoted) | ksummit-discuss mailing list | https://lkml.rescloud.iu.edu/1805.1/04746.html
+    candidate_problem: Objects/configs missing from CI coverage lists
+
+[172] (statistic/statistic, 2024) Krepair (FSE 2024) measured per-patch line coverage on 507 sampled patches (out of about 71,000 in one year). defconfig covers 21.7% of patched lines, one randconfig covers 29.2%, allyesconfig covers 88.5%. A per-patch gap in which no standard config compiles the touched code is therefore the normal case.
+    quote: "a single random configuration file only achieves 29.2% patch coverage on average"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | FSE 2024 / arXiv 2404.17966 | https://arxiv.org/html/2404.17966v1
+    candidate_problem: A developer or CI does not know which .config compiles the files a patch touches; standard configs (defconfig, randconfig) miss most patched lines.
+
+[173] (statistic/statistic, 2024) Cost of the brute-force alternative: allyesconfig still leaves about 11.5% of patched lines uncovered and takes about four hours on a typical workstation, against about 20 minutes for defconfig. The paper says total build time for multiple random configs is proportional to the number of configs. This is the build-time argument for deciding statically which objects to build.
+    quote: "around four hours on average on a typical development workstation"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | FSE 2024 / arXiv 2404.17966 | https://arxiv.org/html/2404.17966v1
+    candidate_problem: Developers need to build only the objects touched by a patch under a cheap config; allyesconfig is too slow and incomplete.
+
+[174] (statistic/statistic, 2024) Composition of 0-day inputs, as described by the krepair authors: of 36,115 0-day reports that carried config files, 63% used randconfig. They conclude that randconfig gives little assurance a given patch is compiled. They only see the configs of reports where a regression was detected, so no public data says how often 0-day never builds a patched file.
+    quote: "the large majority (63%) are randomly-chosen configurations (randconfig)."
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | FSE 2024 / arXiv 2404.17966 | https://arxiv.org/html/2404.17966v1
+    candidate_problem: Whether the kernel test robot's randomly chosen configs ever compile a given patched object is unknown and not guaranteed.
+
+[185] (statistic/statistic, 2023-11) syzbot patch-testing requests grow from about 300 in 2018 to about 1,000 per year in 2021 and 2022, and about 1,250 extrapolated for 2023 (values read from a bar chart). These are developers asking a CI to build and run their patch because they could not do so locally, a sign of demand for patch-level build feedback.
+    quote: "Patch Testing Requests"
+    source: Syzbot: 7 years of continuous kernel fuzzing | Aleksandr Nogikh (Google) | Linux Plumbers Conference 2023 (slides) | https://lpc.events/event/17/contributions/1521/attachments/1272/2698/LPC%2723_%20Syzbot_%207%20years%20of%20continuous%20kernel%20fuzzing.pdf
+    candidate_problem: Developers rely on a bot to build and test patch variants; knowing the config for the touched objects speeds this up.
+
+[192] (pain_point/anecdote, 2025-02) linux-next tty tree (Feb 2025): a driver gated on 'ARCH_AIROHA || COMPILE_TEST) && OF && SERIAL_8250' failed to build in a config. The maintainer could not reproduce the failure and said he needed to enable OF in his own test builds. The author tried to make it build under COMPILE_TEST and found only configs 'that broke the compilation in non trivial ways', then removed COMPILE_TEST. Stephen Rothwell's reply was that an allmodconfig build 'even on x86_64' triggers the failure.
+    quote: "Odd that I can't build it here for some reason, I guess I need to enable OF on my test builds"
+    source: Re: linux-next: build failure after merge of the tty tree | Greg Kroah-Hartman; patch author; Stephen Rothwell (reply at lkml 2502.0/07677) | LKML (linux-next) | https://lkml.iu.edu/hypermail/linux/kernel/2502.1/00947.html
+    candidate_problem: A maintainer cannot tell which config enables a driver's object and trial-and-error with config options; the dependency chain is exactly what a build-condition formula would expose (the 'why OBJ' use).
+
+[242] (policy/policy, n.d.) RISC-V uses patchwork automation to build and test every patch. Patches with any failing check are unlikely to be applied and mostly need resubmission.
+    quote: "Patches for which any of the checks fail are unlikely to be applied and in most cases will need to be resubmitted."
+    source: arch/riscv maintenance guidelines for developers |  | docs.kernel.org | https://docs.kernel.org/arch/riscv/patch-acceptance.html
+    candidate_problem: Failure of automated builds costs a resubmission cycle. Predicting which configs matter pre-submission reduces that cost.
+
+[267] (statistic/statistic, 2024) FSE 2024 krepair paper: the default defconfig covers few patch lines, so CI relies on allyesconfig-like or randconfig configs. This directly contradicts 'defconfig builds are enough'.
+    quote: "compared to 21.7% for the default configuration file, defconfig"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Gazzillo et al. | FSE 2024 (arXiv 2404.17966) | https://arxiv.org/html/2404.17966v1
+    candidate_problem: config-for / patch coverage: defconfig is insufficient
+
+[268] (statistic/statistic, 2024) Skeptic's view of allyesconfig: it covers most patches, but it is slow and not bootable. The paper says allyesconfig takes about four hours on a workstation and over ten times a defconfig build. This supports speed as the argument for a targeted approach, but also shows that simple allyesconfig is the status quo that robots run.
+    quote: "comes at the cost of much slower build times, around four hours on average on a typical development workstation"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Gazzillo et al. | FSE 2024 (arXiv 2404.17966) | https://arxiv.org/html/2404.17966v1
+    candidate_problem: config-for: allyesconfig too slow for per-patch local testing
+
+[269] (statistic/statistic, 2024) The paper reports that CI predominantly uses randconfig, not hand-targeted configs. This is the robot-reliance counter-argument. The paper still shows a real bug that went unnoticed for months because its config option was disabled.
+    quote: "the large majority (63%) are randomly-chosen configurations (randconfig)"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Gazzillo et al. | FSE 2024 (arXiv 2404.17966) | https://arxiv.org/html/2404.17966v1
+    candidate_problem: robot reliance on randconfig vs targeted config
+
+[270] (pain_point/anecdote, 2024) Motivating example in the paper: a memory leak survived in mainline for months because no tested config enabled the controlling option. This is evidence that robot coverage has real blind spots, which a per-object build-condition analysis (blindspots command) targets.
+    quote: "the configuration option controlling inclusion of the buggy code was not enabled"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Gazzillo et al. | FSE 2024 (arXiv 2404.17966) | https://arxiv.org/html/2404.17966v1
+    candidate_problem: blindspots: code not built by any tested config
+
+=== PROBLEM P4: Reviewer and maintainer burden: 'did you compile test this, under which config?' (H4)
+who: Patch authors, reviewers, subsystem maintainers
+strength: Policy evidence is strong, with about 23 claims from primary kernel docs (independent, current). Direct reviewer-burden evidence is absent or negative (17, 233). The checklist is a documented burden, not a measured pain. The main absence-of-evidence claim comes from blocked lore search.
+existing: Checklist conventions, 0-day, patchwork CI (RISC-V), Media CI, netdev CI.
+gap: No tool tells a submitter or reviewer which touched objects are built under the configs they declared. The checklist's 'applicable options' is left to judgement.
+fit: partial - kfold's why/config-for supply the missing object-level check. The need is evidenced as policy burden only, and the compile-test claim ('did you...') is not shown on LKML by these claims. Must be re-checked with lore full-text search.
+
+--- supporting claims
+[4] (pain_point/anecdote, 2026-04-01) Maintainers receive many patches that were only compiled, and they say so. Andrew Lunn (netdev, Apr 2026) lists compile-tested-only patches as a normal case that reviewers must plan around. This supports a tool that at least guarantees the touched objects really build, but it does not show developers want object-level conditions.
+    quote: "The flip side to this is that we get a lot of patches which are compile tested only."
+    source: Re: [PATCH net-next v4 1/2] r8152: Add support for 5Gbit Link Speeds and EEE | Andrew Lunn | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/hypermail/linux/kernel/2604.0/01820.html
+    candidate_problem: config-for: a patch is often only compile tested, so a verified minimal config that builds exactly the touched objects makes that claim credible.
+
+[5] (policy/anecdote, 2020-07-27) Block-layer maintainer Jens Axboe's stance on a 54-driver compile-only-tested ata patch (2020): compile testing does not substitute for functional testing. Counter-evidence for the value of build-only checks as the only gate. Older than the 2023 window, but a clear maintainer statement.
+    quote: "compile only testing is a far cry from that."
+    source: Re: [PATCH v2] ata: use generic power management | Jens Axboe (quoted in reply by Vaibhav Gupta) | LKML (lkml.rescloud.iu.edu mirror) | https://lkml.rescloud.iu.edu/2007.3/03920.html
+    candidate_problem: counter-evidence: build-condition tooling addresses 'does it build', not 'does it work'. Maintainer cost is dominated by runtime verification.
+
+[6] (policy/policy, current docs (fetched 2026-10-17)) The official patch submission checklist asks for builds with the touched CONFIG options at =y, =m and =n, allnoconfig and allmodconfig, multiple architectures, and a careful Kconfig-combination review. A search snippet from a v5.x/6.x copy of the checklist (not the page I fetched) carries the admission that this is hard to test. This is the stated developer burden that why and config-for would automate.
+    quote: "Builds on multiple CPU architectures by using local cross-compile tools or some other build farm."
+    source: Linux Kernel patch submission checklist | kernel.org documentation | docs.kernel.org | https://docs.kernel.org/process/submit-checklist.html
+    candidate_problem: config-for and why: the checklist asks every submitter to hand-pick configs. Other fetched checklist lines: 'with applicable or modified CONFIG options =y, =m, and =n.'; 'Passes allnoconfig, allmodconfig'; 'Has been carefully reviewed with respect to relevant Kconfig combinations.'
+
+[17] (counter_evidence/anecdote, 2026-10-17) I found no mailing-list thread of the form 'which CONFIG option builds file X' or 'how do I build this driver' (query attempts via search returned only docs.kernel.org Kbuild documentation). I also found no maintainer reply using 'did you compile test with config X'. No fetched thread mentions kmax, klocalizer, or koverage. Developers appear to discover config problems through bot failures, not by asking the list. Not conclusive: lore full-text search was blocked and the search tool ignores exact phrases.
+    quote: "(no quote; absence of evidence across about 20 searches)"
+    source: Search outcome summary | n/a | n/a | https://docs.kernel.org/process/submit-checklist.html
+    candidate_problem: Counter-evidence: demand for 'which config builds this?' is not visible on LKML via the accessible tools. Verify with lore full-text search (s:, b: queries) from a machine that can reach it.
+
+[54] (policy/policy, 2026 (current docs)) Official kernel submit checklist asks submitters to build with applicable CONFIG options =y, =m and =n, pass allnoconfig and allmodconfig, build on multiple architectures, and test builds with related Kconfig symbols (SMP, SYSFS, PROC_FS, INPUT, PCI, BLOCK) disabled or =m. The checklist does not mention COMPILE_TEST or randconfig. It gives no tool to find which configs build a file.
+    quote: "with applicable or modified `CONFIG` options `=y`, `=m`, and `=n`."
+    source: Linux Kernel patch submission checklist | kernel documentation | docs.kernel.org | https://docs.kernel.org/process/submit-checklist.html
+    candidate_problem: Submitters are told to build under y/m/n of 'applicable' options without a tool that computes which options are applicable to the objects they touched.
+
+[225] (policy/policy, n.d.) Core submit checklist: patches must build cleanly with the applicable or modified CONFIG options set to y, m and n, with no gcc or linker warnings.
+    quote: "with applicable or modified `CONFIG` options `=y`, `=m`, and `=n`. No `gcc` warnings/errors, no linker warnings/errors."
+    source: Linux Kernel patch submission checklist |  | docs.kernel.org | https://docs.kernel.org/process/submit-checklist.html
+    candidate_problem: A developer must decide which CONFIG assignments make their patched objects build, and then build them. A per-object build condition gives that set directly.
+
+[226] (policy/policy, n.d.) The checklist admits that Kconfig-combination coverage cannot be verified by testing and has to be reasoned about by hand.
+    quote: "Has been carefully reviewed with respect to relevant `Kconfig` combinations." ... "This is very hard to get right with testing---brainpower pays off here."
+    source: Linux Kernel patch submission checklist |  | docs.kernel.org | https://docs.kernel.org/process/submit-checklist.html
+    candidate_problem: Reasoning about which Kconfig combinations matter is manual. A static, sound build-condition formula could replace it for the object-level part.
+
+[227] (policy/policy, n.d.) The checklist names a fixed list of symbols (SMP, SYSFS, PROC_FS, INPUT, PCI, BLOCK, PM, MAGIC_SYSRQ, NET, INET) and asks for 'various/random combinations' of them to be built. The selection is ad hoc and not tied to the objects touched.
+    quote: "test multiple builds with the related `Kconfig` symbols disabled and/or `=m` (if that option is available) [not all of these at the same time, just various/random combinations of them]"
+    source: Linux Kernel patch submission checklist |  | docs.kernel.org | https://docs.kernel.org/process/submit-checklist.html
+    candidate_problem: Ad hoc, random choice of configs to build-test. kfold's config-for could replace this with configs derived from the objects the patch touches.
+
+[228] (policy/policy, n.d.) The checklist requires the 'allnoconfig' and 'allmodconfig' build targets and building out-of-tree (O=).
+    quote: "Passes `allnoconfig`, `allmodconfig`" and "Builds successfully when using `O=builddir`"
+    source: Linux Kernel patch submission checklist |  | docs.kernel.org | https://docs.kernel.org/process/submit-checklist.html
+    candidate_problem: Whole-tree builds are the default proxy for 'my change compiles'. Object-level conditions could show which objects those proxies never build (blindspots).
+
+[229] (policy/policy, n.d.) The checklist requires builds on multiple CPU architectures, locally or on a build farm. It names word size and endianness as the portability axes.
+    quote: "Builds on multiple CPU architectures by using local cross-compile tools or some other build farm."
+    source: Linux Kernel patch submission checklist |  | docs.kernel.org | https://docs.kernel.org/process/submit-checklist.html
+    candidate_problem: Architecture dimension of 'did you compile this': which ARCH and config builds the touched object. This is the kind of object-to-config question kfold answers. Whether kfold handles multiple ARCHes is a limitation to check.
+
+[232] (policy/policy, n.d.) submitting-patches requires every patch in a series to build, which is bisectability. It mentions no configurations.
+    quote: "take special care to ensure that the kernel builds and runs properly after each patch in the series."
+    source: Submitting patches: the essential guide to getting your code into the kernel |  | docs.kernel.org | https://docs.kernel.org/process/submitting-patches.html
+    candidate_problem: Per-patch build condition checks across a series. Series-wide config-for could catch mid-series breakage.
+
+[233] (counter_evidence/policy, n.d.) submitting-patches has no explicit rule on which Kconfigs or architectures to compile with. Its only testing language is the Tested-by tag, which says 'in some environment'. The concrete multi-config build burden lives in submit-checklist and subsystem profiles, not in the central submission guide.
+    quote: "A Tested-by: tag indicates that the patch has been successfully tested (in some environment) by the person named."
+    source: Submitting patches: the essential guide to getting your code into the kernel |  | docs.kernel.org | https://docs.kernel.org/process/submitting-patches.html
+    candidate_problem: Compile coverage is a soft, undocumented norm in the central guide. Evidence for it has to come from subsystem profiles and the checklist.
+
+[234] (policy/policy, n.d.) Networking (netdev) sets a hard minimum bar. Changes must pass allyesconfig and allmodconfig with W=1 and add no new warnings or failures. Authors must test locally and must not use the CI as a compile service.
+    quote: "At the very minimum your changes must survive an allyesconfig and an allmodconfig build with W=1 set" ... "without new warnings or failures."
+    source: Networking subsystem (netdev) |  | docs.kernel.org | https://docs.kernel.org/process/maintainer-netdev.html
+    candidate_problem: The netdev bar is allyesconfig plus allmodconfig. That is a coarse proxy: objects whose condition is unsatisfiable together with those configs (mutually exclusive or non-default options) are never compiled. A blindspots analysis against exactly these two configs is the matching tool.
+
+[235] (policy/policy, n.d.) netdev forbids using CI as a build service. Authors must verify locally before posting. This is a burden statement about compile-checking.
+    quote: "Do not post your patches just to run them through the checks." ... "You must ensure that your patches are ready by testing them locally before posting to the mailing list."
+    source: Networking subsystem (netdev) |  | docs.kernel.org | https://docs.kernel.org/process/maintainer-netdev.html
+    candidate_problem: A local, fast, pre-posting check of 'is the touched object covered by the configs I built' would reduce wasted CI and reviewer cycles.
+
+[236] (policy/policy, n.d.) KVM x86 requires every patch in a series to build for a fixed config. It concedes that exhaustive config coverage is infeasible and names the Kconfig knobs to vary.
+    quote: "At a bare minimum, all patches in a series must build cleanly for KVM_INTEL=m KVM_AMD=m, and KVM_WERROR=y." ... "Building every possible combination of Kconfigs isn't feasible, but the more the merrier."
+    source: KVM x86 maintainer profile |  | docs.kernel.org | https://docs.kernel.org/process/maintainer-kvm-x86.html
+    candidate_problem: Maintainers say outright that full config coverage is infeasible. A per-object condition gives a targeted minimal set instead of 'the more the merrier'.
+
+[237] (policy/policy, n.d.) KVM x86 names specific knobs to vary and requires testing with the relevant module-parameter settings.
+    quote: "KVM_SMM, KVM_XEN, PROVE_LOCKING, and X86_64 are particularly interesting knobs to turn."
+    source: KVM x86 maintainer profile |  | docs.kernel.org | https://docs.kernel.org/process/maintainer-kvm-x86.html
+    candidate_problem: The 'interesting knobs' are chosen by maintainer lore. Object-level conditions could derive which knobs gate the touched objects.
+
+[238] (policy/policy, n.d.) Media subsystem builds with C=1 W=1, smatch and sparse via CHECK, and treats any new warning as unacceptable without strong justification. Media CI gates workflow stages.
+    quote: "Be sure to not introduce new warnings on your patches without a very good reason."
+    source: Media Subsystem Profile |  | docs.kernel.org | https://docs.kernel.org/driver-api/media/maintainer-entry-profile.html
+    candidate_problem: Static checkers only see objects that get compiled. Knowing which config builds the object is a precondition for all of these checks.
+
+[239] (policy/policy, n.d.) Media patches advance only if they pass the Media CI, which makes CI build coverage the gate.
+    quote: "Patches will only be moved to the next stage in these two workflows if they pass on Media CI or if there are false-positives in the Media CI reports."
+    source: Media Subsystem Profile |  | docs.kernel.org | https://docs.kernel.org/driver-api/media/maintainer-entry-profile.html
+    candidate_problem: CI gate quality depends on which configs CI builds. blindspots output can audit whether CI configs cover the subsystem's MAINTAINERS-listed objects.
+
+[240] (policy/policy, n.d.) The DAMON (mm) profile adds an explicit build step: build the related outputs and add no new errors or warnings.
+    quote: "Build changes related outputs including kernel and documents." ... "Ensure the builds introduce no new errors or warnings."
+    source: DAMON Maintainer Entry Profile |  | docs.kernel.org | https://docs.kernel.org/mm/damon/maintainer-profile.html
+    candidate_problem: Same recurring 'builds clean' obligation at smaller subsystems. It does not specify configs, so authors guess.
+
+[242] (policy/policy, n.d.) RISC-V uses patchwork automation to build and test every patch. Patches with any failing check are unlikely to be applied and mostly need resubmission.
+    quote: "Patches for which any of the checks fail are unlikely to be applied and in most cases will need to be resubmitted."
+    source: arch/riscv maintenance guidelines for developers |  | docs.kernel.org | https://docs.kernel.org/arch/riscv/patch-acceptance.html
+    candidate_problem: Failure of automated builds costs a resubmission cycle. Predicting which configs matter pre-submission reduces that cost.
+
+[246] (policy/policy, n.d.) NFSD profile describes a soak period in which patches are exposed to zero-day bots and static analyzers. Compile-level breakage is caught after merge by community bots as much as by the author.
+    quote: "it is exposed to a variety of test environments, including community zero-day bots, static analysis tools"
+    source: NFSD Maintainer Entry Profile |  | docs.kernel.org | https://docs.kernel.org/filesystems/nfs/nfsd-maintainer-entry-profile.html
+    candidate_problem: The 0-day bot is the incumbent that catches build breakage. Counter-evidence for urgency, but also evidence that breakage is found late. kfold could move the check left.
+
+[264] (policy/policy, n.d.) The official patch checklist asks submitters to build with allnoconfig and allmodconfig, with touched CONFIG options =y/=m/=n, and on several architectures. It prescribes no per-object or per-patch config computation. Practice is generic configs plus the submitter's judgement about which related options to flip.
+    quote: "Passes `allnoconfig`, `allmodconfig`"
+    source: Linux Kernel patch submission checklist |  | docs.kernel.org | https://docs.kernel.org/process/submit-checklist.html
+    candidate_problem: patch-to-config: submitters rely on allnoconfig/allmodconfig plus manual toggling of related CONFIG symbols (counter-evidence: a documented simple practice exists)
+
+[265] (policy/policy, n.d.) The same checklist lists a small fixed set of Kconfig symbols to test with (SMP, PCI, NET, INET and others) and says not to test all of them at once. Config coverage is handled by convention and human judgement, not by tooling.
+    quote: "Builds on multiple CPU architectures by using local cross-compile tools or some other build farm."
+    source: Linux Kernel patch submission checklist |  | docs.kernel.org | https://docs.kernel.org/process/submit-checklist.html
+    candidate_problem: patch-to-config; arch coverage left to the submitter (a possible gap for config-for)

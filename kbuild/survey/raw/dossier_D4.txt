@@ -1,0 +1,177 @@
+=== PROBLEM P5: Blind spots: objects that no standard or CI configuration ever builds
+who: Subsystem maintainers (esp. drivers, SoC, media), CI operators, fuzzer operators, linux-next integrators, kernel researchers
+strength: Strongest cluster. About 34 claims. It has independent recent anecdotes (Hovold patches accepted by multiple maintainers), policy (COMPILE_TEST docs), statistics (6.16 has 32,468 Kconfig options; the 0-day report shows 19 tested, 125 skipped), and principal-maintainer statements. Caveats: Hovold's cases were found manually and fixed, so the effect size across the tree is unmeasured. Torvalds's quotes came through a summarizer (57).
+existing: COMPILE_TEST convention, allmodconfig/allyesconfig, 0-day randconfigs, Arnd Bergmann's private randconfig loop, KernelCI's 220+ configs. No tool reports unbuilt objects.
+gap: A sound per-object report of objects whose condition no given config set satisfies, grouped by MAINTAINERS entry, so owners can add COMPILE_TEST or a CI config. It must account for arch (11% of patches need cross-compilation) and for intentional dead code (199).
+fit: object-selection - The blindspots command is built for this. Per-object conditions give a sound coverage denominator that sampling cannot. Caveat: in the 2025 case k3-socinfo the root cause was Kconfig-spec, though the symptom is visible at object level.
+
+--- supporting claims
+[0] (pain_point/anecdote, 2025-11-22) Since Nov 2025 Johan Hovold has posted a run of one-driver-at-a-time patches that only 'enable compile testing' for drivers nothing prevented from being compiled. The patches went to at_hdmac, bcm2835 dmaengine, tegra iommu, omap-ocp2scp and k3-socinfo, and maintainers applied them. Whole drivers were outside every COMPILE_TEST/allyesconfig/randconfig build until someone noticed by hand. No tool reports which objects no standard config can build.
+    quote: "There seems to be nothing preventing the driver from being compile tested so enable that for wider build coverage."
+    source: Re: [PATCH v2] dmaengine: bcm2835: enable compile testing | Vinod Koul (quoting Johan Hovold) | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/2511.2/04659.html
+    candidate_problem: blindspots: objects whose build condition no common configuration satisfies, found today by manual inspection. Other threads in the same campaign: https://lkml.iu.edu/2510.3/03324.html (Joerg Roedel, 2025-10-27, tegra iommu), https://lkml.iu.edu/2601.1/10576.html (Kevin Hilman, 2026-01-14, omap-ocp2
+
+[1] (pain_point/anecdote, 2026-01-14) The k3-socinfo driver was meant to be compile-testable, but the Kconfig option lacked an input prompt, so it could not be selected. Hovold's fix patch is still waiting to be picked up in Jan 2026. The root cause is a Kconfig bug, so kfold would not diagnose it. Its Kbuild-level result (the object is never built under any selectable config) is what would flag the driver.
+    quote: "There seems to be nothing preventing this driver from being compile tested"
+    source: Re: [PATCH] soc: ti: k3-socinfo: fix compile testing | Johan Hovold | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/hypermail/linux/kernel/2601.1/11851.html
+    candidate_problem: blindspots (object unreachable under every .config). The root cause is Kconfig-spec scope, outside kfold; the symptom (unbuildable object) is inside it.
+
+[7] (existing_tool/tool, 2025-09-17) Kernel test robot (0-day) is the incumbent. Each BUILD SUCCESS mail lists the sampled configs, 12 tested and 119 skipped in the Sep 2025 tip/urgent report, mostly randconfig, and says more may follow later. It samples configurations; it does not say which objects the sample covered or why an object was not built. Its reports do not name kmax or klocalizer.
+    quote: "The following configs have been built successfully."
+    source: [tip:tip/urgent] BUILD SUCCESS 70d5308cbbd7f62f5513b7d1acf904be16576f10 | kernel test robot (0-DAY CI Kernel Test Service) | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/2509.2/02067.html
+    candidate_problem: counter-evidence plus gap: robot coverage is sampled and delayed ('configs tested: 12' of 131, per the fetched summary; other reports say 'More configs may be tested in the coming days.'), with no per-object coverage report. A 2021 rcu report shows 166 tested and 2 skipped: https://lkml.iu.edu/hyper
+
+[9] (pain_point/anecdote, 2017-06-07) Mauro Chehab (media maintainer) explained in 2017 why code that builds only on non-x86 hardware is a blind spot. The kernel Coverity instance sees only code that builds on x86. His per-patch i386 builds miss non-x86 breakage, and his test flow needs COMPILE_TEST to find git-bisect breakages. This is foundational, not 2023+.
+    quote: "the Coverity instance we use on Kernel works only for the code that builds on x86."
+    source: Re: [PATCH v9 9/9] media: venus: enable building of Venus video driver | Mauro Carvalho Chehab | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/hypermail/linux/kernel/1706.0/05161.html
+    candidate_problem: blindspots grouped by architecture or maintainer: objects that no common configuration (and tool) covers. Verbatim from the same page: 'if some patch breaks the build, I won't detect until too late.' and 'our test workflow relies on it, in order to identify git bisect breakages.' The 2018 media seri
+
+[10] (policy/policy, 2013-06-17) COMPILE_TEST exists so drivers can be built in allmodconfig and by developers without the matching hardware. Jiri Slaby (2013) pitched it as a way for developers to build-test drivers that distros leave out. Greg Kroah-Hartman, quoted in the thread, valued it for developers without cross compilers. Foundational policy. It shows the current coverage mechanism is a manual Kconfig convention: each driver must opt in.
+    quote: "really valuable to ensure that they build properly, for those of us that don't have many/any cross compilers set up."
+    source: Re: [PATCH] build some drivers only when compile-testing | Jiri Slaby (quoting Greg Kroah-Hartman) | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/hypermail/linux/kernel/1306.2/00996.html
+    candidate_problem: blindspots: COMPILE_TEST opt-in coverage is incomplete, as the 2025-26 Hovold patches show. Counter-evidence: COMPILE_TEST already provides a coarse remedy.
+
+[11] (policy/anecdote, 2021-09-28) Arnd Bergmann (2021): build bots force-enable COMPILE_TEST in randconfig, and randconfig builds often select no machine type. So the main automated coverage mechanism is random sampling with COMPILE_TEST forced on, not systematic per-object coverage. Foundational.
+    quote: "As most of the build bots now force-enable CONFIG_COMPILE_TEST for randconfig builds, use that as a guard"
+    source: [PATCH 09/14] ARM: allow compile-testing without machine record | Arnd Bergmann | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/hypermail/linux/kernel/2109.3/04722.html
+    candidate_problem: counter-evidence and gap: randconfig plus COMPILE_TEST is the working approach, but it gives probabilistic rather than guaranteed coverage. Also from the page: 'A lot of randconfig builds end up not selecting any machine type at all.'
+
+[24] (pain_point/anecdote, 2025-06-24) Corbet's report of the defconfig discussion: configuring is not fun, and a missing driver means a non-working kernel. Linus Torvalds called kernel config the nastiest part of building a local kernel. Developers are asked to test on x86 defconfigs, which are rarely used to build kernels that actually run, so the standard build-test configs diverge from real use.
+    quote: "Failing to enable a needed driver will result in a non-working kernel."
+    source: Who are kernel defconfigs for? | Jonathan Corbet (Torvalds quoted in comments: "the kernel config is likely the nastiest part of building a local kernel") | LWN.net | https://lwn.net/Articles/1026337/
+    candidate_problem: config-for / blindspots: defconfig-based build testing misses objects real users enable
+
+[25] (policy/policy, 2025-06-24) Same article: contributors are regularly asked to test patches on x86 defconfigs, while defconfigs are used mainly for build testing (not running kernels). The de facto policy defines 'tested' as 'built under defconfig', which leaves objects outside the defconfig unbuilt.
+    quote: "We regularly ask our contributors to test their changes on x86 defconfigs."
+    source: Who are kernel defconfigs for? | Jonathan Corbet | LWN.net | https://lwn.net/Articles/1026337/
+    candidate_problem: blindspots: which objects does no standard config (defconfig/allmodconfig) ever build, grouped by MAINTAINERS entry
+
+[26] (statistic/statistic, 2025-09-10) 6.16 has 32,468 Kconfig options on x86_64 and the configuration count has 6,550 digits; the article says that it is certain not all configurations have been tested and that it is hard to know the coverage because testing is spread across contributors, bots, distros, companies and users.
+    quote: "With the number of possible configurations, it is certain that not all of them have been tested individually."
+    source: How many ways are there to configure the Linux kernel? | Daroc Alden | LWN.net | https://lwn.net/Articles/1034811/
+    candidate_problem: blindspots: coverage of configuration space by standard configs is unknown; per-object build conditions give a sound coverage metric
+
+[28] (pain_point/anecdote, 2022-09-19) At the 2022 Maintainers Summit, Torvalds said KernelCI's linux-next testing does not cover drivers. Mark Brown added that automated testers do not know what subsystem maintainers test, so they cannot widen coverage. Torvalds said he hits a problem on almost every release.
+    quote: "this testing doesn't really cover drivers."
+    source: Better regression handling for the kernel | Jonathan Corbet (Torvalds, Brown quoted) | LWN.net | https://lwn.net/Articles/908324/
+    candidate_problem: blindspots: objects/drivers no CI configuration builds, tied to the MAINTAINERS entry that should add coverage
+
+[29] (pain_point/anecdote, 2022-09-19) Mark Brown at the same session: automated testers lack knowledge of what maintainers test, so coverage cannot be matched. A per-maintainer map of unbuilt objects would address the build part of this gap.
+    quote: "about the testing the subsystem maintainers do"
+    source: Better regression handling for the kernel | Mark Brown (quoted by Jonathan Corbet) | LWN.net | https://lwn.net/Articles/908324/
+    candidate_problem: blindspots by MAINTAINERS entry
+
+[31] (pain_point/anecdote, 2014-08-20) Kernel Summit 2014: the linux-next maintainer was amazed at how often allmodconfig build tests fail and noted code reaches linux-next that was never compiled. Foundational but old (2014). Cited from the 'Weekly Edition' big page; the article is 'The state of linux-next' by Jonathan Corbet, and the speaker is Stephen Rothwell (not Rostedt).
+    quote: "sometimes, developers are putting code into linux-next that clearly has never been compiled."
+    source: The state of linux-next (in LWN Weekly Edition for August 21, 2014) | Jonathan Corbet | LWN.net | https://lwn.net/Articles/608614/bigpage
+    candidate_problem: blindspots / why: code that is never compiled by any tested config; allmodconfig as the de facto 'builds everything' proxy
+
+[42] (pain_point/anecdote, 2026-04-27) Removing old code: maintainers lack ways to learn whether anyone uses or builds code; a commenter says the only tool to find users is to remove the code and wait. Reasons given include that code cannot be tested (Biesheuvel could not test EFI changes on Itanium). Build-condition data could say which configs/arches still build an object.
+    quote: "There's only one tool Linus has to find people using the code"
+    source: Maintaining old code (comment on 'Kernel code removals driven by LLM-created security reports', Articles/1068928) | farnz (commenter) | LWN.net | https://lwn.net/Articles/1069752/
+    candidate_problem: blindspots: objects that no standard configuration builds are candidates for removal/neglect; evidence for removal decisions
+
+[43] (policy/policy, 2023-01-19) Code-removal criteria discussed: no maintainer, cost to cross-architecture changes, obsolescence and inability to test; pktcdvd was deprecated in 4.10 and removed 33 releases later, then restored.
+    quote: "whether it is reasonable as a community to insist that everyone who contributes a cross-architecture change"
+    source: Kernel code on the chopping block | Jonathan Corbet (Ard Biesheuvel quoted) | LWN.net | https://lwn.net/Articles/920259/
+    candidate_problem: blindspots: objects built only on obsolete arches/configs are removal candidates
+
+[46] (workflow_practice/statistic, 2012-09-05) Linux 2012 0-day system: 140 build configurations tested per commit, about half randconfig regenerated daily, across Linus's tree, linux-next and 180+ trees. Foundational evidence that build testing is by sampling configs, not by per-object coverage proof. Old (2012); later LWN coverage says 0-day now includes 100+ configs (snippet only, unconfirmed).
+    quote: "The current machine power allows the build test system to test 140 kernel configurations"
+    source: KS2012: Kernel build/boot testing | Michael Kerrisk | LWN.net | https://lwn.net/Articles/514278/
+    candidate_problem: counter-evidence / blindspots: sampled randconfig coverage does not guarantee every object is built
+
+[47] (workflow_practice/policy, undated) Kernel documentation (seen in a search snippet, static.lwn.net mirror of Kconfig docs) encourages '|| COMPILE_TEST' dependencies to raise build coverage of exotic-hardware drivers, and the submit checklist asks that patches pass allnoconfig and allmodconfig. Snippet-level only, not an opened page.
+    quote: "|| COMPILE_TEST"
+    source: Kconfig Language (kernel documentation mirror) | kernel documentation | static.lwn.net | https://static.lwn.net/kerneldoc/kbuild/kconfig-language.html
+    candidate_problem: blindspots: COMPILE_TEST is the official mechanism for widening coverage; kfold can show objects COMPILE_TEST still does not reach
+
+[51] (pain_point/anecdote, 2022-06-22) Slides give a case where a 2016 memory-leak bug lay undetected until 2020-11 because syzbot's memory-checking config disabled the guarding option (CONFIG_MEDIA_CONTROLLER_DVB); the fuzzer found it only after its configs were regenerated and happened to include it. Slides also note syzbot's hand-crafted configs must be 'kept update with changes to defaults'.
+    quote: "but CONFIG_MEDIA_CONTROLLER_DVB is disabled in its mem checking config"
+    source: Krepair slides, slides 5-6 'example of bug missed due to wrong .config' | Paul Gazzillo, Necip Yildiran | Open Source Summit North America 2022 | https://paulgazzillo.com/files/oss2022.pdf
+    candidate_problem: Fuzzer/CI blind spots: which objects/files are never built by any maintained config (the 'blindspots' use case).
+
+[55] (workflow_practice/anecdote, 2016-04-13) LWN report of Arnd Bergmann's ELC 2016 talk: he runs about 50 random-config builds per day (mostly 32-bit ARM), had cleared all randconfig failures by 2013, and says the most common bugs randconfig finds are missing dependency statements that keep necessary parts of the kernel from being built.
+    quote: "[t]he most common bugs he discovers with randconfig builds are missing dependency statements"
+    source: Static code checks for the kernel | Nathan Willis (reporting Arnd Bergmann) | LWN.net, reporting Embedded Linux Conference 2016 | https://lwn.net/Articles/683476/
+    candidate_problem: A seminal maintainer practice: randconfig stochastically explores the config space; a condition-based analysis could say which objects randconfig can never reach (coverage of the sampling).
+
+[56] (workflow_practice/anecdote, 2026-09-28) Arnd Bergmann talk 'Large scale kernel build testing on a desktop' (Speaker Deck under Kernel Recipes account, page dated 2026-09-28; conference not named on page, presumably Kernel Recipes 2026): 15 years of a custom linux-next build-regression setup, randconfig loop with a random.config fragment that disables options 'not worth testing' and enables CONFIG_COMPILE_TEST; positioned as complementing KernelCI and TuxSuite; 'thousands of bugfixes across every major subsystem'. Shows the most prolific build tester still relies on sampling random configs.
+    quote: "For the past 15 years, Arnd has been using a custom kernel build setup for regression testing linux-next kernels."
+    source: Large scale kernel build testing on a desktop | Arnd Bergmann | Speaker Deck (Kernel Recipes account) | https://speakerdeck.com/ennael/large-scale-kernel-build-testing-on-a-desktop
+    candidate_problem: Randconfig sampling is the incumbent for build coverage; per-object conditions could measure what a randconfig campaign never builds and bias it toward uncovered objects.
+
+[57] (pain_point/anecdote, 2025-12-12) Maintainers Summit 2025 (Dec 2025) linux-next session reported by Jonathan Corbet: Torvalds said basic configurations have not been tested so he often finds build problems only with his own configuration; allmodconfig builds disable some code and can hide problems; some repositories are not tested at all. Ojeda did not want people testing with fixed configs. Torvalds worried narrow test sets leave weird bugs for him.
+    quote: "basic configurations just haven't been tested"
+    source: Best practices for linux-next | Jonathan Corbet | LWN.net, Maintainers Summit 2025 session led by Mark Brown | https://lwn.net/Articles/1050027/
+    candidate_problem: Top-level maintainers see config-coverage gaps in linux-next; a 'which objects does no standard config build' report (blindspots) maps to this. Quotes obtained through a fetch summarizer; re-verify wording on the LWN page before citing.
+
+[62] (existing_tool/tool, 2024-09-12) KernelCI (Sept 2024 blog) advertises over 220 build configurations and boot tests on 45 hardware platforms; pipeline docs describe config fragments (e.g. kselftest fragment merged on top of defconfig for an extra build per arch). Config selection in KernelCI is by hand-written YAML build configs/fragments, with no statement of what objects they leave unbuilt.
+    quote: "We now support over 220 build configurations"
+    source: Bring your tree to the new KernelCI | KernelCI | kernelci.org blog | https://kernelci.org/blog/2024/09/12/bring-your-tree-to-the-new-kernelci/
+    candidate_problem: CI operators choose build configs manually (fragments); a blindspots analysis tells them which objects none of their ~220 configs build.
+
+[81] (pain_point/anecdote, 2024-07) Anecdote: a Linux memory leak that syzkaller can detect stayed in the kernel for months because the config option guarding the buggy code was not enabled in syzbot's fixed config set; found only after a later default-config change. Shows fuzzers/CI have object-level blind spots that go unnoticed.
+    quote: "remained in the kernel for months, because the configuration option controlling inclusion of the buggy code was not enabled"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | FSE 2024 (section 2) | https://arxiv.org/abs/2404.17966
+    candidate_problem: Code/objects never built by the CI or fuzzer configs (blindspots)
+
+[127] (policy/policy, 2020-12) COMPILE_TEST is the in-tree policy answer to 'build this driver without its hardware'. The option text says some drivers can compile on platforms other than their target. A 2020 doc patch (applied to linux-kbuild by Masahiro Yamada) tells maintainers to add '|| COMPILE_TEST' to a dependency when code can still compile without it, so CI catches bugs in exotic-hardware drivers on common systems. Distributors are told to answer N. This reduces, but depends on maintainers manually annotating, the need for per-object build conditions. Unannotated drivers stay blindspots.
+    quote: "Compile also drivers which will not load"
+    source: [PATCH 1/2] Documentation/kbuild: Document COMPILE_TEST dependencies (and init/Kconfig v6.17: https://tangled.org/tjh.dev/kernel/blob/v6.17/init/Kconfig) |  | LKML. The Yamada reply is at https://lkml.iu.edu/hypermail/linux/kernel/2012.2/02976.html. I did not confirm the text in the current published docs. | https://lkml.rescloud.iu.edu/hypermail/linux/kernel/2012.1/00639.html
+    candidate_problem: Drivers not buildable on common test configs without manual COMPILE_TEST annotation
+
+[128] (pain_point/anecdote, 2008/2014) Long-standing view that allyesconfig/allmodconfig are coverage-only tools with gaps. Andrew Morton said their purpose is compile and link coverage testing. Mutually exclusive options mean some code never builds. A 2014 kernel-summit thread said many arch maintainers don't seem to care about allmodconfig/allyesconfig. These are old (2008, 2014), so they are historical context only.
+    quote: "the current model is compile time choice"
+    source: LKML 2008 allyesconfig threads; ksummit-discuss 2014 https://lists.linuxfoundation.org/pipermail/ksummit-discuss/2014-August/001118.html |  | LKML / ksummit-discuss. The paraphrase came from a search-result summary; the quote is the summary's wording of Hemminger's reply, so verify it. | https://lkml.org/lkml/2008/2/25/106
+    candidate_problem: allyesconfig cannot build mutually exclusive/platform-specific objects
+
+[177] (statistic/statistic, 2025-02) A February 2025 kernel test robot BUILD SUCCESS report for a tip tree branch: elapsed 723m, only 19 configs tested and 125 skipped, and the tested list holds only i386 and x86_64 (allnoconfig, allyesconfig, defconfig, buildonly-randconfig-001..006, plus allmodconfig for i386). Reports carry the line 'More configs may be tested in the coming days', so coverage per branch head is incomplete and gives no per-object guarantee.
+    quote: "configs tested: 19"
+    source: [tip:x86/microcode] BUILD SUCCESS 037e81fb9d2dfe7b31fd97e5f578854e38f09887 | kernel test robot (Intel) | LKML (mirror lkml.rescloud.iu.edu) | https://lkml.rescloud.iu.edu/2502.2/01971.html
+    candidate_problem: No published statement of which objects the robot has compiled at a given branch head; a per-object build condition could show which objects no tested config reaches.
+
+[183] (statistic/statistic, 2024-09) KernelCI scale (Sept 2024): over 220 build configurations, boot tests on 45 hardware platforms (over 300 machines in all labs), 7 CI systems contributing results. The post gives no build or test counts per day. KernelCI's Q4 2025 update says backend test coverage rose from 40% to nearly 70% (a metric of the system's own tests, not of kernel objects).
+    quote: "We now support over 220 build configurations."
+    source: Bring your tree to the new KernelCI | KernelCI team | kernelci.org blog | https://kernelci.org/blog/2024/09/12/bring-your-tree-to-the-new-kernelci/
+    candidate_problem: CI operators choose a fixed config matrix (220+ configs) with no stated object-level coverage metric.
+
+[191] (counter_evidence/policy, 2025-02) Linus Torvalds (Feb 2025) on his own pre-pull testing: an allmodconfig build on x86-64 as a proxy for 'the config that compiles the most code' plus an occasional local-config build, and he admits it is configuration-limited. The kernel's top-level quality gate is thus allmodconfig on one arch, which is cheap and which many developers consider enough; a case for 'allmodconfig is good enough' needs rebutting.
+    quote: "my build testing is *very* limited in the configuration sense"
+    source: Re: Rust kernel policy | Linus Torvalds | LKML | https://lkml.iu.edu/2502.3/06618.html
+    candidate_problem: Maintainer-level practice: allmodconfig x86-64 stands in for per-object build analysis; gaps (non-x86, !allmodconfig-only objects) are tolerated and left to bots.
+
+[193] (counter_evidence/anecdote, 2025-02) In the same tty thread, Stephen Rothwell's response was that a generic allmodconfig build catches it. Rothwell runs allmodconfig and defconfig builds of linux-next every day on x86_64, powerpc, arm64 and others, and sends daily 'build failure after merge' mails (2025-2026 examples include allnoconfig i386 -Werror breakage, arm64 allyesconfig, sparc64 defconfig). Whole-config daily builds already catch most hard build breaks before mainline.
+    quote: "An allmodconfig build (even on x86_64) will do that"
+    source: Re: linux-next: build failure after merge of the tty tree | Stephen Rothwell | LKML (linux-next) | https://lkml.iu.edu/hypermail/linux/kernel/2502.0/07677.html
+    candidate_problem: Counter-evidence: linux-next integration builds already give a safety net for hard build failures; the gap left is unbuilt objects and warnings, not error detection.
+
+[247] (policy/policy, n.d.) Kconfig-language documentation says that COMPILE_TEST exists to increase build coverage. Drivers should add '|| COMPILE_TEST' to platform dependencies.
+    quote: "it is encouraged to increase build coverage by adding an “|| COMPILE_TEST” clause to the dependency."
+    source: Kconfig Language |  | docs.kernel.org | https://docs.kernel.org/kbuild/kconfig-language.html
+    candidate_problem: Build coverage across configs is a first-class design goal of Kconfig, so its objects can be reached by generic configs. Objects that lack COMPILE_TEST alternatives are exactly the ones blindspots would flag.
+
+[249] (policy/anecdote, n.d.) Maintainers of COMPILE_TEST-gated Kconfig entries explicitly reason about allyesconfig as the blanket build-coverage mechanism, and COMPILE_TEST is not meant to enable everything. The sentence is from a 2025 commit message, not a policy document.
+    quote: "Enabling compile testing should not enable every individual driver (we have "allyesconfig" for that)."
+    source: [PATCH] firmware: firmware: meson-sm: fix compile-test default |  | patchew.org mirror of LKML (Johan Hovold, 2025) | https://patchew.org/linux/20250725075429.10056-1-johan@kernel.org
+    candidate_problem: Community norm: allyesconfig is the compile-coverage catch-all. Objects it cannot build (conflicting options, arch-specific) are the blind spots.
+
+[263] (workflow_practice/tool, n.d.) The 0-day / kernel test robot is the incumbent build-coverage service. Its report emails list how many configs were tested per branch, as 'BUILD SUCCESS' mails. Search-result snippets and a summary of a Gazzillo (2022) talk mention allnoconfig, allyesconfig, allmodconfig, defconfigs and many randconfigs. I did not open any primary text for the config counts.
+    quote: "[tip:master] BUILD SUCCESS 360f28f385350da97cd144df62b875e875200e42"
+    source: [tip:master] BUILD SUCCESS (0-day CI report) |  | lkml.iu.edu | https://lkml.iu.edu/hypermail/linux/kernel/2006.3/01589.html
+    candidate_problem: Incumbent: the bot catches breakage post-hoc over a sampled config set. kfold could say pre-submission whether the touched object is in the sampled set.
+
+[266] (workflow_practice/anecdote, 2025-04) Intel's 0-day / kernel test robot builds each tree with a fixed library of configs. A April 2025 tip:perf/urgent report lists 19 configs tested and 140 skipped: allnoconfig, allmodconfig, allyesconfig, defconfig and six buildonly-randconfigs per arch, for i386 and x86_64. The elapsed time was 1453 minutes. This is the robot-based compile-testing baseline that a skeptic cites.
+    quote: "configs tested: 19"
+    source: [tip:perf/urgent] BUILD SUCCESS 7950de14ff5fd8da355d872b887ee8b7b5a1f327 | kernel test robot | LKML mirror (0-DAY CI Kernel Test Service) | https://lkml.rescloud.iu.edu/2504.2/04328.html
+    candidate_problem: patch compile-testing is largely delegated to robots (counter-evidence); note that the same report skipped 140 configs
+
+[270] (pain_point/anecdote, 2024) Motivating example in the paper: a memory leak survived in mainline for months because no tested config enabled the controlling option. This is evidence that robot coverage has real blind spots, which a per-object build-condition analysis (blindspots command) targets.
+    quote: "the configuration option controlling inclusion of the buggy code was not enabled"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Gazzillo et al. | FSE 2024 (arXiv 2404.17966) | https://arxiv.org/html/2404.17966v1
+    candidate_problem: blindspots: code not built by any tested config
+
+[283] (workflow_practice/anecdote, n.d.) A downstream KernelCI user (CIP) states how KernelCI picks configs: in-tree defconfig plus fragments. CIP wants its own merged configs per architecture. Downstream CI cares about its specific product configs, not about computing configs from patches.
+    quote: "Currently KernelCI uses the in-tree defconfig, plus various config fragments when configuring the Linux kernel."
+    source: Add CIP Kernel configuration support |  | GitLab (cip-project) | https://gitlab.com/cip-project/cip-testing/testing/-/issues/226
+    candidate_problem: CI operators use fixed product configs; knowing which objects those configs miss is the blindspots question

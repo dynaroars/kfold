@@ -1,0 +1,504 @@
+=== CONTEXT C1: Existing tool: klocalizer/krepair/koverage (Kmax suite) already solves config-for and patch coverage
+existing: Kmax, klocalizer, krepair, koverage, KBuildMiner, GOLEM, Vampyr, Nguyen & Nguyen.
+gap: A head-to-head on the same patches. Object-level exactness, explanation chains (why), MAINTAINERS-grouped blindspots, speed (kclause 2-3 min, kmax 10-15 min), non-Linux Kbuild trees.
+fit: Not a problem but a competitor: it overlaps with config-for and the why side of coverage, while blindspots/why chains and the multi-project scope are the stated non-overlaps (claim 138 says these were not found, not that they are absent).
+--- claims
+[8] (existing_tool/tool, unknown) kmax's klocalizer and koverage target exactly the 'config that builds this patch' and 'patch coverage' problems. Search snippets from the kmax PyPI and GitHub pages describe a repair mode and a patch-checking mode. No mailing-list thread I could reach mentions the tools being used on-list. I did not open the kmax pages myself; the description comes from search-result text only.
+    quote: "koverage --config 0-x86_64.config --arch x86_64 --check-patch"
+    source: kmax (PyPI) | Paul Gazzillo et al. | PyPI / GitHub (search snippet only) | https://pypi.org/project/kmax/
+    candidate_problem: Prior work (klocalizer/koverage) for config-for and blindspots. kfold must differentiate on Kbuild symbolic execution, speed and explanation chains.
+
+[27] (existing_tool/tool, 2025-09-10) The same article reports that kmax (including klocalizer, SMT-LIB/DIMACS export) has been integrated into the Intel 0-day test suite, where it found Kconfig bugs. So Kmax-family tooling has real adoption, but it is described as a Kconfig-model analysis, not as developer-facing explanation of Kbuild conditions.
+    quote: "finding a number of bugs in the kernel's configuration in the process."
+    source: How many ways are there to configure the Linux kernel? | Daroc Alden | LWN.net | https://lwn.net/Articles/1034811/
+    candidate_problem: counter-evidence / prior work: Kmax + klocalizer already in 0-day; kfold must differentiate (Makefile build conditions, why, blindspots by MAINTAINERS)
+
+[53] (existing_tool/tool, 2024) FSE 2024 krepair paper (same authors plus Oh, Lawall): single randconfig gives 29.2% average patch coverage, defconfig 21.7%, allyesconfig 88.5%, krepair on defconfig 98.5% while keeping build about 10x faster than allyesconfig; in Intel 0-day's 36,115 build-test reports, 63% used randconfig, 15% allyesconfig, 7% defconfig; sample of 507 patches out of about 71,000. Direct prior art for 'config-for PATCH'.
+    quote: "a single random configuration file only achieves 29.2% patch coverage on average"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | arXiv (FSE 2024 paper) | https://arxiv.org/html/2404.17966v1
+    candidate_problem: config-for PATCH is already addressed by krepair (line-level, incl. #ifdef); kfold must show an advantage (object-level, Kbuild-semantics fidelity, explainability, speed).
+
+[82] (existing_tool/tool, 2024-07) krepair is the closest existing tool to kfold's config-for: it uses Kbuild constraints (via kmax) plus Kconfig constraints and a theorem prover to repair an existing config so a patch is built; 98.5% avg coverage, 97% of patches need one config, found 18 build errors (2 not yet fixed, one patch accepted). Stated limits (as reported by fetch extraction of the paper): only build-system constraints, header-only patches unsupported, run-time (C) uses of options unsupported, evaluated on one system, up to 23 configs in worst case. kfold overlap is high for config-for; differentiator is per-object condition output and explanation.
+    quote: "We describe the 18 build errors found by repaired configuration files"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | FSE 2024 | https://arxiv.org/abs/2404.17966
+    candidate_problem: Overlap with config-for (patch-covering config search)
+
+[109] (existing_tool/tool, n.d.) klocalizer/krepair (part of the kmax suite) already takes a config that fails to build a patch's lines and repairs it so the whole patch builds. It also accepts a target object (--include foo.o), uses SuperC to collect #ifdef constraints inside source files, and emits several configs (NUM-ARCH.config) when a patch touches both arms of an #ifdef. It can also export the Kbuild/Kconfig constraints as DIMACS or SMT (--save-dimacs, --save-smt). This is the closest competitor to kfold's config-for command. Unlike kfold, klocalizer also models #ifdefs in source files.
+    quote: "take a config file that fails to build lines of a patch and repairs it to build the whole patch"
+    source: kmax (PyPI, latest 4.10, Aug 18 2026) |  | PyPI | https://pypi.org/project/kmax/
+    candidate_problem: Find a .config that builds the objects/lines touched by a patch
+
+[110] (existing_tool/tool, n.d.) The kmax GitHub repository is the home of the suite (kmax/kextract, klocalizer, krepair, koverage, kismet). The README describes klocalizer in patch mode and koverage (--check-patch, --config, --arch) and kismet. As shown: 72 stars, 29 forks, 1,289 commits, 77 open issues. This is a research-grade tool with modest adoption. The README lists these limits: some lines are still omitted (dead code, header files), setup needs SuperC with Java dependencies, and a full kismet run on x86_64 takes about an hour. Examples run one architecture per invocation (-a x86_64 or -a arm).
+    quote: "some lines may still be omitted, for instance if they are dead code or in header files"
+    source: paulgazz/kmax README |  | GitHub | https://github.com/paulgazz/kmax
+    candidate_problem: Adoption and limits of the incumbent config-for-patch tool
+
+[111] (statistic/statistic, 2024-04-27 (arXiv); FSE 2024) krepair evaluation (FSE 2024): 507 random patches sampled from about 71,000 mainline patches (2021-09-19 to 2022-09-18). Mean patch coverage was 98.5% for krepair-repaired defconfig, 88.5% for allyesconfig, 21.7% for defconfig and 29.2% for a single randconfig. Fewer than 1.53% of defconfig options changed for 99% of patches. allyesconfig builds take about 4 hours versus about 20 minutes for defconfig or repaired configs (10.5x faster). krepair runtime is a few minutes for most runs. A kfold evaluation must compare against these numbers.
+    quote: "98.5% on average"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | FSE 2024 / PACMSE (DOI 10.1145/3643746), arXiv 2404.17966 | https://arxiv.org/html/2404.17966
+    candidate_problem: Per-patch config coverage; baseline numbers a competing approach must beat
+
+[112] (counter_evidence/statistic, n.d.) krepair's own stated limitations show what stays open. It collects constraints only from the build system and Kconfig, and does not model C-level conditionals. Header-only patches (about 2% of patches) are unsupported and handled only by a heuristic. Cross-compilation depends on make.cross, which lacked loongarch, and 7 patches could not be built because of toolchain problems. The paper reports no accuracy measurement for the Kbuild constraints. These are gaps a precise per-object condition engine could target, such as an exact object-level semantic model with explanations. Note that the 'only collect constraints from the build system' remark in the paper's reasons-for-uncovered-lines list is a tool-limit statement.
+    quote: "Header-only patches: These are unsupported"
+    source: Maximizing Patch Coverage ... (krepair) |  | arXiv 2404.17966 (fetch summarized by tool; the quote is a paraphrased list item, so verify in the PDF) | https://arxiv.org/html/2404.17966
+    candidate_problem: Open gaps in config-for-patch: header-only patches, constraint accuracy unvalidated, multi-arch toolchains
+
+[114] (existing_tool/tool, n.d.) koverage (in the kmax suite) checks how much of a patch a given .config covers, using --check-patch, --config and --arch. It reports at line level. kfold's 'why OBJ --config .config' answers a similar question at object level and adds a condition chain as the explanation.
+    quote: "check how much of patch is covered by a given config file"
+    source: kmax (PyPI) |  | PyPI | https://pypi.org/project/kmax/
+    candidate_problem: Explain/measure whether a given config builds a patch
+
+[115] (existing_tool/tool, 2017-08) Kmax (Gazzillo, ESEC/FSE 2017) is a family-based static analysis of Kbuild Makefiles: paths are Boolean expressions over configuration options and variable state is tracked across configurations. It claims to be the first tool to collect all source files and their configurations from Linux. Slides report 1,985 Kbuild Makefiles controlling 19,651 C files, 1-2k more C files than earlier heuristics, and a mean x86 runtime of 84.15 s versus 45 s for KBuildMiner and about 3.4 h for GOLEM. Kmax is the direct ancestor of kfold, so the novelty claim against it has to be stated carefully.
+    quote: "first tool to collect all source files and their configurations from Linux"
+    source: Kmax: Finding All Configurations of Kbuild Makefiles Statically | Paul Gazzillo | ESEC/FSE 2017 (DOI 10.1145/3106237.3106283); figures came from search summaries of the paper and slides (https://www.paulgazzillo.com/papers/esecfse17_slides.pdf), since the PDF text was unreadable | https://paulgazzillo.com/papers/esecfse17.pdf
+    candidate_problem: Prior art for extracting per-file build conditions from Kbuild
+
+[116] (statistic/statistic, n.d.) Kmax paper claim that earlier studies of the x86 Linux 2.6.33.3 kernel counted at most 7,691 C files, while Kmax found 9,044, about 17% more. This is evidence that heuristic Kbuild parsers miss a material share of files.
+    quote: "9,044"
+    source: Kmax: Finding All Configurations of Kbuild Makefiles Statically |  | ESEC/FSE 2017 (figure from a search-result summary; verify in the PDF) | https://paulgazzillo.com/papers/esecfse17.pdf
+    candidate_problem: Heuristic Kbuild extraction misses files
+
+[117] (existing_tool/tool, n.d.) KBuildMiner (Nadi and Holt, 'Mining Kbuild to Detect Variability Anomalies in Linux', CSMR 2012) uses a fuzzy parser over Makefiles to collect compilation units. It is fast (mean 45 s on Linux, per the Kmax slides). The Kmax paper says it misses names built by concatenation or function calls and needs some Kbuild files hand-modified to fit the parser. It is not fully reliable.
+    quote: "parses Kbuild files only heuristically, so it is not fully reliable"
+    source: An Empirical Study of Configuration Mismatches in Linux (El-Sharkawy, Krafczyk, Schmid) |  | SPLC 2017 / arXiv 2110.05828. KBuildMiner paper page: https://ieeexplore.ieee.org/document/6178858/ | https://arxiv.org/pdf/2110.05828
+    candidate_problem: Heuristic Kbuild parsing is unreliable
+
+[118] (existing_tool/tool, 2012) GOLEM (Dietrich, Tartler, Schroeder-Preikschat, Lohmann, SPLC 2012) extracts variability by exploiting the build system itself rather than parsing it as text. It states that more than 65% of Linux features are handled by the build system and that it works across all Linux git-history versions and architectures. It is slow: the 2021 mismatch study chose KBuildMiner because it runs in under a minute versus about 90 minutes for GOLEM. Kmax slides give about 3.4 h.
+    quote: "more than 65 percent of all features are actually handled by the build system"
+    source: A Robust Approach for Variability Extraction from the Linux Build System | Dietrich, Tartler, Schroeder-Preikschat, Lohmann | SPLC 2012 (pp. 21-30). The quoted abstract content came from a search-result summary (https://cris.fau.de/publications/118556064/). | https://www.i4copter.cs.fau.de/Publications/2012/dietrich_12_splc.pdf
+    candidate_problem: Prior art for Kbuild variability extraction
+
+[119] (existing_tool/tool, n.d.) Vampyr (Hengelein and Lohmann, LPC 2014) is an undertaker-based driver for configuration-aware compile-testing of single files or batches. It generates a set of partial configurations that cover each #ifdef block and passes the results to gcc, clang or sparse (-C, -b batch mode). Undertaker 1.2 added coverage generation of partial Kconfig configurations. Vampyr works at the #ifdef block level, which kfold does not, but depends on its extracted Kconfig model. The authors say they prefer false negatives over false positives.
+    quote: "Generate partial (Kconfig) configurations to cover each conditional block"
+    source: undertaker announcement; Vampyr LPC 2014 talk |  | LWN; talk: https://blog.linuxplumbersconf.org/2014/ocw/system/presentations/2313/original/hengelein.pdf; changelog: https://lkml.iu.edu/hypermail/linux/kernel/1410.1/02846.html (undertaker 1.6, 2014). Not maintained recently as far as I saw, but I did not check. | https://lwn.net/Articles/456849/
+    candidate_problem: Config-aware compile testing for #ifdef coverage; competitor at the intra-file level
+
+[124] (existing_tool/tool, 2020) Nguyen and Nguyen, 'Using Symbolic Execution to Analyze Linux KBuild Makefiles' (ICSME 2020, pp. 712-716, per DBLP) is the closest prior art to kfold's approach. I could only confirm the bibliographic record, not its content. Zhou et al. (RELENG 2015) also used symbolic evaluation of Makefiles to extract file presence conditions. They argue that pattern-based static approaches cannot cope with build files that don't follow the patterns.
+    quote: "Using Symbolic Execution to Analyze Linux KBuild Makefiles"
+    source: DBLP author record (ThanhVu Nguyen); Zhou et al. https://releng.polymtl.ca/RELENG2015/html/presentations/shurui_zhou.pdf |  | ICSME 2020 | https://dblp.org/pid/278/0436
+    candidate_problem: Prior art on symbolic execution of Makefiles
+
+[138] (counter_evidence/tool, n.d.) Hostile verdict on the klocalizer comparison. It already solves 'find a config for a patch or file': it minimizes config change, handles the #ifdef constraints that kfold ignores, and reports 98.5% mean patch coverage on 507 patches. It is open source, on PyPI at version 4.10, and has been used by others (KBootRepair). It is maintained by a university group that also runs kismet, which the test robot uses. What it does not demonstrably do: (a) its Kbuild constraint accuracy is not reported in the FSE paper; (b) header-only patches are unsupported (about 2%); (c) it has no maintainers-grouped 'blindspots' report; (d) it has no 'why is OBJ not built' explanation chain; (e) it works through SuperC with a heavy setup, and one invocation covers one architecture; (f) it does not target BusyBox, Barebox, U-Boot or coreboot. I did not find evidence of these last points being claimed. kfold's differentiators would have to be (c), (d) and speed or exactness at object level, validated against klocalizer on the same patches.
+    quote: "Repair usually covers all lines of a patch"
+    source: Synthesis of kmax PyPI/README and the krepair paper (https://arxiv.org/html/2404.17966) |  | Own analysis from the cited sources. The points about what klocalizer does not do are inferences from absence in those pages, not stated in them. | https://pypi.org/project/kmax/
+    candidate_problem: What klocalizer already solves versus what remains open
+
+[139] (counter_evidence/anecdote, 2025-03) I found no 2023-2026 paper on 'find the kernel config that compiles this patch/file' other than the krepair/klocalizer line (FSE 2024) and its downstream uses (KBootRepair, PatchLens-style condition recovery). Searches on LLM kernel configuration returned only performance-tuning work (BYOS, arXiv 2503.09663; OS-R1, arXiv 2508.12551). So the field appears thin, which cuts both ways: little competition, but possibly little demand evidence.
+    quote: "BYOS: Knowledge-driven Large Language Models Bring Your Own Operating System More Excellent"
+    source: BYOS (performance-tuning of kernel configs, not buildability) |  | arXiv. Absence-of-evidence finding; the search budget ran out, so it is not exhaustive. | https://arxiv.org/abs/2503.09663v1
+    candidate_problem: Absence of other recent tools for config-for-patch
+
+[168] (existing_tool/tool, unknown) klocalizer/kmax (prior work) per PyPI listing: takes a compilation unit and produces a .config that builds it; --repair adjusts a config so a whole patch builds (SuperC for #ifdefs), with koverage to measure patch coverage. I found no 2023-2026 mailing-list posts or forum threads showing kernel developers using klocalizer (absence of evidence from my searches only).
+    quote: "klocalizer as a tool that takes a compilation unit and produces a .config that builds it"
+    source: kmaxtools (klocalizer) | Paul Gazzillo group (UCF) | PyPI | https://pypi.org/project/kmaxtools/2.0rc26/
+    candidate_problem: Find a config that builds a patch (config-for) where existing tool exists but has no visible developer adoption.
+
+[197] (existing_tool/tool, n.d.) The kmax suite already offers file-to-config and patch-to-config: klocalizer generates a .config that includes a given compilation unit, can repair a config to build a whole patch, and koverage checks patch coverage. Docs note repair may omit dead code or header-only lines. Direct overlap with the 'config-for' command; kfold has to differ in the quality of the condition (precise symbolic execution of Kbuild) and in 'why' and 'blindspots'. The kmax docs also credit the 0-day team for including kismet in the kernel test robot, showing a route for research tools into 0-day.
+    quote: "will include the given compilation unit"
+    source: kmax (klocalizer, krepair, koverage) on PyPI | Paul Gazzillo et al. | PyPI | https://pypi.org/project/kmax/
+    candidate_problem: Overlap and differentiation with klocalizer/krepair for 'build this patch' configs.
+
+[271] (existing_tool/tool, n.d.) klocalizer (kmax suite) already repairs a config so that a patch's lines build, and emits several configs when a patch touches both arms of an #ifdef. The README documents its limits: some lines may stay uncovered, and it relies on SuperC for #ifdef constraints. This is the main existing tool against config-for. kfold would need to differentiate on speed, explanations (why), blindspots/MAINTAINERS grouping, or coverage of non-Linux Kbuild trees.
+    quote: "klocalizer --repair will take a config file that fails to build lines of a patch and repairs it to build the whole patch."
+    source: kmax: analysis tools for Kconfig and Kbuild constraints |  | GitHub | https://github.com/paulgazz/kmax
+    candidate_problem: config-for: existing solution (klocalizer/krepair)
+
+[272] (existing_tool/tool, n.d.) klocalizer docs concede limitations in extracted Kbuild formulas, CONFIG_BROKEN handling, composite objects, and the one-architecture-at-a-time search. These are places where a more precise object-level Kbuild analysis could improve on it. The docs also say the formulas may be inexact.
+    quote: "The extracted formulas may not be exact."
+    source: kmax docs: advanced.md |  | GitHub | https://github.com/paulgazz/kmax/blob/master/docs/advanced.md
+    candidate_problem: formula precision in existing Kbuild constraint extraction (klocalizer, koverage)
+
+[273] (existing_tool/tool, n.d.) Koverage and klocalizer already include the notion of a coverage check for a config, and note that repair may omit lines in headers or dead code. Per the docs, koverage can say whether a config includes a set of patched lines.
+    quote: "some lines may still be omitted, for instance if they are dead code or in header files."
+    source: kmax: analysis tools for Kconfig and Kbuild constraints |  | GitHub | https://github.com/paulgazz/kmax
+    candidate_problem: why-not-built / coverage check: koverage overlaps with 'why OBJ --config'
+
+[274] (counter_evidence/tool, 2024) The krepair paper admits it depends on existing Kbuild constraint tools and that those tools only gather build-system constraints. Per the paper, kclause typically takes 2-3 minutes and kmax 10-15 minutes. So the paper itself says the Kbuild-constraint collector is the bottleneck of its approach, which is what kfold replaces.
+    quote: "Since krepair relies on existing constraint collection tools, any limitations of these tools limit krepair."
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Gazzillo et al. | FSE 2024 (arXiv 2404.17966) | https://arxiv.org/html/2404.17966v1
+    candidate_problem: constraint-collection speed and precision (positive for kfold, as a gap in existing tooling)
+
+[275] (counter_evidence/tool, 2024) Related work in the same paper says VAMPYR (undertaker) is unmaintained and only supports up to about Linux 3.2. Existing tools do not already fully solve finding configs for a modern kernel.
+    quote: "VAMPYR is an older tool and no longer maintained."
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Gazzillo et al. | FSE 2024 (arXiv 2404.17966) | https://arxiv.org/html/2404.17966v1
+    candidate_problem: undertaker/Vampyr is stale, so it does not fully solve config finding
+
+=== CONTEXT C2: Counter-evidence: CI bots and linux-next already catch build breakage
+existing: 0-day, KernelCI, TuxSuite, LKFT, syzbot, CKI, Media CI, RISC-V patchwork.
+gap: Moving the check earlier, per-object coverage statements for bots, explaining why a failure happened. Paper must present kfold as predictive or explanatory, not as another builder.
+fit: Not a problem; it bounds the value of detection-only claims. kfold complements bots (blindspots, pre-posting checks).
+--- claims
+[7] (existing_tool/tool, 2025-09-17) Kernel test robot (0-day) is the incumbent. Each BUILD SUCCESS mail lists the sampled configs, 12 tested and 119 skipped in the Sep 2025 tip/urgent report, mostly randconfig, and says more may follow later. It samples configurations; it does not say which objects the sample covered or why an object was not built. Its reports do not name kmax or klocalizer.
+    quote: "The following configs have been built successfully."
+    source: [tip:tip/urgent] BUILD SUCCESS 70d5308cbbd7f62f5513b7d1acf904be16576f10 | kernel test robot (0-DAY CI Kernel Test Service) | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/2509.2/02067.html
+    candidate_problem: counter-evidence plus gap: robot coverage is sampled and delayed ('configs tested: 12' of 131, per the fetched summary; other reports say 'More configs may be tested in the coming days.'), with no per-object coverage report. A 2021 rcu report shows 166 tested and 2 skipped: https://lkml.iu.edu/hyper
+
+[14] (pain_point/anecdote, 2026-03-16) Mark Brown's linux-next build-failure reports show that integration-time build breakage is reported per (arch, config). Examples: x86_64 allmodconfig failures in Feb, Mar and Jul 2026; arm64 allnoconfig Makefile error 'extraneous endif' from the kbuild tree on 2026-03-16. Breakage is found after merge, by whichever config the integrator builds.
+    quote: "Makefile:2254: *** extraneous 'endif'. Stop."
+    source: linux-next: build failure after merge of the kbuild tree | Mark Brown | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/2603.2/01055.html
+    candidate_problem: Weak for kfold: a Makefile syntax issue in the top-level Makefile, and the kbuild maintainer could not reproduce it (per search snippet). Shows breakage is found reactively after merge. A second example: https://lkml.iu.edu/2602.2/00565.html (2026-02-16, pf1550-onkey '#endif CONFIG_PM_SLEEP' error u
+
+[15] (pain_point/anecdote, 2026-03-22) Kernel test robot (Mar 2026) found a modpost undefined-symbol link error in the rtl8723bs staging driver, in an i386 randconfig build with clang 20.1.8 and W=1. The page does not say whether a Makefile or Kconfig condition caused it; weak evidence for kfold.
+    quote: "ODM_ReadAndConfig_MP_8723B_TXPWR_LMT"
+    source: Re: [PATCH v2] staging: rtl8723bs: remove reduntant functions | kernel test robot | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/hypermail/linux/kernel/2603.2/13743.html
+    candidate_problem: Weak: it illustrates that robot failures arrive after posting, in a random config. If the cause is object-level (which objects of r8723bs.ko are built under that config), why could explain it; the page does not confirm that.
+
+[30] (counter_evidence/anecdote, 2022-09-19) James Bottomley's view: linux-next is meant to find merge conflicts and compilation problems, not regressions. So build coverage in linux-next is already considered its core job, and developers regard compile problems as handled by existing integration testing.
+    quote: "it is there to find merge conflicts and compilation problems."
+    source: Better regression handling for the kernel | James Bottomley (quoted by Jonathan Corbet) | LWN.net | https://lwn.net/Articles/908324/
+    candidate_problem: counter-evidence: build-failure detection is served by linux-next/0-day; kfold value must be in explaining/predicting rather than detecting failures
+
+[32] (policy/policy, 2021-09-13) Kernel policy since 5.15: builds use -Werror by default (CONFIG_WERROR), tied to COMPILE_TEST. Torvalds requires clean builds and rejects build requests each merge window. Shows maintainers care about every build configuration compiling cleanly.
+    quote: "I want *all* builds to be clean, or at least as far as possible."
+    source: The rest of the 5.15 merge window | Jonathan Corbet (Torvalds quoted) | LWN.net | https://lwn.net/Articles/868221/
+    candidate_problem: context: warnings-as-errors makes the set of configs that must build clean larger; need to know which objects a config builds
+
+[46] (workflow_practice/statistic, 2012-09-05) Linux 2012 0-day system: 140 build configurations tested per commit, about half randconfig regenerated daily, across Linus's tree, linux-next and 180+ trees. Foundational evidence that build testing is by sampling configs, not by per-object coverage proof. Old (2012); later LWN coverage says 0-day now includes 100+ configs (snippet only, unconfirmed).
+    quote: "The current machine power allows the build test system to test 140 kernel configurations"
+    source: KS2012: Kernel build/boot testing | Michael Kerrisk | LWN.net | https://lwn.net/Articles/514278/
+    candidate_problem: counter-evidence / blindspots: sampled randconfig coverage does not guarantee every object is built
+
+[62] (existing_tool/tool, 2024-09-12) KernelCI (Sept 2024 blog) advertises over 220 build configurations and boot tests on 45 hardware platforms; pipeline docs describe config fragments (e.g. kselftest fragment merged on top of defconfig for an extra build per arch). Config selection in KernelCI is by hand-written YAML build configs/fragments, with no statement of what objects they leave unbuilt.
+    quote: "We now support over 220 build configurations"
+    source: Bring your tree to the new KernelCI | KernelCI | kernelci.org blog | https://kernelci.org/blog/2024/09/12/bring-your-tree-to-the-new-kernelci/
+    candidate_problem: CI operators choose build configs manually (fragments); a blindspots analysis tells them which objects none of their ~220 configs build.
+
+[125] (pain_point/anecdote, 2018-05-14) The 0-day/kernel test robot gives no complete guarantee of config coverage. A maintainer said some configs are only rarely or never tested on his tree, and the 0-day maintainer replied there is no 100% guarantee. The Gazzillo group describes 0-day as using built-in defconfig, allnoconfig, allyesconfig, allmodconfig and hundreds of randconfigs, and the FSE paper reports 63% of 0-day reports are randconfig.
+    quote: "some configs are only rarely (never?) tested on my linux-0day tree"
+    source: Re: [Ksummit-discuss] bug-introducing patches | Boris Brezillon; reply by Fengguang Wu | ksummit-discuss mailing list. A 2018 anecdote, older than the 2023-2026 window. | https://lkml.rescloud.iu.edu/1805.1/04746.html
+    candidate_problem: Maintainers cannot tell which configs/objects CI actually builds
+
+[130] (existing_tool/tool, n.d.) TuxMake (Linaro) is a CLI and Python library for portable, repeatable kernel builds across architectures, toolchains (gcc, clang, kernel.org LLVM), configs (defconfig, allmodconfig, randconfig, distro configs) and targets (image, docs, selftests, perf). It runs in versioned containers. TuxSuite/TuxBuild is the hosted cloud service with build-set YAML matrices, used by Linaro's LKFT. They run a matrix of builds and do not decide which config is needed for a given patch or object.
+    quote: "portable and repeatable Linux kernel builds across a variety of architectures, toolchains, kernel configurations, and make targets"
+    source: TuxMake (PyPI); LWN https://lwn.net/Articles/841624 (not fetched, rate limited); TuxSuite https://pypi.org/project/tuxsuite/0.21.0 |  | PyPI / Linaro. The page itself failed to load in fetch; the quote is from a search-result snippet. | https://pypi.org/project/tuxmake
+    candidate_problem: CI build matrices exist, but choosing the right config per patch is left to the user
+
+[167] (existing_tool/tool, 2026-02-05) kernel test robot (0-day) already runs kismet and reports unmet Kconfig dependencies on patches that touch COMPILE_TEST; e.g. report of 2026-02-05 on 'kexec: allow KEXEC_HANDOVER to build with COMPILE_TEST' where CMA depends on MMU but is selected by KEXEC_HANDOVER. Maintainers already rely on the bot for config-level breakage, which reduces demand for Kconfig-only checks and leaves per-object coverage ('is my patched file built by any config') less served.
+    quote: "kismet: WARNING: unmet direct dependencies detected for CMA when selected by KEXEC_HANDOVER"
+    source: Re: [PATCH] kexec: allow KEXEC_HANDOVER to build with COMPILE_TEST | kernel test robot (0-DAY CI) | LKML (kernel test robot) | https://lkml.iu.edu/hypermail/linux/kernel/2602.0/07161.html
+    candidate_problem: Patch-time config coverage and Kconfig select/depends breakage (existing CI coverage).
+
+[176] (workflow_practice/tool, 2022-09) Intel 0-day (kernel test robot) workflow as presented by its own team at LPC 2022: when a branch is updated, it builds the head under various arch and config kinds (allyes, allno, allmod, def, rand) and mails a summary, usually within one day. The sample report on the slide: 80 configs tested, 2 skipped, elapsed 718m. Failures are bisected to the first bad commit and reported with Reported-by: kernel test robot.
+    quote: "Usually send out the report within one day"
+    source: The Integration of Rust with Kernel Testing Service | Yujie Liu, Philip Li (0-Day CI Team, Intel) | Linux Plumbers Conference 2022 (slides) | https://lpc.events/event/16/contributions/1181/attachments/998/1996/The%20Integration%20of%20Rust%20with%20Kernel%20Testing%20Service.pdf
+    candidate_problem: Per-commit build-failure detection already exists for the standard config families; a new analysis must add something other than whole-config build testing.
+
+[177] (statistic/statistic, 2025-02) A February 2025 kernel test robot BUILD SUCCESS report for a tip tree branch: elapsed 723m, only 19 configs tested and 125 skipped, and the tested list holds only i386 and x86_64 (allnoconfig, allyesconfig, defconfig, buildonly-randconfig-001..006, plus allmodconfig for i386). Reports carry the line 'More configs may be tested in the coming days', so coverage per branch head is incomplete and gives no per-object guarantee.
+    quote: "configs tested: 19"
+    source: [tip:x86/microcode] BUILD SUCCESS 037e81fb9d2dfe7b31fd97e5f578854e38f09887 | kernel test robot (Intel) | LKML (mirror lkml.rescloud.iu.edu) | https://lkml.rescloud.iu.edu/2502.2/01971.html
+    candidate_problem: No published statement of which objects the robot has compiled at a given branch head; a per-object build condition could show which objects no tested config reaches.
+
+[178] (statistic/statistic, 2012-05) Early description of the 0-day back end (2012): compile testing used about 20 kconfigs per commit, boot testing only several; a 16-core compile server took about 2 minutes per commit and the setup could test up to 700 commits a day. Older foundational evidence that the robot never exploited a per-object notion of what a commit can affect; it applies a fixed config set per commit.
+    quote: "up to 700 commits each day"
+    source: 0day kernel testing back-end | Fengguang Wu | LKML | https://lkml.rescloud.iu.edu/1205.2/00861.html
+    candidate_problem: Fixed config sets per commit instead of configs chosen from the objects a commit touches.
+
+[184] (statistic/statistic, 2023-11) syzbot (Google, LPC 2023): about 17k findings detected, about 6k reported to LKML, 3,400+ kernel commits mention syzbot, 4,800+ resolved findings on the dashboard. Fuzzing runs on 25 syzkaller instances with about 150-200 VMs, only for GCE/x86_64, GCE/arm64, qemu x86_64, arm32, arm64 and RISC-V, on a handful of trees (mainline, linux-next, bpf, bpf-next). 72% of ever-addressed reports are addressed within 45 days.
+    quote: "Linux kernel is fuzzed on 25 syzkaller instances using ~150-200 VMs in total."
+    source: Syzbot: 7 years of continuous kernel fuzzing | Aleksandr Nogikh (Google) | Linux Plumbers Conference 2023 (slides) | https://lpc.events/event/17/contributions/1521/attachments/1272/2698/LPC%2723_%20Syzbot_%207%20years%20of%20continuous%20kernel%20fuzzing.pdf
+    candidate_problem: Fuzzers only exercise code that the few fixed syzbot configs compile in; objects outside those configs get no dynamic testing.
+
+[193] (counter_evidence/anecdote, 2025-02) In the same tty thread, Stephen Rothwell's response was that a generic allmodconfig build catches it. Rothwell runs allmodconfig and defconfig builds of linux-next every day on x86_64, powerpc, arm64 and others, and sends daily 'build failure after merge' mails (2025-2026 examples include allnoconfig i386 -Werror breakage, arm64 allyesconfig, sparc64 defconfig). Whole-config daily builds already catch most hard build breaks before mainline.
+    quote: "An allmodconfig build (even on x86_64) will do that"
+    source: Re: linux-next: build failure after merge of the tty tree | Stephen Rothwell | LKML (linux-next) | https://lkml.iu.edu/hypermail/linux/kernel/2502.0/07677.html
+    candidate_problem: Counter-evidence: linux-next integration builds already give a safety net for hard build failures; the gap left is unbuilt objects and warnings, not error detection.
+
+[198] (workflow_practice/anecdote, 2020 (approx.)) Red Hat CKI: GitLab-CI pipelines that lint, patch, build and test kernels; per a FOSDEM 2020 talk they test patches posted to several mailing lists and commits to 15+ git repos. Red Hat's cost blog (search snippet) reports ccache in S3 cut compile time on a c4.2xlarge EC2 instance from 32 minutes to under four. This shows vendor CI pays for whole-kernel builds per patch and optimizes by caching, not by analysis. Pages not fully opened; snippets only.
+    quote: "This reduced compile times on EC2's c4.2xlarge from 32 minutes to less than four minutes."
+    source: Cost-conscious continuous integration in the cloud: how we cut costs for kernel testing | Red Hat CKI team | Red Hat blog | https://redhat.com/es/blog/cost-conscious-continuous-integration-cloud-how-we-cut-costs-kernel-testing
+    candidate_problem: Cloud cost of per-patch kernel builds at distro CI scale.
+
+[246] (policy/policy, n.d.) NFSD profile describes a soak period in which patches are exposed to zero-day bots and static analyzers. Compile-level breakage is caught after merge by community bots as much as by the author.
+    quote: "it is exposed to a variety of test environments, including community zero-day bots, static analysis tools"
+    source: NFSD Maintainer Entry Profile |  | docs.kernel.org | https://docs.kernel.org/filesystems/nfs/nfsd-maintainer-entry-profile.html
+    candidate_problem: The 0-day bot is the incumbent that catches build breakage. Counter-evidence for urgency, but also evidence that breakage is found late. kfold could move the check left.
+
+[263] (workflow_practice/tool, n.d.) The 0-day / kernel test robot is the incumbent build-coverage service. Its report emails list how many configs were tested per branch, as 'BUILD SUCCESS' mails. Search-result snippets and a summary of a Gazzillo (2022) talk mention allnoconfig, allyesconfig, allmodconfig, defconfigs and many randconfigs. I did not open any primary text for the config counts.
+    quote: "[tip:master] BUILD SUCCESS 360f28f385350da97cd144df62b875e875200e42"
+    source: [tip:master] BUILD SUCCESS (0-day CI report) |  | lkml.iu.edu | https://lkml.iu.edu/hypermail/linux/kernel/2006.3/01589.html
+    candidate_problem: Incumbent: the bot catches breakage post-hoc over a sampled config set. kfold could say pre-submission whether the touched object is in the sampled set.
+
+[266] (workflow_practice/anecdote, 2025-04) Intel's 0-day / kernel test robot builds each tree with a fixed library of configs. A April 2025 tip:perf/urgent report lists 19 configs tested and 140 skipped: allnoconfig, allmodconfig, allyesconfig, defconfig and six buildonly-randconfigs per arch, for i386 and x86_64. The elapsed time was 1453 minutes. This is the robot-based compile-testing baseline that a skeptic cites.
+    quote: "configs tested: 19"
+    source: [tip:perf/urgent] BUILD SUCCESS 7950de14ff5fd8da355d872b887ee8b7b5a1f327 | kernel test robot | LKML mirror (0-DAY CI Kernel Test Service) | https://lkml.rescloud.iu.edu/2504.2/04328.html
+    candidate_problem: patch compile-testing is largely delegated to robots (counter-evidence); note that the same report skipped 140 configs
+
+=== CONTEXT C3: Counter-evidence: allmodconfig, COMPILE_TEST and randconfig are considered good enough
+existing: allmodconfig, allyesconfig, COMPILE_TEST, compile_test.config, randconfig.
+gap: The 2025-26 Hovold patches show the convention leaves gaps; whether maintainers want a tool to find them is not demonstrated.
+fit: Counter-evidence to demand for object-level analysis. The paper should show what allmodconfig plus COMPILE_TEST never build, as a measurement.
+--- claims
+[5] (policy/anecdote, 2020-07-27) Block-layer maintainer Jens Axboe's stance on a 54-driver compile-only-tested ata patch (2020): compile testing does not substitute for functional testing. Counter-evidence for the value of build-only checks as the only gate. Older than the 2023 window, but a clear maintainer statement.
+    quote: "compile only testing is a far cry from that."
+    source: Re: [PATCH v2] ata: use generic power management | Jens Axboe (quoted in reply by Vaibhav Gupta) | LKML (lkml.rescloud.iu.edu mirror) | https://lkml.rescloud.iu.edu/2007.3/03920.html
+    candidate_problem: counter-evidence: build-condition tooling addresses 'does it build', not 'does it work'. Maintainer cost is dominated by runtime verification.
+
+[10] (policy/policy, 2013-06-17) COMPILE_TEST exists so drivers can be built in allmodconfig and by developers without the matching hardware. Jiri Slaby (2013) pitched it as a way for developers to build-test drivers that distros leave out. Greg Kroah-Hartman, quoted in the thread, valued it for developers without cross compilers. Foundational policy. It shows the current coverage mechanism is a manual Kconfig convention: each driver must opt in.
+    quote: "really valuable to ensure that they build properly, for those of us that don't have many/any cross compilers set up."
+    source: Re: [PATCH] build some drivers only when compile-testing | Jiri Slaby (quoting Greg Kroah-Hartman) | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/hypermail/linux/kernel/1306.2/00996.html
+    candidate_problem: blindspots: COMPILE_TEST opt-in coverage is incomplete, as the 2025-26 Hovold patches show. Counter-evidence: COMPILE_TEST already provides a coarse remedy.
+
+[11] (policy/anecdote, 2021-09-28) Arnd Bergmann (2021): build bots force-enable COMPILE_TEST in randconfig, and randconfig builds often select no machine type. So the main automated coverage mechanism is random sampling with COMPILE_TEST forced on, not systematic per-object coverage. Foundational.
+    quote: "As most of the build bots now force-enable CONFIG_COMPILE_TEST for randconfig builds, use that as a guard"
+    source: [PATCH 09/14] ARM: allow compile-testing without machine record | Arnd Bergmann | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/hypermail/linux/kernel/2109.3/04722.html
+    candidate_problem: counter-evidence and gap: randconfig plus COMPILE_TEST is the working approach, but it gives probabilistic rather than guaranteed coverage. Also from the page: 'A lot of randconfig builds end up not selecting any machine type at all.'
+
+[13] (pain_point/anecdote, 2021-02-24) Heiko Carstens (s390, 2021) wanted COMPILE_TEST off for s390 because it overrides architecture dependencies and exposes drivers with missing HAS_IOMEM/HAS_DMA dependencies. Guenter Roeck's RANDCONFIG patch tried to stop randconfig enabling COMPILE_TEST at random. Masahiro Yamada said that is what randconfig should do. Shows maintainers resisting forced coverage because of Kconfig dependency noise (outside kfold).
+    quote: "lots of drivers do not set dependencies for HAS_IOMEM, HAS_DMA, and friends correctly."
+    source: Re: [PATCH] gcc-plugins: Disable GCC_PLUGIN_CYC_COMPLEXITY for s390 | Masahiro Yamada (quoting Heiko Carstens and Guenter Roeck) | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/hypermail/linux/kernel/2102.3/00661.html
+    candidate_problem: Out of scope for kfold (Kconfig dependency correctness). Counter-evidence that some maintainers consider forced build coverage noisy.
+
+[30] (counter_evidence/anecdote, 2022-09-19) James Bottomley's view: linux-next is meant to find merge conflicts and compilation problems, not regressions. So build coverage in linux-next is already considered its core job, and developers regard compile problems as handled by existing integration testing.
+    quote: "it is there to find merge conflicts and compilation problems."
+    source: Better regression handling for the kernel | James Bottomley (quoted by Jonathan Corbet) | LWN.net | https://lwn.net/Articles/908324/
+    candidate_problem: counter-evidence: build-failure detection is served by linux-next/0-day; kfold value must be in explaining/predicting rather than detecting failures
+
+[127] (policy/policy, 2020-12) COMPILE_TEST is the in-tree policy answer to 'build this driver without its hardware'. The option text says some drivers can compile on platforms other than their target. A 2020 doc patch (applied to linux-kbuild by Masahiro Yamada) tells maintainers to add '|| COMPILE_TEST' to a dependency when code can still compile without it, so CI catches bugs in exotic-hardware drivers on common systems. Distributors are told to answer N. This reduces, but depends on maintainers manually annotating, the need for per-object build conditions. Unannotated drivers stay blindspots.
+    quote: "Compile also drivers which will not load"
+    source: [PATCH 1/2] Documentation/kbuild: Document COMPILE_TEST dependencies (and init/Kconfig v6.17: https://tangled.org/tjh.dev/kernel/blob/v6.17/init/Kconfig) |  | LKML. The Yamada reply is at https://lkml.iu.edu/hypermail/linux/kernel/2012.2/02976.html. I did not confirm the text in the current published docs. | https://lkml.rescloud.iu.edu/hypermail/linux/kernel/2012.1/00639.html
+    candidate_problem: Drivers not buildable on common test configs without manual COMPILE_TEST annotation
+
+[191] (counter_evidence/policy, 2025-02) Linus Torvalds (Feb 2025) on his own pre-pull testing: an allmodconfig build on x86-64 as a proxy for 'the config that compiles the most code' plus an occasional local-config build, and he admits it is configuration-limited. The kernel's top-level quality gate is thus allmodconfig on one arch, which is cheap and which many developers consider enough; a case for 'allmodconfig is good enough' needs rebutting.
+    quote: "my build testing is *very* limited in the configuration sense"
+    source: Re: Rust kernel policy | Linus Torvalds | LKML | https://lkml.iu.edu/2502.3/06618.html
+    candidate_problem: Maintainer-level practice: allmodconfig x86-64 stands in for per-object build analysis; gaps (non-x86, !allmodconfig-only objects) are tolerated and left to bots.
+
+[193] (counter_evidence/anecdote, 2025-02) In the same tty thread, Stephen Rothwell's response was that a generic allmodconfig build catches it. Rothwell runs allmodconfig and defconfig builds of linux-next every day on x86_64, powerpc, arm64 and others, and sends daily 'build failure after merge' mails (2025-2026 examples include allnoconfig i386 -Werror breakage, arm64 allyesconfig, sparc64 defconfig). Whole-config daily builds already catch most hard build breaks before mainline.
+    quote: "An allmodconfig build (even on x86_64) will do that"
+    source: Re: linux-next: build failure after merge of the tty tree | Stephen Rothwell | LKML (linux-next) | https://lkml.iu.edu/hypermail/linux/kernel/2502.0/07677.html
+    candidate_problem: Counter-evidence: linux-next integration builds already give a safety net for hard build failures; the gap left is unbuilt objects and warnings, not error detection.
+
+[249] (policy/anecdote, n.d.) Maintainers of COMPILE_TEST-gated Kconfig entries explicitly reason about allyesconfig as the blanket build-coverage mechanism, and COMPILE_TEST is not meant to enable everything. The sentence is from a 2025 commit message, not a policy document.
+    quote: "Enabling compile testing should not enable every individual driver (we have "allyesconfig" for that)."
+    source: [PATCH] firmware: firmware: meson-sm: fix compile-test default |  | patchew.org mirror of LKML (Johan Hovold, 2025) | https://patchew.org/linux/20250725075429.10056-1-johan@kernel.org
+    candidate_problem: Community norm: allyesconfig is the compile-coverage catch-all. Objects it cannot build (conflicting options, arch-specific) are the blind spots.
+
+[279] (counter_evidence/anecdote, 2018-02) On Arnd's 2018 allrandom.config proposal, kbuild maintainer Yamada asked for the root cause to be fixed rather than hidden by a special config, and suggested the existing compile_test.config fragment. Maintainers prefer fixing Kconfig dependencies and reusing existing mechanisms to new config-coverage machinery.
+    quote: "make randconfig compile_test.config"
+    source: Re: [PATCH 3/3] Kconfig: add a default allrandom.config | Masahiro Yamada | LKML | https://lkml.iu.edu/hypermail/linux/kernel/1802.2/02375.html
+    candidate_problem: maintainer attitude toward config-coverage tooling (prefers fixing dependencies)
+
+[280] (counter_evidence/anecdote, 2015-10) A SCSI maintainer, reviewing a 2015 COMPILE_TEST patch meant to raise build coverage, questioned the point and described his own simple practice. The patch author said it adds build coverage. Some maintainers satisfy themselves with one flipped Kconfig symbol rather than systematic coverage.
+    quote: "That's how I build test SCSI on my systems."
+    source: Re: [PATCH] scsi: kconfig: When possible, compile drivers with COMPILE_TEST | James Bottomley | LKML | https://lkml.iu.edu/hypermail/linux/kernel/1510.1/05532.html
+    candidate_problem: maintainers skeptical of compile-coverage mechanisms (old, narrow evidence)
+
+[281] (counter_evidence/anecdote, 2015-07) 2015 Kernel Summit topic on shared Kconfig fragments for testing. One participant argued that standardizing test configs could reduce coverage because everyone would test the same ones. Mark Brown replied that fragments lower the barrier for new testers. Config diversity is valued, and a single canonical config is not accepted as the answer.
+    quote: "everyone testing with the same .configs, which could actually decrease test coverage"
+    source: Kernel Summit 2015 topic: Kconfig fragments for testing | Alexey Dobriyan | kernel.org (LKS2015) | https://kernel.org/pub/linux/kernel/people/paulmck/LKS/LKS2015Topic/001269.html
+    candidate_problem: diversity of test configs vs standard configs (old)
+
+=== CONTEXT C4: Counter-evidence: low visible salience of config-coverage tooling among maintainers
+existing: n/a
+gap: Needs lore full-text search, a maintainer survey or interviews. Scope motivation to subsystems with many CONFIG-gated objects (drivers, net, media, arch, SoC) and downstream users (P10).
+fit: Not a candidate problem; it tempers the claim of broad developer demand. Use to scope the paper honestly.
+--- claims
+[17] (counter_evidence/anecdote, 2026-10-17) I found no mailing-list thread of the form 'which CONFIG option builds file X' or 'how do I build this driver' (query attempts via search returned only docs.kernel.org Kbuild documentation). I also found no maintainer reply using 'did you compile test with config X'. No fetched thread mentions kmax, klocalizer, or koverage. Developers appear to discover config problems through bot failures, not by asking the list. Not conclusive: lore full-text search was blocked and the search tool ignores exact phrases.
+    quote: "(no quote; absence of evidence across about 20 searches)"
+    source: Search outcome summary | n/a | n/a | https://docs.kernel.org/process/submit-checklist.html
+    candidate_problem: Counter-evidence: demand for 'which config builds this?' is not visible on LKML via the accessible tools. Verify with lore full-text search (s:, b: queries) from a machine that can reach it.
+
+[58] (counter_evidence/anecdote, 2025-12-12) In the same Maintainers Summit session the discussion about config coverage did not converge on a tool: Ojeda preferred testers use their own configs rather than canned ones, and the article reports no mention of randconfig or of any config-selection tool. Config coverage is raised in passing, not as the session's main problem (focus was linux-next process: missing trees, cherry-picks, flaky testing).
+    quote: "some repositories clearly are not seeing any testing at all"
+    source: Best practices for linux-next | Jonathan Corbet | LWN.net, Maintainers Summit 2025 | https://lwn.net/Articles/1050027/
+    candidate_problem: Evidence that maintainers prioritize process/testing discipline over config-selection tooling; a paper must show developer-facing value beyond what these discussions ask for.
+
+[63] (counter_evidence/anecdote, 2024-09-19) KernelCI LPC talks 2024 ('Meet the new KernelCI', Zickus/Padovan) and 2025 ('One year into the new KernelCI', Padovan/Brown; 'kci-dev', Tachibana) focus on architecture, result quality over quantity, auto-triage of regressions and developer feedback loops; the 2024 page does not mention build configurations and the kci-dev page lists no config pain points. KernelCI developers' stated concern is test/result workflow, not build-config coverage.
+    quote: "Prioritize the quality of test runs over their quantity."
+    source: Meet the new KernelCI (see also https://lpc.events/event/19/contributions/2086/ and https://lpc.events/event/19/contributions/2214/) | Don Zickus, Gustavo Padovan; Mark Brown; Arisu Tachibana | Linux Plumbers Conference 2024 and 2025 | https://lpc.events/event/18/contributions/1739/
+    candidate_problem: Build-config coverage is not a stated priority of the main upstream CI; adoption would need to come as a KernelCI/kci-dev plug-in producing config choices. Quote paraphrases abstract bullet via fetch summarizer.
+
+[73] (counter_evidence/anecdote, 2025-12) LPC 2025 (Tokyo, Dec 2025) microconference listings: Build Systems MC (7 talks), Kernel Testing & Dependability MC (10 talks), Android MC (13 talks), Embedded MC (6 talks), Safe Systems MC (9 talks) and the 28-talk refereed track contain no talk on Kconfig, config coverage, randconfig, or choosing configs to test. Build Systems MC topics were SBOMs, secure boot, systemd config, OpenWrt compliance and kernel-build system comparison. Topic has low salience at the premier kernel venue.
+    quote: "No talk explicitly mentions Kconfig or config management for the kernel itself."
+    source: LPC 2025 Build Systems MC session page (also sessions 228, 232, 219, 221, 241) | LPC 2025 programme | Linux Plumbers Conference 2025 | https://lpc.events/event/19/sessions/234/
+    candidate_problem: Developers did not bring config-coverage tooling to LPC 2025; the quote is a fetch-summarizer judgement based on truncated abstracts, so confirm against full abstracts.
+
+[74] (counter_evidence/anecdote, 2026-10-05) LPC 2026 Toolchains Track (5 Oct 2026, Prague) lists 12 talks; the only Kbuild-related item is 'Advancing PGO, AutoFDO, and Propeller in the Linux Kernel' (Rong Xu, Google, per-module profiling behind one Kbuild interface). No Kconfig/config-coverage talk in that track. The LPC 2026 Build Systems or Testing MC content was not retrievable.
+    quote: "Presents per-module profiling for kernel modules behind one Kbuild interface"
+    source: LPC 2026 Toolchains Track | LPC 2026 programme | Linux Plumbers Conference 2026 | https://lpc.events/event/20/sessions/274/
+    candidate_problem: Absence of config-coverage topics at LPC 2026 Toolchains track; incomplete (other 2026 sessions not checked).
+
+[75] (counter_evidence/anecdote, 2025-12-11) LPC 2025 Toolchains MC: Meta (Song Liu, Yonghong Song) 'Challenges with Kernels built with LTO' runs CONFIG_LTO_CLANG_THIN in production for years and discusses runtime tracing issues. Production operators' config concerns are effects of one chosen config at runtime, not coverage of the config space.
+    quote: "We have been using CONFIG_LTO_CLANG_THIN in our production kernel for a few years."
+    source: LPC 2025 Toolchains MC session page | Song Liu (Meta), Yonghong Song | Linux Plumbers Conference 2025, Toolchains MC | https://lpc.events/event/19/sessions/240/
+    candidate_problem: Hyperscale operators work on a single fixed config; object-level build conditions are of little interest to them, so the target audience is patch authors, CI/test operators, distro/embedded configurers and compliance users.
+
+[149] (counter_evidence/anecdote, 2020-05-09) Same HN thread: most replies discourage hand-tailoring a kernel because distro kernels are modular and load only what is needed; the cost-benefit is judged poor.
+    quote: "Just use the stock config and do your Docker work as is."
+    source: Ask HN: How to build a minified Linux kernel for my Docker? | akulbe (HN commenter) | Hacker News | https://hn.algolia.com/api/v1/items/23126466
+    candidate_problem: Mainstream users do not want to tailor kernel configs; value of build-condition analysis lies with distro, embedded, CVE-compliance and maintainer users, not the generic user.
+
+[150] (statistic/statistic, 2026-10-17 (query date)) Attention to kernel config topics on HN is small. Algolia hit counts: Show HN KernelConfig (2023-12-29) 5 points, 0 comments; Kconfirm (Phoronix, 2026-05-10) 2 points, 0 comments; kconfig-hardened-check 8 points, 0 comments; the Torvalds 'tabs in Kconfig' story (2024-04-15) 44 points, 3 comments. A 'kbuild' search returned no Kbuild-analysis stories. Weak signal: Kbuild/Kconfig tooling is niche on HN; no Reddit or Stack Overflow counts could be obtained.
+    quote: "Show HN: KernelConfig – Your Guide to Linux Kernel Modules Configuration"
+    source: HN Algolia search results for 'Kconfig' and 'kconfig kernel configuration' | various | Hacker News (Algolia API) | https://hn.algolia.com/api/v1/search?query=Kconfig&tags=story&hitsPerPage=30
+    candidate_problem: Audience size / popularity of config tooling (counter-evidence on demand).
+
+[180] (pain_point/anecdote, 2025) Linaro's own slide lists why kernel testing 'still sucks': fragmented CI, painful setup, slow feedback, hard reproducibility, and developers who do not test enough. Problems for testing reliability are listed as limited access to broad test coverage and inconsistent reproducibility. The listed pains concern test infrastructure and feedback latency, not identifying which objects a config builds.
+    quote: "Many devs still don't test enough"
+    source: Faster Linux Kernel Testing with Linaro's Open-Source Tools and LKFT Automation | Anders Roxell (Linaro) | FOSS-North 2025 (slides) | https://foss-north.se/2025/slides/aroxell-kerneltesting-slides.pdf
+    candidate_problem: Feedback latency and developers skipping local tests; a fast pre-submit check of which patched objects get built could lower the cost of testing.
+
+[181] (counter_evidence/anecdote, 2025) The same Linaro talk's problem statement and tool list (TuxMake, TuxRun, TuxSuite plans, git bisect with tuxmake) show the practitioner focus is cloud-parallel build/test plans (a plan is a build with toolchain, arch and a kconfig list like defconfig) and bisection. Config selection is a hand-written YAML list. Nothing in the pain list asks for static build-condition analysis, so need for it must be argued, not assumed.
+    quote: "Feedback takes too long"
+    source: Faster Linux Kernel Testing with Linaro's Open-Source Tools and LKFT Automation | Anders Roxell (Linaro) | FOSS-North 2025 (slides) | https://foss-north.se/2025/slides/aroxell-kerneltesting-slides.pdf
+    candidate_problem: Counter-evidence: CI operators currently solve coverage by scaling out builds, not by analysis.
+
+[233] (counter_evidence/policy, n.d.) submitting-patches has no explicit rule on which Kconfigs or architectures to compile with. Its only testing language is the Tested-by tag, which says 'in some environment'. The concrete multi-config build burden lives in submit-checklist and subsystem profiles, not in the central submission guide.
+    quote: "A Tested-by: tag indicates that the patch has been successfully tested (in some environment) by the person named."
+    source: Submitting patches: the essential guide to getting your code into the kernel |  | docs.kernel.org | https://docs.kernel.org/process/submitting-patches.html
+    candidate_problem: Compile coverage is a soft, undocumented norm in the central guide. Evidence for it has to come from subsystem profiles and the checklist.
+
+[245] (counter_evidence/policy, n.d.) Several large subsystem profiles (XFS, NFSD, tip) put their testing burden on runtime suites (fstests, kdevops, ltp, fio, debug configs), not on multi-config compile coverage. For these communities the dominant pain is runtime regression testing.
+    quote: "Authors of bug fix patches are expected to use fstests" "to perform an A/B test of the patch to determine that there are no regressions."
+    source: XFS Maintainer Entry Profile |  | docs.kernel.org | https://docs.kernel.org/filesystems/xfs/xfs-maintainer-entry-profile.html
+    candidate_problem: Not every subsystem cares about compile coverage. A paper claim of broad developer need should be scoped to subsystems with many CONFIG-gated objects: drivers, net, media, arch, SoC.
+
+[261] (counter_evidence/policy, n.d.) Stable-kernel rules impose no explicit compile or config requirement apart from build errors being valid fixes (but not for things marked CONFIG_BROKEN) and the fix being obviously correct and tested. Stable backporting build breakage is not framed as a policy burden there.
+    quote: "It fixes a problem like an oops, a hang, data corruption, a real security issue, a hardware quirk, a build error (but not for things marked CONFIG_BROKEN)"
+    source: Everything you ever wanted to know about Linux -stable releases |  | docs.kernel.org | https://docs.kernel.org/process/stable-kernel-rules.html
+    candidate_problem: Stable rules do not frame multi-config builds as a requirement, so the stable-backport angle needs evidence from other sources (mailing lists).
+
+[282] (statistic/statistic, 2020-07) KernelCI 2020 community survey, close to 100 responses. The top need was testing individual patches sent to mailing lists. The post does not mention build configuration or config coverage as a need. This is survey evidence that what respondents want is patch-level automated testing, not config tooling.
+    quote: "The most important one by far is the need for testing individual patches sent on mailing lists."
+    source: KernelCI community survey results | KernelCI team | kernelci.org | https://kernelci.org/?p=109
+    candidate_problem: developer needs survey: patch-level testing is top; config coverage not raised (the survey is old)
+
+[284] (pain_point/anecdote, 2026-10-12) 2026 Maintainers Summit (LWN, article dated 2026-10-12 per the search listing). Maintainers' stated concerns are LLM-generated review and patch traffic, prioritization, and automated review quality. Mark Brown asked that subsystems with tests actually build and run them in linux-next. Build-condition analysis was not raised, which supports the claim that it is not among their top-of-mind needs.
+    quote: "actually build and run them so they don't break in linux-next."
+    source: The 2026 Maintainers Summit | Mark Brown (as reported by LWN) | LWN.net | https://lwn.net/SubscriberLink/1099594/be20382b54a9b4cd/
+    candidate_problem: what maintainers actually care about in 2026 (LLM review load, linux-next test breakage), not config coverage
+
+[285] (counter_evidence/anecdote, 2026-10-12) At the 2026 Maintainers Summit one participant argued maintainers should leave bugs and style to bots. Another said the Sashiko automated review workflow causes endless resends. The robot-first, bot-review direction is what maintainers expect, so a tool aimed at maintainers has to plug into bots (CI, review bots) rather than ask for manual use.
+    quote: "maintainers should not be looking for bugs or coding-style problems; bots will do that now."
+    source: The 2026 Maintainers Summit | Alexei Starovoitov (as reported by LWN) | LWN.net | https://lwn.net/SubscriberLink/1099594/be20382b54a9b4cd/
+    candidate_problem: integration target: bots/CI rather than a developer-run CLI
+
+[286] (pain_point/anecdote, 2026) Linus Torvalds on the security list in 2026: AI-found reports flood maintainers. Ted Ts'o cites Intel's zero-day bot as a good model of automated reporting. The scarce resource is maintainer attention, and low-noise automated reports are valued.
+    quote: "the continued flood of AI reports has basically made the security list almost entirely unmanageable."
+    source: LWN article on AI-generated bug reports and the security list | Linus Torvalds (as reported by LWN) | LWN.net | https://lwn.net/Articles/1072732/
+    candidate_problem: maintainer attention is the bottleneck; low-noise automated reports are preferred
+
+=== CONTEXT C5: Adoption barriers: thin Kbuild maintainership, distrust of solver-based tooling, no toolsmith
+existing: Out-of-tree analyzers, in-tree scripts.
+gap: kfold output must be transparent (condition chains), fast, and bot-consumable; Z3 dependency needs defending.
+fit: Context for design and positioning, not a problem kfold solves.
+--- claims
+[38] (pain_point/anecdote, 2025-08-06) Kbuild and Kconfig have thin maintainership: Yamada stepped down after eight years (Aug 2025) and Kconfig was entirely unmaintained; in Oct 2025 Chancellor and Schier volunteered for Kconfig too in 'Odd Fixes' status (so 'unmaintained' is stale after Oct 2025).
+    quote: "while the configuration system is now entirely unmaintained."
+    source: A kbuild and kconfig maintainer change | Jonathan Corbet | LWN.net | https://lwn.net/Articles/1032722/
+    candidate_problem: context: few people understand/maintain Kbuild semantics; tooling that explains Kbuild reduces dependence on scarce experts
+
+[39] (pain_point/anecdote, 2025-10-24) Phoronix confirms the Oct 2025 follow-up: Kconfig was orphaned and Chancellor and Schier proposed themselves as maintainers in 'Odd Fixes' status.
+    quote: "Make Nicolas and I official maintainers of Kconfig in "Odd Fixes" status."
+    source: Linux's Kconfig Is No Longer Orphaned | Michael Larabel | Phoronix | https://www.phoronix.com/news/Kconfig-No-Longer-Orphaned
+    candidate_problem: context: Kbuild/Kconfig maintainership is minimal
+
+[40] (pain_point/anecdote, 2026-09-11) Corbet's defconfig article states the build system is an area few developers choose to go into; combined with old Kbuild dependency code that 'nobody has dared look at' (Torvalds, Sept 2026), the Kbuild internals are poorly understood even by core developers.
+    quote: "That whole thing is from a quarter century ago, and nobody has dared look at that code since."
+    source: Accelerating the kernel's build process | Jonathan Corbet (Linus Torvalds quoted in comments) | LWN.net | https://lwn.net/Articles/1093398/
+    candidate_problem: context: Kbuild logic is opaque; a semantic model of it (build conditions) is valuable
+
+[59] (policy/policy, 2025-10-24) Kbuild/Kconfig maintainership collapsed in 2025: Masahiro Yamada, sole maintainer for eight years, stepped down; Chancellor and Schier took Kbuild in 'odd fixes' status and Kconfig was left unmaintained (later taken on, also 'odd fixes', Oct 2025). Phoronix: 'significant contributions may not be accepted'. Implies thin maintainer capacity for build-system tooling and favors out-of-tree analyzers that need no kernel changes.
+    quote: "Make Nicolas and I official maintainers of Kconfig in "Odd Fixes" status"
+    source: Linux's Kconfig Is No Longer Orphaned | Phoronix; LWN (corbet) | Phoronix (also LWN https://lwn.net/Articles/1032722/ 'A kbuild and kconfig maintainer change', 2025-08-06) | https://www.phoronix.com/news/Kconfig-No-Longer-Orphaned
+    candidate_problem: Kbuild/Kconfig are under-maintained, so stand-alone analyzers that explain build conditions can reduce maintainer load (and an upstreamed tool is unlikely to be merged quickly).
+
+[91] (counter_evidence/policy, 2017-06) Kernel community skepticism toward heavy solver-based tooling, directly relevant to a Z3-based approach. Linus Torvalds on the Kconfig-SAT initiative; the paper also states the community prefers transparent, scriptable solutions and that a solution must be fast for user acceptance. Adoption risk for kfold unless output is transparent (condition chains) and fast.
+    quote: "The SAT solver will only hurt, because it will bring in all these irrelevant people who are interested in SAT solving, not in making things easy for users."
+    source: ConfigFix: Interactive Configuration Conflict Resolution for the Linux Kernel | Linus Torvalds (quoted in Franz et al.) | ConfigFix paper; original: ksummit-discuss mailing list, June 2017 | https://arxiv.org/pdf/2012.15342
+    candidate_problem: Community acceptance of SAT/SMT-based tooling
+
+[92] (policy/policy, 2020-12-30) Kernel maintainers explicitly preferred transparent, scriptable tooling over a configurator with a built-in reasoner; the Kconfig-SAT initiative (Oct 2015, started by kernel developer Luis Rodriguez) shows maintainers do want config support but with constraints (C-only, fast, no heavy dependencies).
+    quote: "the community prefers transparent and easily scriptable solutions as opposed to heavy machinery"
+    source: ConfigFix: Interactive Configuration Conflict Resolution for the Linux Kernel | Franz et al. | arXiv 2012.15342 | https://arxiv.org/pdf/2012.15342
+    candidate_problem: Integration constraints for new Linux tooling
+
+[165] (existing_tool/tool, 2026-07-26) Kconfirm (Julian Braha), Rust Kconfig static analyzer moving into scripts/kconfig/: v4 posted 2026-07-26 with 1282 alarms on x86-64 at v7.2-rc4 from default checks (dead code, constant conditions, invalid ranges), plus 976 for select-visible; Phoronix says it found 700+ duplicate dependencies in 7.0. Shows current maintainer-facing tooling energy is on Kconfig-level bugs, which kfold explicitly does not address (complementary or out of scope).
+    quote: "1282 alarms coming from the default set of checks."
+    source: [PATCH v4 0/5] add kconfirm | Julian Braha | LKML | https://lkml.iu.edu/2607.3/03886.html
+    candidate_problem: Kconfig-level anomalies (non-goal for kfold); evidence that Kconfig hygiene is where upstream tooling effort goes.
+
+[166] (existing_tool/tool, 2026-05-10) Phoronix coverage of Kconfirm: aims at zero false positives; 489 alarms at 7.1-rc2 with default checks, 1,789 with extra checks; first presented on LKML April 2026; RFC v2 posted 2026-05-09.
+    quote: "Kconfirm strives for zero false-positives."
+    source: Kconfirm Is on a Quest to Clean Up the Linux Kernel's Configuration System | Michael Larabel | Phoronix | https://www.phoronix.com/news/Linux-Kconfirm
+    candidate_problem: Kconfig-level checks; context for what upstream accepts as a mergeable analysis tool (in-tree, low false positives).
+
+[285] (counter_evidence/anecdote, 2026-10-12) At the 2026 Maintainers Summit one participant argued maintainers should leave bugs and style to bots. Another said the Sashiko automated review workflow causes endless resends. The robot-first, bot-review direction is what maintainers expect, so a tool aimed at maintainers has to plug into bots (CI, review bots) rather than ask for manual use.
+    quote: "maintainers should not be looking for bugs or coding-style problems; bots will do that now."
+    source: The 2026 Maintainers Summit | Alexei Starovoitov (as reported by LWN) | LWN.net | https://lwn.net/SubscriberLink/1099594/be20382b54a9b4cd/
+    candidate_problem: integration target: bots/CI rather than a developer-run CLI
+
+[286] (pain_point/anecdote, 2026) Linus Torvalds on the security list in 2026: AI-found reports flood maintainers. Ted Ts'o cites Intel's zero-day bot as a good model of automated reporting. The scarce resource is maintainer attention, and low-noise automated reports are valued.
+    quote: "the continued flood of AI reports has basically made the security list almost entirely unmanageable."
+    source: LWN article on AI-generated bug reports and the security list | Linus Torvalds (as reported by LWN) | LWN.net | https://lwn.net/Articles/1072732/
+    candidate_problem: maintainer attention is the bottleneck; low-noise automated reports are preferred
+
+[287] (pain_point/anecdote, 2020) LWN (Corbet, 2020): the kernel project lacks anyone to collect and maintain tools, so maintainers use their own scripts. The article does not mention build or config tooling. This is evidence that tooling in general is under-served, and that adoption of a new tool needs a champion.
+    quote: "The kernel project has long lacked a toolsmith."
+    source: Better tools for kernel developers | Jonathan Corbet | LWN.net | https://lwn.net/Articles/811528
+    candidate_problem: tool adoption: no toolsmith; maintainers roll their own tools
+
+=== CONTEXT C6: Existing config-handling and linting tools that overlap with parts of the story
+existing: As listed.
+gap: None of them gives a Makefile-derived condition per object. Check overlap at the symbol level (kernelconfig.io).
+fit: Catalog of incumbents. They set the baseline users compare against.
+--- claims
+[45] (existing_tool/tool, 2025-06-25) On the defconfig article's comments, the LWN editor and another commenter point to existing config-composition tools: merge_config.sh merges configurations, and dt_to_config enables hardware support from the DTS/DTB. These cover composing configs, not determining which objects a patch needs.
+    quote: "There is already tooling to merge configurations: ./scripts/kconfig/merge_config.sh"
+    source: Default kernel configuration (comment thread) | daroc (LWN editor); geert (dt_to_config) | LWN.net | https://lwn.net/Articles/1026717/
+    candidate_problem: counter-evidence / existing tools for config composition; config-for must add object-level targeting and minimal change
+
+[132] (existing_tool/tool, 2015) scripts/checkkconfigsymbols.py finds Kconfig symbols that are referenced in the tree but never defined. It has -c (check one commit), -d (diff commit range) and similar-symbol suggestions, and it requires a clean Git tree. It detects undefined symbols in source and Makefiles by text matching, not build conditions, so it is orthogonal to kfold (it would not tell whether an object is built). I did not confirm current maintenance status.
+    quote: "Find Kconfig symbols that are referenced but not defined."
+    source: [PATCH v3] checkkconfigsymbols.py: make it Git aware (and script header at https://gem5.googlesource.com/arm/linux/+/gem5/v4.4/scripts/checkkconfigsymbols.py) |  | LKML. Details are from 2015 posts; the current script has changed. | https://lkml.iu.edu/hypermail/linux/kernel/1503.2/00190.html
+    candidate_problem: Undefined-symbol checks exist; build-condition checks do not
+
+[133] (existing_tool/tool, n.d.) scripts/kconfig/merge_config.sh merges config fragments, warns on overridden values, and reports requested values missing from the final .config (typically unmet dependencies or removed symbols). Options include -m (merge only), -n (allnoconfig base), -r (redundant), -y, -s (strict) and -Q. It is the tool people use to assemble fragment configs, such as syzkaller's, but it gives no per-object info about what the merged config builds.
+    quote: "Takes a list of config fragment values, and merges them one by one. Provides warnings on overridden values"
+    source: merge_config.sh |  | Android kernel/common mirror | https://android.googlesource.com/kernel/common/+/60d69cb4e60de/scripts/kconfig/merge_config.sh
+    candidate_problem: Fragment merging yields silent dropped options; no object-level feedback
+
+[134] (existing_tool/tool, n.d.) Kbuild's built-in per-file check: sparse's C=1 runs only on files about to be recompiled, and C=2 checks every file. A 2018 LKML thread shows 'make net/sched/cls_flower.o W=1 C=2' for single-object builds. A reply says the single-target implementation is a bit compromised because it mishandles subdir-ccflags-y. These only work when the object is already enabled in the current .config, so they do not answer 'what config builds this object'.
+    quote: "make C=2"
+    source: Sparse (kernel docs, v7.2) and 2018 LKML single-object build thread |  | kernel.org docs. The single-object thread was seen only in a search snippet, via https://lkml.iu.edu/1801.3/01147.html. | https://kernel.org/doc/html/v7.2/dev-tools/sparse.html
+    candidate_problem: make path/file.o fails silently or does nothing if the object is not enabled
+
+[137] (existing_tool/tool, n.d.) dt_binding_check and dtbs_check validate device-tree binding schemas and DTS files against schemas (DT_SCHEMA_FILES narrows the set). The doc says nothing about CONFIG_ options. They check DT content, not Kconfig build conditions, and are orthogonal to kfold.
+    quote: "to perform validation of DT source files"
+    source: Writing DeviceTree Bindings in json-schema |  | docs.kernel.org (I fetched a path-normalized URL, so this exact URL is my best reconstruction) | https://docs.kernel.org/devicetree/bindings/writing-schema.html
+    candidate_problem: DT validation is separate from Kbuild build conditions
+
+[151] (existing_tool/tool, 2023-12-29) kernelconfig.io: a search site for kernel config information about modules, with 8 selectable kernel versions (mainline and stable, e.g. 6.18.57, 7.2.11) and 16 architectures. Covers the 'which CONFIG for module X' question at the symbol level, not at object-level build conditions. Posted as Show HN 2023-12-29 with 5 points.
+    quote: "search config information for linux kernel modules"
+    source: KernelConfig | unknown (Show HN poster) | kernelconfig.io | https://www.kernelconfig.io/index.html
+    candidate_problem: Which CONFIG option enables driver Y (existing partial solution; kfold adds exact boolean conditions and Makefile-derived semantics).
+
+[164] (existing_tool/tool, 2022-10) scripts/checkkconfigsymbols.py is what kernel developers use to find references to non-existent Kconfig symbols; Bulwahn cites it when validating cleanups (2022 thread, via search snippet; page not opened). It works on symbol references, not on object build conditions or reachability.
+    quote: "I validated my patch by running ./scripts/checkkconfigsymbols.py and determining if there are still invalid config references."
+    source: Re: [PATCH] arm/configs: Update config files for removed symbols | Lukas Bulwahn | LKML | https://lkml.iu.edu/hypermail/linux/kernel/2210.3/06409.html
+    candidate_problem: Dead/never-built object detection (existing symbol-reference check is weaker than condition satisfiability).
+
+[206] (policy/tool, 2026 (current docs)) Yocto kernel docs: a config audit task validates that requested fragment options actually appear in the final .config. The audit exists because requested options are silently dropped (dependencies unmet).
+    quote: "Running this task produces warnings for when a requested configuration does not appear in the final `.config` file"
+    source: Yocto Project Linux Kernel Development Manual, common tasks | Yocto Project | docs.yoctoproject.org | https://docs.yoctoproject.org/kernel-dev/common.html
+    candidate_problem: Detecting requested options that silently do not take effect; explaining why an object/option is not built
+
+[220] (existing_tool/tool, 2026 (repo footer; example run on kernel 6.11)) kernel-hardening-checker (formerly kconfig-hardened-check) checks Kconfig options, boot cmdline and sysctl against KSPP, CLIP OS, grsecurity-derived, GrapheneOS, CIS recommendations and can generate a Kconfig fragment. It works on option values only, not on which objects are built. Packaged by Debian and Arch.
+    quote: "nobody likes checking configs manually. So let the computers do their job!"
+    source: kernel-hardening-checker (formerly kconfig-hardened-check) | Alexander Popov (a13xp0p0v) | GitHub | https://github.com/a13xp0p0v/kernel-hardening-checker
+    candidate_problem: Hardening config audit; gap: relating hardening options to the objects/files they actually include or exclude
+
+[221] (existing_tool/tool, 2008-06-24) Kernel scripts/diffconfig (Tim Bird, 2008) compares two .config files; the standard tool distro and embedded maintainers use for config review. Operates on option values only.
+    quote: "Diffconfig is a simple utility for comparing two kernel configuration files."
+    source: kconfig: add diffconfig utility (commit) | Tim Bird; committed by Sam Ravnborg | kernel git (android-kvm mirror) | https://android-kvm.googlesource.com/linux/+/a717417e7f96ad2c6c3d80cdd0836e49597399a3%5E%21
+    candidate_problem: Config comparison shows option deltas but not which objects change in the build
+
+[256] (existing_tool/tool, n.d.) Kbuild documents the existing coverage mechanisms: W=, C=, CHECK, KCFLAGS. All compile-time checks operate only on objects that the chosen config builds. KBUILD_MODPOST_NOFINAL is described as solely useful for faster test compiles.
+    quote: "This is solely useful to speed up test compiles."
+    source: Kbuild |  | docs.kernel.org | https://docs.kernel.org/kbuild/kbuild.html
+    candidate_problem: Existing knobs speed up or deepen the compile of a chosen config. None tells you which config to choose, which is the kfold gap.
+
+[257] (existing_tool/tool, n.d.) The kernel's randconfig and the KCONFIG_ALLCONFIG variants are the documented generators of coverage configs. The documentation states no build-testing purpose for them, so the 'build-test with all/mod/random config' practice is convention, not documented rationale.
+    quote: "This enables you to create “miniature” config (miniconfig) or custom config files"
+    source: Kconfig environment variables |  | docs.kernel.org | https://docs.kernel.org/kbuild/kconfig.html
+    candidate_problem: Random and all-style configs are blind to object-level conditions. They give no guarantee that a given object is built.

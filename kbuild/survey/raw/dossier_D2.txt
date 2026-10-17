@@ -1,0 +1,137 @@
+=== PROBLEM P2: Find a .config that builds a given file or patch, with minimal change to a base config (H2)
+who: Patch authors, maintainers, reviewers, KUnit/test authors, embedded integrators, kernel researchers
+strength: Strong demand evidence (checklist burden, academic motivation, forum threads). Direct prior art exists, so novelty is the issue. Independent sources: kernel docs, Yocto list, Arch forum, KUnit docs. Adoption of klocalizer is not visible on LKML or forums (17, 168). Only the kismet part of the kmax suite is confirmed to be in 0-day (27, 197).
+existing: klocalizer/krepair/koverage (kmax suite, FSE 2024); undertaker/Vampyr (stale, about Linux 3.2); merge_config.sh; localmodconfig; kernelconfig.io; menuconfig search.
+gap: Gaps the claims state for klocalizer: no accuracy validation of its Kbuild constraints (it says the formulas may be inexact), composite-object and CONFIG_BROKEN handling, one architecture per invocation, heavy SuperC/Java setup, header-only patches unsupported, constraint collection 2-15 minutes (274). No explanation chain. Non-Linux Kbuild trees are not targeted. kfold must be benchmarked head-to-head on the same patches.
+fit: object-selection - This is the core of config-for. The fit is real but not novel: klocalizer already solves the problem at finer (line) granularity. Differentiation must rest on speed, exactness of Kbuild semantics, explanations, and other Kbuild trees.
+
+--- supporting claims
+[52] (need/anecdote, 2022-06-22) Slides state it is hard just to figure out which config options must be set for a .config to cover a commit; the build system (Kconfig + Kbuild Makefiles + C preprocessor) selects the code, and the .config must satisfy both Makefile options (obj-$(CONFIG_ARM_GIC) += irq-gic.o) and #ifdef options. Note: krepair covers Kbuild Makefile AND #ifdef conditions at line level; kfold covers only the Makefile part.
+    quote: "hard just to figure out what config options need to be set so that your .config file covers a commit"
+    source: Krepair slides, slides 17-19 | Paul Gazzillo, Necip Yildiran | Open Source Summit North America 2022 | https://paulgazzillo.com/files/oss2022.pdf
+    candidate_problem: Patch-to-config derivation; overlaps with existing tool krepair, so differentiation must be on object-level precision, explanations (why), and reuse of the same conditions for other tasks.
+
+[53] (existing_tool/tool, 2024) FSE 2024 krepair paper (same authors plus Oh, Lawall): single randconfig gives 29.2% average patch coverage, defconfig 21.7%, allyesconfig 88.5%, krepair on defconfig 98.5% while keeping build about 10x faster than allyesconfig; in Intel 0-day's 36,115 build-test reports, 63% used randconfig, 15% allyesconfig, 7% defconfig; sample of 507 patches out of about 71,000. Direct prior art for 'config-for PATCH'.
+    quote: "a single random configuration file only achieves 29.2% patch coverage on average"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | arXiv (FSE 2024 paper) | https://arxiv.org/html/2404.17966v1
+    candidate_problem: config-for PATCH is already addressed by krepair (line-level, incl. #ifdef); kfold must show an advantage (object-level, Kbuild-semantics fidelity, explainability, speed).
+
+[80] (pain_point/anecdote, 2024-07) Motivating example in the krepair paper: to build one file a developer must trace selects/depends across several Kconfig files (ARM_GIC cannot be selected directly; reachable via ARM_GIC_PM which depends on PM), and the Makefile condition alone does not guarantee the changed lines (under #ifdef/#else) are built. Concrete evidence that developers cannot easily explain or achieve 'why is this object/line built'.
+    quote: "it is necessary to trace across multiple Kconfig files to discover that this option can be selected"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | FSE 2024 (section 2.3) | https://arxiv.org/abs/2404.17966
+    candidate_problem: Developer cannot explain why an object is or is not built (why)
+
+[82] (existing_tool/tool, 2024-07) krepair is the closest existing tool to kfold's config-for: it uses Kbuild constraints (via kmax) plus Kconfig constraints and a theorem prover to repair an existing config so a patch is built; 98.5% avg coverage, 97% of patches need one config, found 18 build errors (2 not yet fixed, one patch accepted). Stated limits (as reported by fetch extraction of the paper): only build-system constraints, header-only patches unsupported, run-time (C) uses of options unsupported, evaluated on one system, up to 23 configs in worst case. kfold overlap is high for config-for; differentiator is per-object condition output and explanation.
+    quote: "We describe the 18 build errors found by repaired configuration files"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | FSE 2024 | https://arxiv.org/abs/2404.17966
+    candidate_problem: Overlap with config-for (patch-covering config search)
+
+[84] (need/anecdote, 2011-10) Open problem stated: a Linux developer who modified files wants to be sure every edited line compiles before submitting a patch, but finding the covering configurations is tedious by hand. Same paper reports some files (kernel/sched_fair.c) need seven configs and that more than 90% of files reach full #ifdef coverage with at most two configs.
+    quote: "a sometimes difficult, but always tedious and error-prone task"
+    source: Configuration Coverage in the Analysis of Large-Scale System Software | Tartler, Lohmann, Dietrich, Egger, Sincero | PLOS 2011 / SIGOPS OSR 2012 | https://sigops.org/s/conferences/sosp/2011/workshops/plos/02-tartler.pdf
+    candidate_problem: Patch not built by any standard config (config-for)
+
+[86] (pain_point/anecdote, 2011-10) Kconfig expansion of partial configs is fragile: Kconfig can silently drop requested options rather than report conflicts. Relevant to config-for which depends on a Kconfig model to realize solutions.
+    quote: "Kconfig in some cases silently overwrites user choices instead of signaling incompatible item selections"
+    source: Configuration Coverage in the Analysis of Large-Scale System Software | Tartler et al. | PLOS 2011 / SIGOPS OSR 2012 | https://sigops.org/s/conferences/sosp/2011/workshops/plos/02-tartler.pdf
+    candidate_problem: Producing a valid .config that actually builds target objects (config-for)
+
+[89] (need/anecdote, 2020-12-30) Open problem stated (ConfigFix, ICSE SEIP 2021): Linux users struggle with kernel configuration and resolving configuration conflicts because the kernel lacks automated support; research tooling mostly did not make it into the kernel. Survey cited: 20% of respondents needed a few dozen minutes to resolve a conflict. This is a config-for adjacent need (find a valid config for a desired feature).
+    quote: "Linux users still struggle with kernel configuration and resolving configuration conflicts, since the kernel largely lacks automated support."
+    source: ConfigFix: Interactive Configuration Conflict Resolution for the Linux Kernel | Patrick Franz, Thorsten Berger, Ibrahim Fayaz, Sarah Nadi, Evgeny Groshev | arXiv 2012.15342 (Dec 2020); ICSE SEIP 2021 | https://arxiv.org/pdf/2012.15342
+    candidate_problem: Developer cannot easily obtain a config enabling a given feature/object (config-for)
+
+[90] (statistic/statistic, 2020-12-30) A survey cited by ConfigFix found conflict resolution in the kernel configurator takes substantial time for a fifth of respondents; feature descriptions give incomplete or misleading advice.
+    quote: "with 20 % of the survey respondents needing roughly “a few dozen minutes” to resolve a conflict"
+    source: ConfigFix: Interactive Configuration Conflict Resolution for the Linux Kernel | Franz, Berger, Fayaz, Nadi, Groshev | arXiv 2012.15342 / ICSE SEIP 2021 | https://arxiv.org/pdf/2012.15342
+    candidate_problem: Config conflict resolution time (config-for)
+
+[109] (existing_tool/tool, n.d.) klocalizer/krepair (part of the kmax suite) already takes a config that fails to build a patch's lines and repairs it so the whole patch builds. It also accepts a target object (--include foo.o), uses SuperC to collect #ifdef constraints inside source files, and emits several configs (NUM-ARCH.config) when a patch touches both arms of an #ifdef. It can also export the Kbuild/Kconfig constraints as DIMACS or SMT (--save-dimacs, --save-smt). This is the closest competitor to kfold's config-for command. Unlike kfold, klocalizer also models #ifdefs in source files.
+    quote: "take a config file that fails to build lines of a patch and repairs it to build the whole patch"
+    source: kmax (PyPI, latest 4.10, Aug 18 2026) |  | PyPI | https://pypi.org/project/kmax/
+    candidate_problem: Find a .config that builds the objects/lines touched by a patch
+
+[110] (existing_tool/tool, n.d.) The kmax GitHub repository is the home of the suite (kmax/kextract, klocalizer, krepair, koverage, kismet). The README describes klocalizer in patch mode and koverage (--check-patch, --config, --arch) and kismet. As shown: 72 stars, 29 forks, 1,289 commits, 77 open issues. This is a research-grade tool with modest adoption. The README lists these limits: some lines are still omitted (dead code, header files), setup needs SuperC with Java dependencies, and a full kismet run on x86_64 takes about an hour. Examples run one architecture per invocation (-a x86_64 or -a arm).
+    quote: "some lines may still be omitted, for instance if they are dead code or in header files"
+    source: paulgazz/kmax README |  | GitHub | https://github.com/paulgazz/kmax
+    candidate_problem: Adoption and limits of the incumbent config-for-patch tool
+
+[112] (counter_evidence/statistic, n.d.) krepair's own stated limitations show what stays open. It collects constraints only from the build system and Kconfig, and does not model C-level conditionals. Header-only patches (about 2% of patches) are unsupported and handled only by a heuristic. Cross-compilation depends on make.cross, which lacked loongarch, and 7 patches could not be built because of toolchain problems. The paper reports no accuracy measurement for the Kbuild constraints. These are gaps a precise per-object condition engine could target, such as an exact object-level semantic model with explanations. Note that the 'only collect constraints from the build system' remark in the paper's reasons-for-uncovered-lines list is a tool-limit statement.
+    quote: "Header-only patches: These are unsupported"
+    source: Maximizing Patch Coverage ... (krepair) |  | arXiv 2404.17966 (fetch summarized by tool; the quote is a paraphrased list item, so verify in the PDF) | https://arxiv.org/html/2404.17966
+    candidate_problem: Open gaps in config-for-patch: header-only patches, constraint accuracy unvalidated, multi-arch toolchains
+
+[138] (counter_evidence/tool, n.d.) Hostile verdict on the klocalizer comparison. It already solves 'find a config for a patch or file': it minimizes config change, handles the #ifdef constraints that kfold ignores, and reports 98.5% mean patch coverage on 507 patches. It is open source, on PyPI at version 4.10, and has been used by others (KBootRepair). It is maintained by a university group that also runs kismet, which the test robot uses. What it does not demonstrably do: (a) its Kbuild constraint accuracy is not reported in the FSE paper; (b) header-only patches are unsupported (about 2%); (c) it has no maintainers-grouped 'blindspots' report; (d) it has no 'why is OBJ not built' explanation chain; (e) it works through SuperC with a heavy setup, and one invocation covers one architecture; (f) it does not target BusyBox, Barebox, U-Boot or coreboot. I did not find evidence of these last points being claimed. kfold's differentiators would have to be (c), (d) and speed or exactness at object level, validated against klocalizer on the same patches.
+    quote: "Repair usually covers all lines of a patch"
+    source: Synthesis of kmax PyPI/README and the krepair paper (https://arxiv.org/html/2404.17966) |  | Own analysis from the cited sources. The points about what klocalizer does not do are inferences from absence in those pages, not stated in them. | https://pypi.org/project/kmax/
+    candidate_problem: What klocalizer already solves versus what remains open
+
+[139] (counter_evidence/anecdote, 2025-03) I found no 2023-2026 paper on 'find the kernel config that compiles this patch/file' other than the krepair/klocalizer line (FSE 2024) and its downstream uses (KBootRepair, PatchLens-style condition recovery). Searches on LLM kernel configuration returned only performance-tuning work (BYOS, arXiv 2503.09663; OS-R1, arXiv 2508.12551). So the field appears thin, which cuts both ways: little competition, but possibly little demand evidence.
+    quote: "BYOS: Knowledge-driven Large Language Models Bring Your Own Operating System More Excellent"
+    source: BYOS (performance-tuning of kernel configs, not buildability) |  | arXiv. Absence-of-evidence finding; the search budget ran out, so it is not exhaustive. | https://arxiv.org/abs/2503.09663v1
+    candidate_problem: Absence of other recent tools for config-for-patch
+
+[141] (pain_point/anecdote, 2017-04-27) make localmodconfig only keeps modules loaded at the time it runs, so a custom kernel built from it silently lacks drivers for hardware or filesystems not in use at that moment. Arch wiki maintainer recommends the AUR tool modprobed-db to record modules over time. Thread 2017-04-27, 4 replies, marked solved.
+    quote: "Using LMC only works if the needed modules are loaded before you start compiling."
+    source: [solved] missing modules with custom kernel & localmodconfig | graysky (Arch wiki maintainer) replying to OP | Arch Linux forums (Kernel & Hardware) | https://bbs.archlinux.org/viewtopic.php?id=225599
+    candidate_problem: Minimal per-machine kernel config: turn a recorded list of needed modules/objects into a config that builds all of them plus their transitive Kconfig dependencies (config-for starting from objects, not a patch).
+
+[144] (pain_point/anecdote, 2011-09-01) Driver 'does not build' because of unmet Kconfig dependencies that the user did not know about. Yocto list 2011: reporter could not get e100 to build; diagnosis was missing NET_PCI/MII; a maintainer said a warning should appear when a fragment option does not reach .config, and the reporter did not confirm that it did.
+    quote: "Yes, the problem was due to missing dependent options.."
+    source: [yocto] e100 driver does not build | Rahul Saxena (OP); Tom Zanussi, Bruce Ashfield (replies) | Yocto Project mailing list | https://docs.yoctoproject.org/pipermail/yocto/2011-September/002629.html
+    candidate_problem: Given a target object, compute the full set of options (including transitive depends/select) required to build it (config-for), and explain why a requested option was dropped.
+
+[168] (existing_tool/tool, unknown) klocalizer/kmax (prior work) per PyPI listing: takes a compilation unit and produces a .config that builds it; --repair adjusts a config so a whole patch builds (SuperC for #ifdefs), with koverage to measure patch coverage. I found no 2023-2026 mailing-list posts or forum threads showing kernel developers using klocalizer (absence of evidence from my searches only).
+    quote: "klocalizer as a tool that takes a compilation unit and produces a .config that builds it"
+    source: kmaxtools (klocalizer) | Paul Gazzillo group (UCF) | PyPI | https://pypi.org/project/kmaxtools/2.0rc26/
+    candidate_problem: Find a config that builds a patch (config-for) where existing tool exists but has no visible developer adoption.
+
+[197] (existing_tool/tool, n.d.) The kmax suite already offers file-to-config and patch-to-config: klocalizer generates a .config that includes a given compilation unit, can repair a config to build a whole patch, and koverage checks patch coverage. Docs note repair may omit dead code or header-only lines. Direct overlap with the 'config-for' command; kfold has to differ in the quality of the condition (precise symbolic execution of Kbuild) and in 'why' and 'blindspots'. The kmax docs also credit the 0-day team for including kismet in the kernel test robot, showing a route for research tools into 0-day.
+    quote: "will include the given compilation unit"
+    source: kmax (klocalizer, krepair, koverage) on PyPI | Paul Gazzillo et al. | PyPI | https://pypi.org/project/kmax/
+    candidate_problem: Overlap and differentiation with klocalizer/krepair for 'build this patch' configs.
+
+[254] (need/policy, n.d.) Distro and embedded users configuring kernels are told that trimmed configs (localmodconfig) can silently drop needed features. The official guide admits it is hard to anticipate which options are needed.
+    quote: "it is hard to think of everything that might be needed."
+    source: How to quickly build a trimmed Linux kernel |  | docs.kernel.org | https://docs.kernel.org/admin-guide/quickly-build-trimmed-linux.html
+    candidate_problem: Configurers cannot easily map a needed object or feature to the options that build it. A 'why OBJ' / config-for for objects would help. The quote is the doc's own admission.
+
+[260] (pain_point/policy, n.d.) KUnit running tips admit that test config dependencies are an edge case that test authors rarely consider, and that merging .kunitconfig fragments across directories is unreliable because tests may depend on incompatible options.
+    quote: "tests could theoretically depend on incompatible options, so handling that would be tricky."
+    source: Tips For Running KUnit Tests |  | docs.kernel.org | https://docs.kernel.org/dev-tools/kunit/running_tips.html
+    candidate_problem: Computing a consistent .kunitconfig for a set of test objects is an unsolved manual problem, and config-for could generate one from object conditions plus the Kconfig model.
+
+[271] (existing_tool/tool, n.d.) klocalizer (kmax suite) already repairs a config so that a patch's lines build, and emits several configs when a patch touches both arms of an #ifdef. The README documents its limits: some lines may stay uncovered, and it relies on SuperC for #ifdef constraints. This is the main existing tool against config-for. kfold would need to differentiate on speed, explanations (why), blindspots/MAINTAINERS grouping, or coverage of non-Linux Kbuild trees.
+    quote: "klocalizer --repair will take a config file that fails to build lines of a patch and repairs it to build the whole patch."
+    source: kmax: analysis tools for Kconfig and Kbuild constraints |  | GitHub | https://github.com/paulgazz/kmax
+    candidate_problem: config-for: existing solution (klocalizer/krepair)
+
+[272] (existing_tool/tool, n.d.) klocalizer docs concede limitations in extracted Kbuild formulas, CONFIG_BROKEN handling, composite objects, and the one-architecture-at-a-time search. These are places where a more precise object-level Kbuild analysis could improve on it. The docs also say the formulas may be inexact.
+    quote: "The extracted formulas may not be exact."
+    source: kmax docs: advanced.md |  | GitHub | https://github.com/paulgazz/kmax/blob/master/docs/advanced.md
+    candidate_problem: formula precision in existing Kbuild constraint extraction (klocalizer, koverage)
+
+[273] (existing_tool/tool, n.d.) Koverage and klocalizer already include the notion of a coverage check for a config, and note that repair may omit lines in headers or dead code. Per the docs, koverage can say whether a config includes a set of patched lines.
+    quote: "some lines may still be omitted, for instance if they are dead code or in header files."
+    source: kmax: analysis tools for Kconfig and Kbuild constraints |  | GitHub | https://github.com/paulgazz/kmax
+    candidate_problem: why-not-built / coverage check: koverage overlaps with 'why OBJ --config'
+
+[274] (counter_evidence/tool, 2024) The krepair paper admits it depends on existing Kbuild constraint tools and that those tools only gather build-system constraints. Per the paper, kclause typically takes 2-3 minutes and kmax 10-15 minutes. So the paper itself says the Kbuild-constraint collector is the bottleneck of its approach, which is what kfold replaces.
+    quote: "Since krepair relies on existing constraint collection tools, any limitations of these tools limit krepair."
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Gazzillo et al. | FSE 2024 (arXiv 2404.17966) | https://arxiv.org/html/2404.17966v1
+    candidate_problem: constraint-collection speed and precision (positive for kfold, as a gap in existing tooling)
+
+[276] (workflow_practice/anecdote, 2020-03) Skeptic's evidence that 'make path/file.o' is the daily workflow: a kernel developer says he runs single-object builds routinely. The kbuild maintainer replies that the object builds only if its CONFIG dependency is met, with the obj-$(CONFIG_FOO) example. Single-target builds therefore silently depend on the .config, which is the 'why was my object not built' question that 'why OBJ' answers.
+    quote: "I often run 'make foo/bar.o' as part of my workflow."
+    source: Re: single target builds are broken | Vegard Nossum | LKML (Vegard Nossum and Masahiro Yamada) | https://lkml.rescloud.iu.edu/hypermail/linux/kernel/2003.3/08451.html
+    candidate_problem: why OBJ: single-target builds work only when the CONFIG dependency is met
+
+[277] (workflow_practice/anecdote, 2020-03) Same thread, kbuild maintainer's answer: the necessary CONFIG dependency must be met for make foo.o to build anything. The answer given is to read the Makefile; no config-finding tool is mentioned.
+    quote: "The necessary CONFIG dependency must be met."
+    source: Re: single target builds are broken | Masahiro Yamada | LKML | https://lkml.rescloud.iu.edu/hypermail/linux/kernel/2003.3/08451.html
+    candidate_problem: why OBJ / config-for: the manual answer is grep the Makefile
+
+[299] (need/tool, n.d.) KUnit documentation: the user must list the Kconfig options and their dependencies by hand in .kunitconfig. The tool only warns if options did not survive olddefconfig. No config is computed from the tests or objects. Per search-result summary, so approximate.
+    quote: "the list of kconfig options required to run the desired tests, including their dependencies"
+    source: KUnit Getting Started |  | docs.kernel.org | https://docs.kernel.org/6.1/dev-tools/kunit/start.html
+    candidate_problem: config-for for tests: hand-written dependency lists (the page was not opened; quote taken from a search-result summary)

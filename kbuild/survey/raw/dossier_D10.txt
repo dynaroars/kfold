@@ -1,0 +1,122 @@
+=== PROBLEM P13: Reverse lookup and explanation: which CONFIG builds object or driver X, and why is it missing from my build
+who: Driver maintainers, patch authors, distro/embedded configurers, ordinary kernel builders, reviewers
+strength: Moderate. About 23 claims, mostly anecdotes from independent forums and lists over 2011-2025. Few are recent (192, 147, 24). One survey statistic (20% of respondents) via a 2020 paper. Counter: a tool (kernelconfig.io) answers symbol-level lookups; HN says mainstream users do not want to tailor.
+existing: menuconfig '/' search, kernelconfig.io, LKDDB (cateee.net), grep, localmodconfig, ConfigFix (research), merge_config.sh warnings, Yocto audit.
+gap: An exact Makefile-derived boolean condition for the object plus an explanation chain against a given .config (the why command), including the unmet-dependency step. Kbuild-only explanation leaves the Kconfig step unresolved.
+fit: partial - why OBJ answers the Kbuild half precisely. The dominant user pain (292, 93, 144) is at the Kconfig dependency step, so full value depends on integrating the Kconfig model, which kfold does only for config-for.
+
+--- supporting claims
+[23] (pain_point/anecdote, 2025-06-24) Commenter on the defconfig article: it has become easy to build a kernel that does not work because of one wrongly disabled option, and distros spend large effort on it. Users cannot easily see what a config option gates.
+    quote: "it has become increasingly easy to build a non-working kernel due to a stupidly disabled option"
+    source: Default kernel configuration (comment thread on 'Who are kernel defconfigs for?') | wtarreau (commenter) | LWN.net | https://lwn.net/Articles/1026717/
+    candidate_problem: why: explain which option/condition keeps a needed object out of the build ('why is driver X.o not in my kernel')
+
+[24] (pain_point/anecdote, 2025-06-24) Corbet's report of the defconfig discussion: configuring is not fun, and a missing driver means a non-working kernel. Linus Torvalds called kernel config the nastiest part of building a local kernel. Developers are asked to test on x86 defconfigs, which are rarely used to build kernels that actually run, so the standard build-test configs diverge from real use.
+    quote: "Failing to enable a needed driver will result in a non-working kernel."
+    source: Who are kernel defconfigs for? | Jonathan Corbet (Torvalds quoted in comments: "the kernel config is likely the nastiest part of building a local kernel") | LWN.net | https://lwn.net/Articles/1026337/
+    candidate_problem: config-for / blindspots: defconfig-based build testing misses objects real users enable
+
+[44] (workflow_practice/anecdote, 2012-07-18) Distribution configs (2012, older): Torvalds wanted every option in a distro config to carry a comment saying why it is needed. Ben Hutchings said he sometimes does not know what depends on an option, and a Fedora maintainer was blindsided by requirements. Option-to-object dependency knowledge is missing for configurers. Foundational, pre-2023.
+    quote: "doesn't mean I know what's using or depending on it now."
+    source: Kernel configuration for distributions | Jake Edge (Ben Hutchings quoted) | LWN.net | https://lwn.net/Articles/507239/
+    candidate_problem: why: which objects does an option gate? supports distro config minimization
+
+[89] (need/anecdote, 2020-12-30) Open problem stated (ConfigFix, ICSE SEIP 2021): Linux users struggle with kernel configuration and resolving configuration conflicts because the kernel lacks automated support; research tooling mostly did not make it into the kernel. Survey cited: 20% of respondents needed a few dozen minutes to resolve a conflict. This is a config-for adjacent need (find a valid config for a desired feature).
+    quote: "Linux users still struggle with kernel configuration and resolving configuration conflicts, since the kernel largely lacks automated support."
+    source: ConfigFix: Interactive Configuration Conflict Resolution for the Linux Kernel | Patrick Franz, Thorsten Berger, Ibrahim Fayaz, Sarah Nadi, Evgeny Groshev | arXiv 2012.15342 (Dec 2020); ICSE SEIP 2021 | https://arxiv.org/pdf/2012.15342
+    candidate_problem: Developer cannot easily obtain a config enabling a given feature/object (config-for)
+
+[90] (statistic/statistic, 2020-12-30) A survey cited by ConfigFix found conflict resolution in the kernel configurator takes substantial time for a fifth of respondents; feature descriptions give incomplete or misleading advice.
+    quote: "with 20 % of the survey respondents needing roughly “a few dozen minutes” to resolve a conflict"
+    source: ConfigFix: Interactive Configuration Conflict Resolution for the Linux Kernel | Franz, Berger, Fayaz, Nadi, Groshev | arXiv 2012.15342 / ICSE SEIP 2021 | https://arxiv.org/pdf/2012.15342
+    candidate_problem: Config conflict resolution time (config-for)
+
+[93] (pain_point/anecdote, 2020-12-30) The standard configurator does not tell the user which dependency is unmet, so enabling a feature requires manual transitive reasoning about Kconfig constraints (including select side-effects).
+    quote: "Xconfig does not even show which parts of the constraint are unmet."
+    source: ConfigFix: Interactive Configuration Conflict Resolution for the Linux Kernel | Franz et al. | arXiv 2012.15342 | https://arxiv.org/pdf/2012.15342
+    candidate_problem: Explaining why something cannot be enabled/built (why)
+
+[106] (need/anecdote, 2025-05-12) Open problem stated (TuxKConfig, 2025): option documentation is sparse and rarely says what an option does; the paper suggests tools to help newcomers and experienced developers navigate the configuration space.
+    quote: "Currently, documentation is often sparse and rarely details the impact of configuration options"
+    source: Linux Kernel Configurations at Scale: A Dataset for Performance and Evolution Analysis | Borges, Pereira, Khelladi, Acher | EASE 2025 (section 4.8) | https://arxiv.org/html/2505.07487v1
+    candidate_problem: Understanding what an option builds (object-level impact of an option; why)
+
+[140] (pain_point/anecdote, 2013-02-21) Forum users cannot map a module/.ko name to the menuconfig option that builds it. Arch BBS thread 'Finding modules in menuconfig' (2013-02-21, 12 replies): OP could not find options for cdrom.ko, i2c-algo-bit.ko, libata.ko, usbcore.ko. Answers: search in menuconfig, grep .config with the uppercase module name, use the cateee.net LKDDB, or run make localmodconfig. No reply mentions grepping Kbuild Makefiles. Module name and CONFIG symbol often differ (i2c-algo-bit is I2C_ALGOBIT).
+    quote: "just can't find them anywhere."
+    source: Finding modules in menuconfig | junex (OP) | Arch Linux forums (Kernel & Hardware) | https://bbs.archlinux.org/viewtopic.php?id=158476
+    candidate_problem: Reverse lookup from object/module to the Kconfig condition that builds it ('which CONFIG enables file X'), answered from Kbuild rather than from folklore.
+
+[141] (pain_point/anecdote, 2017-04-27) make localmodconfig only keeps modules loaded at the time it runs, so a custom kernel built from it silently lacks drivers for hardware or filesystems not in use at that moment. Arch wiki maintainer recommends the AUR tool modprobed-db to record modules over time. Thread 2017-04-27, 4 replies, marked solved.
+    quote: "Using LMC only works if the needed modules are loaded before you start compiling."
+    source: [solved] missing modules with custom kernel & localmodconfig | graysky (Arch wiki maintainer) replying to OP | Arch Linux forums (Kernel & Hardware) | https://bbs.archlinux.org/viewtopic.php?id=225599
+    candidate_problem: Minimal per-machine kernel config: turn a recorded list of needed modules/objects into a config that builds all of them plus their transitive Kconfig dependencies (config-for starting from objects, not a patch).
+
+[143] (workflow_practice/policy, unknown (page fetched 2026-10)) Gentoo wiki Kernel/Configuration documents only name search in menuconfig and localmodconfig for finding options; it states no way to go from a driver or file to its option and refers the reader to hardware-detection articles.
+    quote: "Within `make menuconfig`, use the / key to search modules and config options by name."
+    source: Kernel/Configuration | Gentoo wiki | Gentoo Wiki | https://wiki.gentoo.org/wiki/Kernel/Configuration
+    candidate_problem: Which CONFIG option enables driver/file X; documentation gap that a per-object condition query could fill.
+
+[144] (pain_point/anecdote, 2011-09-01) Driver 'does not build' because of unmet Kconfig dependencies that the user did not know about. Yocto list 2011: reporter could not get e100 to build; diagnosis was missing NET_PCI/MII; a maintainer said a warning should appear when a fragment option does not reach .config, and the reporter did not confirm that it did.
+    quote: "Yes, the problem was due to missing dependent options.."
+    source: [yocto] e100 driver does not build | Rahul Saxena (OP); Tom Zanussi, Bruce Ashfield (replies) | Yocto Project mailing list | https://docs.yoctoproject.org/pipermail/yocto/2011-September/002629.html
+    candidate_problem: Given a target object, compute the full set of options (including transitive depends/select) required to build it (config-for), and explain why a requested option was dropped.
+
+[145] (pain_point/anecdote, 2017-09-30) Kconfig fragments in Yocto silently fail to reach the final .config, and the audit task does not catch it. 2017 thread: after upgrading to morty the OP's fragments no longer applied; kernel_configcheck did not flag it; the maintainer's first answer was that the cause 'could be either' his recipe or the lower-level class.
+    quote: "The kernel_configcheck task doesn't catch the error either."
+    source: [yocto] Configuration fragments not making it into kernel configuration | Jonathan Haws (OP); Bruce Ashfield | Yocto Project mailing list | https://docs.yoctoproject.org/pipermail/yocto/2017-October/038236.html
+    candidate_problem: Explaining why a requested option or object is absent from a .config/build ('why' command): the chain of unmet dependencies or Makefile conditions.
+
+[146] (policy/policy, 2015-04-04) Yocto maintainer 2015: the kernel Kconfig system overrides fragments; old values or values with missing dependencies are removed during configuration, the tools only warn, and the audit details had only recently become visible in build output. Shows the embedded ecosystem relies on after-the-fact warnings rather than a model of dependencies.
+    quote: "the kernel configuration system (i.e. korg, not yocto) has the final say."
+    source: [yocto] [kernel config]: specified values did not make it into the kernel's final configuration | Bruce Ashfield (reply) | Yocto Project mailing list | https://docs.yoctoproject.org/pipermail/yocto/2015-April/024392.html
+    candidate_problem: Pre-build prediction of which requested options will survive Kconfig resolution and which objects they build.
+
+[147] (pain_point/anecdote, 2024-05-03) Embedded vendor forum: a user wanted the IFB module added to a BPI-R4 Debian kernel image (5.4/6.1) and was told to add it via menuconfig and search with '/'; the thread (2024-05-03, 17 posts) was resolved by switching to a newer kernel, not by finding the option.
+    quote: "In menuconfig you can search with / for ifb"
+    source: [BPI-R4] add ifb mod to kernel 5.4 | frank-w (reply) | Banana Pi forum | https://forum.banana-pi.org/t/bpi-r4-add-ifb-mod-to-kernel-5-4/17940
+    candidate_problem: Which CONFIG option provides module X in this particular vendor kernel tree (version/tree-specific lookup).
+
+[151] (existing_tool/tool, 2023-12-29) kernelconfig.io: a search site for kernel config information about modules, with 8 selectable kernel versions (mainline and stable, e.g. 6.18.57, 7.2.11) and 16 architectures. Covers the 'which CONFIG for module X' question at the symbol level, not at object-level build conditions. Posted as Show HN 2023-12-29 with 5 points.
+    quote: "search config information for linux kernel modules"
+    source: KernelConfig | unknown (Show HN poster) | kernelconfig.io | https://www.kernelconfig.io/index.html
+    candidate_problem: Which CONFIG option enables driver Y (existing partial solution; kfold adds exact boolean conditions and Makefile-derived semantics).
+
+[192] (pain_point/anecdote, 2025-02) linux-next tty tree (Feb 2025): a driver gated on 'ARCH_AIROHA || COMPILE_TEST) && OF && SERIAL_8250' failed to build in a config. The maintainer could not reproduce the failure and said he needed to enable OF in his own test builds. The author tried to make it build under COMPILE_TEST and found only configs 'that broke the compilation in non trivial ways', then removed COMPILE_TEST. Stephen Rothwell's reply was that an allmodconfig build 'even on x86_64' triggers the failure.
+    quote: "Odd that I can't build it here for some reason, I guess I need to enable OF on my test builds"
+    source: Re: linux-next: build failure after merge of the tty tree | Greg Kroah-Hartman; patch author; Stephen Rothwell (reply at lkml 2502.0/07677) | LKML (linux-next) | https://lkml.iu.edu/hypermail/linux/kernel/2502.1/00947.html
+    candidate_problem: A maintainer cannot tell which config enables a driver's object and trial-and-error with config options; the dependency chain is exactly what a build-condition formula would expose (the 'why OBJ' use).
+
+[207] (pain_point/anecdote, undated (current docs)) ChromeOS kernel config guide: enabling a config without its dependencies makes it vanish, and editing a shared option must be repeated for each flavour (~10) with silent no-op if one is missed.
+    quote: "If you miss one, then the result may be no change, which can be very confusing."
+    source: Kernel Configuration (Chromium OS developer library) | ChromiumOS kernel team | chromium.org | https://www.chromium.org/chromium-os/developer-library/guides/kernel/kernel-configuration/
+    candidate_problem: Silent no-op/disappearing config changes across a hierarchy of split configs; need to explain why
+
+[208] (pain_point/anecdote, undated (current docs)) Same ChromeOS guide: symptom and cause of options vanishing because dependencies were not enabled.
+    quote: "your configs are disappearing, then you've likely enabled a config without enabling all of its dependencies"
+    source: Kernel Configuration (Chromium OS developer library) | ChromiumOS kernel team | chromium.org | https://www.chromium.org/chromium-os/developer-library/guides/kernel/kernel-configuration/
+    candidate_problem: Dependency-driven silent disabling of options; need a config-for style repair
+
+[223] (pain_point/anecdote, undated (current wiki)) Gentoo wiki kernel configuration: option changes cascade and some options are forced by others, so users cannot predict the effect of a change; the wiki defers hardware-to-option mapping to separate hardware articles.
+    quote: "Keep in mind that the modification of one configuration setting may alter additional configuration settings."
+    source: Kernel/Configuration (Gentoo Wiki) | Gentoo wiki contributors | wiki.gentoo.org | https://wiki.gentoo.org/wiki/Kernel/Configuration
+    candidate_problem: Predicting side effects of option changes; finding which options are needed for a driver or object
+
+[254] (need/policy, n.d.) Distro and embedded users configuring kernels are told that trimmed configs (localmodconfig) can silently drop needed features. The official guide admits it is hard to anticipate which options are needed.
+    quote: "it is hard to think of everything that might be needed."
+    source: How to quickly build a trimmed Linux kernel |  | docs.kernel.org | https://docs.kernel.org/admin-guide/quickly-build-trimmed-linux.html
+    candidate_problem: Configurers cannot easily map a needed object or feature to the options that build it. A 'why OBJ' / config-for for objects would help. The quote is the doc's own admission.
+
+[276] (workflow_practice/anecdote, 2020-03) Skeptic's evidence that 'make path/file.o' is the daily workflow: a kernel developer says he runs single-object builds routinely. The kbuild maintainer replies that the object builds only if its CONFIG dependency is met, with the obj-$(CONFIG_FOO) example. Single-target builds therefore silently depend on the .config, which is the 'why was my object not built' question that 'why OBJ' answers.
+    quote: "I often run 'make foo/bar.o' as part of my workflow."
+    source: Re: single target builds are broken | Vegard Nossum | LKML (Vegard Nossum and Masahiro Yamada) | https://lkml.rescloud.iu.edu/hypermail/linux/kernel/2003.3/08451.html
+    candidate_problem: why OBJ: single-target builds work only when the CONFIG dependency is met
+
+[277] (workflow_practice/anecdote, 2020-03) Same thread, kbuild maintainer's answer: the necessary CONFIG dependency must be met for make foo.o to build anything. The answer given is to read the Makefile; no config-finding tool is mentioned.
+    quote: "The necessary CONFIG dependency must be met."
+    source: Re: single target builds are broken | Masahiro Yamada | LKML | https://lkml.rescloud.iu.edu/hypermail/linux/kernel/2003.3/08451.html
+    candidate_problem: why OBJ / config-for: the manual answer is grep the Makefile
+
+[292] (pain_point/anecdote, 2021) A Linux Magazine Kconfig deep-dive: the author read the driver Makefiles to find which CONFIG symbols to enable. Searching menuconfig found the symbol but it could not be enabled, and adding it to a defconfig silently did nothing. This is anecdotal evidence for the manual workflow, and that the failure sits at the Kconfig dependency step, which a Kbuild-only tool does not fix.
+    quote: "read the driver's Makefiles to work out which CONFIG symbols were needed"
+    source: Exploring the kernel's mysterious Kconfig configuration system |  | Linux Magazine | https://www.linux-magazine.com/Issues/2021/244/Kconfig-Deep-Dive
+    candidate_problem: manual driver-to-config mapping; Kconfig dependency step blocks users (paraphrase from a search-result summary, page not opened, so treat the quote as approximate)

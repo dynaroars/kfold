@@ -1,0 +1,52 @@
+=== PROBLEM P8: Why did an object stop (or start) being built across releases or configs: condition diff (H7)
+who: Distro maintainers, regression reporters/triagers, embedded integrators on version bumps
+strength: Weak and indirect. About 9 claims, mostly docs and old anecdotes, with no direct demand; 169 is an unverified summary of a login-walled forum post.
+existing: scripts/diffconfig, make listnewconfig/helpnewconfig, olddefconfig plus diff, git log on Makefiles.
+gap: An object-level diff: for the same config, which objects' conditions changed between two releases, and which commit changed them. Needs running kfold per release and a Makefile-history walk.
+fit: object-selection - Running the symbolic executor on two trees and diffing conditions is within kfold's model. Evidence of need is thin. Mark as an exploratory use case rather than a motivating one.
+
+--- supporting claims
+[70] (pain_point/policy, 2026 (current docs)) Android GKI FAQ: devices use a config fragment on top of gki_defconfig to build vendor modules, and 'there's no way to avoid some manual examination of configuration options'; scripts/diffconfig is the suggested tool; mismatched ABIs between GKI kernel and module configuration are an 'implicit module config dependency'. Shows vendor/OEM config reconciliation is manual.
+    quote: "There's no way to avoid some manual examination of configuration options to optimize the fragment."
+    source: Android kernel frequently asked questions | Android Open Source Project | source.android.com (GKI documentation) | https://source.android.com/docs/core/architecture/kernel/gki-faq
+    candidate_problem: Fragment/config delta reasoning: which objects change when a vendor fragment is applied over gki_defconfig (build-condition diff instead of textual diffconfig).
+
+[99] (pain_point/anecdote, 2013) Nadi et al. (MSR 2013) study variability anomalies spread over code, Kconfig and Makefiles (Kbuild): anomalies arise from incomplete patches that change Kconfig definitions without propagating to the rest of the system, and persist for several releases before being fixed. Supports the need for cross-artifact (Kconfig/Kbuild/code) consistency checking; abstract has no counts.
+    quote: "variability anomalies are often introduced through incomplete patches that change KCONFIG definitions"
+    source: Linux Variability Anomalies: What Causes Them and How Do They Get Fixed? | Sarah Nadi, Christian Dietrich, Reinhard Tartler, Richard C. Holt, Daniel Lohmann | 10th Working Conference on Mining Software Repositories (MSR 2013), pp. 111-120 | https://cris.fau.de/publications/118685644
+    candidate_problem: Patches that change Kconfig/Kbuild inconsistently; objects silently unbuildable (blindspots)
+
+[100] (statistic/statistic, 2013) Same MSR 2013 study: anomalies persist across releases before fixes, which means unbuildable or dead configuration-dependent artifacts can sit unnoticed.
+    quote: "variability anomalies exist for several releases in the kernel before they get fixed."
+    source: Linux Variability Anomalies: What Causes Them and How Do They Get Fixed? | Nadi, Dietrich, Tartler, Holt, Lohmann | MSR 2013 | https://cris.fau.de/publications/118685644
+    candidate_problem: Long-lived anomalies in Kconfig/Kbuild (blindspots)
+
+[101] (statistic/statistic, 2017 (arXiv 2021-10-12)) El-Sharkawy, Krafczyk, Schmid: manual analysis of 80 mismatches between the Kconfig variability model and what the build system or code realizes in Linux 4.4.1; about two-thirds may lead to kernel misconfigurations. Relevant to Kconfig/Kbuild mismatch (kfold's object conditions could expose them). Venue/date per the fetched arXiv page (SPLC 2017; arXiv posted Oct 2021).
+    quote: "about two-thirds of the configuration mismatches may actually lead to kernel misconfigurations"
+    source: An Empirical Study of Configuration Mismatches in Linux | Sascha El-Sharkawy, Adam Krafczyk, Klaus Schmid | SPLC 2017; arXiv 2110.05828 | https://arxiv.org/abs/2110.05828
+    candidate_problem: Kconfig vs Kbuild/code mismatches (blindspots, why)
+
+[102] (need/anecdote, 2015) Passos et al. (EMSE, published 2015 online): Linux variability-model changes co-evolve with Makefiles and C code; the paper reveals deficiencies in existing tools and theory for handling these co-changes. Supports a need for tooling that reasons about Kconfig+Kbuild changes in patches.
+    quote: "we reveal deficiencies in existing tools and theory when handling changes captured by our patterns"
+    source: Coevolution of Variability Models and Related Software Artifacts: A Fresh Look at Evolution Patterns in the Linux Kernel | Leonardo Passos, Leopoldo Teixeira, Nicolas Dintzner, Sven Apel, Andrzej Wasowski, Krzysztof Czarnecki, Paulo Borba, Jianmei Guo | Empirical Software Engineering 21(4), 1744-1793 | https://research.tudelft.nl/en/publications/coevolution-of-variability-models-and-related-software-artifacts-
+    candidate_problem: Patches touching Kconfig + Kbuild + code (config-for, why)
+
+[169] (workflow_practice/anecdote, unknown) Kernel-upgrade config review is manual: Gentoo users run make olddefconfig then diff the old and new .config, or use make listnewconfig / helpnewconfig to preview new options; kernel ships scripts/diffconfig (2008, Tim Bird) that prints only changed options. Config diffs list option values, not which objects start or stop being built.
+    quote: "after running "make olddefconfig" I use "diff" to compare the new configuration to a backup copy of the old one"
+    source: Gentoo forums thread on olddefconfig/diff (search result) | a Gentoo forum user | Gentoo Forums | https://forums.gentoo.org/viewtopic.php?p=8777866
+    candidate_problem: Kernel config differences between versions; object-level diff (which objects are added/removed by a config or version change). Quote taken from search-tool summary of a Gentoo forum result; page itself is behind a login wall, so attribution to this exact post is unverified.
+
+[218] (pain_point/anecdote, 2016-01-18) LKML 2016: with oldconfig, a dependency-satisfying step silently dropped CONFIG_MICROCODE, an important option. Illustrates the silent-drop problem (old but foundational).
+    quote: "My problem was, CONFIG_MICROCODE got dropped silently"
+    source: Re: [RFC PATCH] x86/kconfig: Sanity-check config file during oldconfig | Thomas Voegtle (quoted by Borislav Petkov) | LKML | https://lkml.iu.edu/hypermail/linux/kernel/1601.2/00705.html
+    candidate_problem: Silent dropping of options on oldconfig due to unmet dependencies
+
+[221] (existing_tool/tool, 2008-06-24) Kernel scripts/diffconfig (Tim Bird, 2008) compares two .config files; the standard tool distro and embedded maintainers use for config review. Operates on option values only.
+    quote: "Diffconfig is a simple utility for comparing two kernel configuration files."
+    source: kconfig: add diffconfig utility (commit) | Tim Bird; committed by Sam Ravnborg | kernel git (android-kvm mirror) | https://android-kvm.googlesource.com/linux/+/a717417e7f96ad2c6c3d80cdd0836e49597399a3%5E%21
+    candidate_problem: Config comparison shows option deltas but not which objects change in the build
+
+[255] (need/policy, n.d.) Reporting-issues guidance depends on matching old and new kernel configs for regression claims. A regression only counts if both kernels were built with a similar configuration, achieved via 'make olddefconfig'.
+    quote: "an issue only qualifies as regression if the older and the newer kernel got built with a similar configuration."
+    source: Reporting issues |  | docs.kernel.org | https://docs.kernel.org/admin-guide/reporting-issues.html
+    candidate_problem: Which objects each config builds across versions (diff of build conditions between two kernel versions) would help triage 'regressions' that are actually config or Makefile-condition changes.

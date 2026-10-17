@@ -1,0 +1,102 @@
+=== PROBLEM P7: Minimal CI config set covering most objects, and reducing redundant builds (H6)
+who: CI operators (KernelCI, LKFT, 0-day, CKI, syzbot), stable testers
+strength: Indirect only. About 19 claims give cost/scale numbers but no stated demand. Counter-evidence 181 explicitly says nothing in the pain list asks for static analysis. Treat as a hypothesis with cost context.
+existing: Fixed YAML build matrices (TuxSuite, KernelCI), randconfig sampling, ccache, caching in cloud CI.
+gap: Compute a minimum set of configs per arch that covers all buildable objects (or all objects touched by a given diff), and decide which builds to skip when a trigger changes only some objects. It is not demonstrated that operators would adopt it.
+fit: object-selection - Set cover over object conditions is natural for kfold's output. Demand evidence is weak and mostly cost-side; test against KernelCI/LKFT configs before claiming it.
+
+--- supporting claims
+[41] (pain_point/statistic, 2026-09-11) Build time is what developers care about most in current LWN Kbuild coverage: a clean-ccache build is cut from roughly 960 to about 860 seconds in a new series, with serial Rust crate builds and header dependencies named as causes. A cheaper way to know which objects need building for a given config/patch is complementary.
+    quote: "Kernel developers do a lot of kernel builds."
+    source: Accelerating the kernel's build process | Jonathan Corbet | LWN.net | https://lwn.net/Articles/1093398/
+    candidate_problem: config-for: building only the objects a patch touches under the minimal config reduces build time
+
+[46] (workflow_practice/statistic, 2012-09-05) Linux 2012 0-day system: 140 build configurations tested per commit, about half randconfig regenerated daily, across Linus's tree, linux-next and 180+ trees. Foundational evidence that build testing is by sampling configs, not by per-object coverage proof. Old (2012); later LWN coverage says 0-day now includes 100+ configs (snippet only, unconfirmed).
+    quote: "The current machine power allows the build test system to test 140 kernel configurations"
+    source: KS2012: Kernel build/boot testing | Michael Kerrisk | LWN.net | https://lwn.net/Articles/514278/
+    candidate_problem: counter-evidence / blindspots: sampled randconfig coverage does not guarantee every object is built
+
+[56] (workflow_practice/anecdote, 2026-09-28) Arnd Bergmann talk 'Large scale kernel build testing on a desktop' (Speaker Deck under Kernel Recipes account, page dated 2026-09-28; conference not named on page, presumably Kernel Recipes 2026): 15 years of a custom linux-next build-regression setup, randconfig loop with a random.config fragment that disables options 'not worth testing' and enables CONFIG_COMPILE_TEST; positioned as complementing KernelCI and TuxSuite; 'thousands of bugfixes across every major subsystem'. Shows the most prolific build tester still relies on sampling random configs.
+    quote: "For the past 15 years, Arnd has been using a custom kernel build setup for regression testing linux-next kernels."
+    source: Large scale kernel build testing on a desktop | Arnd Bergmann | Speaker Deck (Kernel Recipes account) | https://speakerdeck.com/ennael/large-scale-kernel-build-testing-on-a-desktop
+    candidate_problem: Randconfig sampling is the incumbent for build coverage; per-object conditions could measure what a randconfig campaign never builds and bias it toward uncovered objects.
+
+[62] (existing_tool/tool, 2024-09-12) KernelCI (Sept 2024 blog) advertises over 220 build configurations and boot tests on 45 hardware platforms; pipeline docs describe config fragments (e.g. kselftest fragment merged on top of defconfig for an extra build per arch). Config selection in KernelCI is by hand-written YAML build configs/fragments, with no statement of what objects they leave unbuilt.
+    quote: "We now support over 220 build configurations"
+    source: Bring your tree to the new KernelCI | KernelCI | kernelci.org blog | https://kernelci.org/blog/2024/09/12/bring-your-tree-to-the-new-kernelci/
+    candidate_problem: CI operators choose build configs manually (fragments); a blindspots analysis tells them which objects none of their ~220 configs build.
+
+[105] (statistic/statistic, 2025-05-12) TuxKConfig/LinuxData dataset (EASE 2025): 243,232 randconfig-sampled configurations for kernel versions 4.13-5.8, 261 s average compile time on 16-core Xeon, more than 15,000 hours for 4.13 alone. Cost of brute-force build-based configuration testing; share of failing builds not reported on the page I read.
+    quote: "Compilation times averaged 261 seconds per configuration on 16-core Intel Xeon machines"
+    source: Linux Kernel Configurations at Scale: A Dataset for Performance and Evolution Analysis | Heraldo Borges, Juliana Alves Pereira, Djamel Eddine Khelladi, Mathieu Acher | EASE 2025; arXiv 2505.07487 | https://arxiv.org/html/2505.07487v1
+    candidate_problem: Cost of build-based config exploration vs static analysis
+
+[108] (need/statistic, 2019-06-07) Open problem stated in a survey of learning-based configuration work: the config space cannot be explored exhaustively; the large variant space remains a challenge. Justifies analyses that avoid enumerating configurations.
+    quote: "Due to the combinatorial explosion and the cost of executing software, it is quickly impossible to exhaustively explore the whole configuration space."
+    source: Learning Software Configuration Spaces: A Systematic Literature Review | Juliana Alves Pereira, Hugo Martin, Mathieu Acher, Jean-Marc Jezequel, Goetz Botterweck, Anthony Ventresque | arXiv 1906.03018 (systematic literature review) | https://arxiv.org/abs/1906.03018
+    candidate_problem: Configuration space too large to test by building
+
+[173] (statistic/statistic, 2024) Cost of the brute-force alternative: allyesconfig still leaves about 11.5% of patched lines uncovered and takes about four hours on a typical workstation, against about 20 minutes for defconfig. The paper says total build time for multiple random configs is proportional to the number of configs. This is the build-time argument for deciding statically which objects to build.
+    quote: "around four hours on average on a typical development workstation"
+    source: Maximizing Patch Coverage for Testing of Highly-Configurable Software without Exploding Build Times | Yildiran, Oh, Lawall, Gazzillo | FSE 2024 / arXiv 2404.17966 | https://arxiv.org/html/2404.17966v1
+    candidate_problem: Developers need to build only the objects touched by a patch under a cheap config; allyesconfig is too slow and incomplete.
+
+[176] (workflow_practice/tool, 2022-09) Intel 0-day (kernel test robot) workflow as presented by its own team at LPC 2022: when a branch is updated, it builds the head under various arch and config kinds (allyes, allno, allmod, def, rand) and mails a summary, usually within one day. The sample report on the slide: 80 configs tested, 2 skipped, elapsed 718m. Failures are bisected to the first bad commit and reported with Reported-by: kernel test robot.
+    quote: "Usually send out the report within one day"
+    source: The Integration of Rust with Kernel Testing Service | Yujie Liu, Philip Li (0-Day CI Team, Intel) | Linux Plumbers Conference 2022 (slides) | https://lpc.events/event/16/contributions/1181/attachments/998/1996/The%20Integration%20of%20Rust%20with%20Kernel%20Testing%20Service.pdf
+    candidate_problem: Per-commit build-failure detection already exists for the standard config families; a new analysis must add something other than whole-config build testing.
+
+[177] (statistic/statistic, 2025-02) A February 2025 kernel test robot BUILD SUCCESS report for a tip tree branch: elapsed 723m, only 19 configs tested and 125 skipped, and the tested list holds only i386 and x86_64 (allnoconfig, allyesconfig, defconfig, buildonly-randconfig-001..006, plus allmodconfig for i386). Reports carry the line 'More configs may be tested in the coming days', so coverage per branch head is incomplete and gives no per-object guarantee.
+    quote: "configs tested: 19"
+    source: [tip:x86/microcode] BUILD SUCCESS 037e81fb9d2dfe7b31fd97e5f578854e38f09887 | kernel test robot (Intel) | LKML (mirror lkml.rescloud.iu.edu) | https://lkml.rescloud.iu.edu/2502.2/01971.html
+    candidate_problem: No published statement of which objects the robot has compiled at a given branch head; a per-object build condition could show which objects no tested config reaches.
+
+[178] (statistic/statistic, 2012-05) Early description of the 0-day back end (2012): compile testing used about 20 kconfigs per commit, boot testing only several; a 16-core compile server took about 2 minutes per commit and the setup could test up to 700 commits a day. Older foundational evidence that the robot never exploited a per-object notion of what a commit can affect; it applies a fixed config set per commit.
+    quote: "up to 700 commits each day"
+    source: 0day kernel testing back-end | Fengguang Wu | LKML | https://lkml.rescloud.iu.edu/1205.2/00861.html
+    candidate_problem: Fixed config sets per commit instead of configs chosen from the objects a commit touches.
+
+[179] (statistic/statistic, 2025) Linaro LKFT 2024 totals (Anders Roxell, FOSS-North 2025): 271 LTS releases tested, 116 regressions, about 430k builds and about 3,000k boots, 1,229 kernel triggers, so about 400 builds and 2,500 boots per trigger. Per-trigger cost is high because each trigger fans out to a fixed matrix of toolchain/arch/config builds.
+    quote: "Builds: ~430k"
+    source: Faster Linux Kernel Testing with Linaro's Open-Source Tools and LKFT Automation | Anders Roxell (Linaro) | FOSS-North 2025 (slides) | https://foss-north.se/2025/slides/aroxell-kerneltesting-slides.pdf
+    candidate_problem: Per-trigger build matrix of about 400 builds suggests big savings if CI built only the objects whose build condition is affected by a change.
+
+[180] (pain_point/anecdote, 2025) Linaro's own slide lists why kernel testing 'still sucks': fragmented CI, painful setup, slow feedback, hard reproducibility, and developers who do not test enough. Problems for testing reliability are listed as limited access to broad test coverage and inconsistent reproducibility. The listed pains concern test infrastructure and feedback latency, not identifying which objects a config builds.
+    quote: "Many devs still don't test enough"
+    source: Faster Linux Kernel Testing with Linaro's Open-Source Tools and LKFT Automation | Anders Roxell (Linaro) | FOSS-North 2025 (slides) | https://foss-north.se/2025/slides/aroxell-kerneltesting-slides.pdf
+    candidate_problem: Feedback latency and developers skipping local tests; a fast pre-submit check of which patched objects get built could lower the cost of testing.
+
+[181] (counter_evidence/anecdote, 2025) The same Linaro talk's problem statement and tool list (TuxMake, TuxRun, TuxSuite plans, git bisect with tuxmake) show the practitioner focus is cloud-parallel build/test plans (a plan is a build with toolchain, arch and a kconfig list like defconfig) and bisection. Config selection is a hand-written YAML list. Nothing in the pain list asks for static build-condition analysis, so need for it must be argued, not assumed.
+    quote: "Feedback takes too long"
+    source: Faster Linux Kernel Testing with Linaro's Open-Source Tools and LKFT Automation | Anders Roxell (Linaro) | FOSS-North 2025 (slides) | https://foss-north.se/2025/slides/aroxell-kerneltesting-slides.pdf
+    candidate_problem: Counter-evidence: CI operators currently solve coverage by scaling out builds, not by analysis.
+
+[182] (statistic/statistic, 2022-05) TuxSuite scale from a 2022 talk abstract (search snippet): about 8,000 kernel build requests per day, as the build backbone for LKFT and ClangBuiltLinux. Page not opened; only the search result text was seen.
+    quote: "Every day, TuxSuite receives roughly 8000 requests for Linux Kernel builds."
+    source: Yocto Project Summit 2022-05 talk (TuxSuite) | Linaro speaker (name not confirmed) | Yocto Project Summit 2022 | https://pretalx.com/yocto-project-summit-2022-05/talk/7YHJHL
+    candidate_problem: Large volume of build requests whose redundancy a per-object condition analysis could reduce.
+
+[183] (statistic/statistic, 2024-09) KernelCI scale (Sept 2024): over 220 build configurations, boot tests on 45 hardware platforms (over 300 machines in all labs), 7 CI systems contributing results. The post gives no build or test counts per day. KernelCI's Q4 2025 update says backend test coverage rose from 40% to nearly 70% (a metric of the system's own tests, not of kernel objects).
+    quote: "We now support over 220 build configurations."
+    source: Bring your tree to the new KernelCI | KernelCI team | kernelci.org blog | https://kernelci.org/blog/2024/09/12/bring-your-tree-to-the-new-kernelci/
+    candidate_problem: CI operators choose a fixed config matrix (220+ configs) with no stated object-level coverage metric.
+
+[186] (statistic/statistic, 2022-12) Guenter Roeck's stable-review build matrix, shown by his replies on LKML: 6.0.15-rc1 (Dec 2022) 155 builds, all pass, and 500 qemu tests with 2 failures on arm:xilinx-zynq-a9 (failing since 4.19.y). A 2014 3.4.97 review had 137 builds with 111 pass, 20 skipped, 6 failed (alpha:allmodconfig, arm:spear6xx_defconfig, score:defconfig, sparc64:allmodconfig, unicore32:defconfig, xtensa:allmodconfig). Stable builds use a fixed per-arch list of defconfigs plus allmodconfig; per-release build failures have been rare in recent years.
+    quote: "total: 155 pass: 155 fail: 0"
+    source: Re: [PATCH 6.0 00/28] 6.0.15-rc1 review | Guenter Roeck | LKML | https://lkml.iu.edu/hypermail/linux/kernel/2212.2/04008.html
+    candidate_problem: Stable-release testers use a fixed list of about 150 build configs; failures concentrate in non-x86 allmodconfig/defconfig.
+
+[189] (workflow_practice/anecdote, 2016) Arnd Bergmann's randconfig sweeps (LWN 2016 report on his ELC talk): about 50 builds a day, almost all 32-bit ARM, each from a random config, and about 500 patches written for compiler warnings. He started because reviewing every arm-soc pull request manually 'quickly proved too time-consuming'. The most common randconfig bug class is missing dependency statements, i.e. objects that cannot be built, or code that builds only under some option combinations.
+    quote: "missing dependency statements"
+    source: LWN report on Arnd Bergmann's ELC talk (randconfig build testing) | LWN (summarizing Arnd Bergmann) | LWN.net | https://lwn.net/Articles/683476/
+    candidate_problem: Per-pull-request config-space checking is done by a single maintainer's cron-like script; bugs are mostly dependency errors.
+
+[198] (workflow_practice/anecdote, 2020 (approx.)) Red Hat CKI: GitLab-CI pipelines that lint, patch, build and test kernels; per a FOSDEM 2020 talk they test patches posted to several mailing lists and commits to 15+ git repos. Red Hat's cost blog (search snippet) reports ccache in S3 cut compile time on a c4.2xlarge EC2 instance from 32 minutes to under four. This shows vendor CI pays for whole-kernel builds per patch and optimizes by caching, not by analysis. Pages not fully opened; snippets only.
+    quote: "This reduced compile times on EC2's c4.2xlarge from 32 minutes to less than four minutes."
+    source: Cost-conscious continuous integration in the cloud: how we cut costs for kernel testing | Red Hat CKI team | Red Hat blog | https://redhat.com/es/blog/cost-conscious-continuous-integration-cloud-how-we-cut-costs-kernel-testing
+    candidate_problem: Cloud cost of per-patch kernel builds at distro CI scale.
+
+[266] (workflow_practice/anecdote, 2025-04) Intel's 0-day / kernel test robot builds each tree with a fixed library of configs. A April 2025 tip:perf/urgent report lists 19 configs tested and 140 skipped: allnoconfig, allmodconfig, allyesconfig, defconfig and six buildonly-randconfigs per arch, for i386 and x86_64. The elapsed time was 1453 minutes. This is the robot-based compile-testing baseline that a skeptic cites.
+    quote: "configs tested: 19"
+    source: [tip:perf/urgent] BUILD SUCCESS 7950de14ff5fd8da355d872b887ee8b7b5a1f327 | kernel test robot | LKML mirror (0-DAY CI Kernel Test Service) | https://lkml.rescloud.iu.edu/2504.2/04328.html
+    candidate_problem: patch compile-testing is largely delegated to robots (counter-evidence); note that the same report skipped 140 configs

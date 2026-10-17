@@ -1,0 +1,152 @@
+=== PROBLEM P10: CVE applicability: is the file touched by this fix built in my configuration
+who: Distro and embedded maintainers, CIP and LTS operators, product security teams (EU CRA), SBOM/VEX producers, Yocto users
+strength: Strongest new cluster. About 29 claims, independent and recent (2024-2026): kernel-docs policy, LKML maintainers' quotes, LWN, Siemens/CIP slides with numbers, three conference talks (LPC, OSS Europe, KubeCon India), a BeagleBoard forum and an arXiv/ISSTA paper. Compliance-driven (CRA) and funded. Claim 20's '2,000 per month' conflicts with about 60 per week.
+existing: CIP kernel-cve-triage (Kmax-formula based; checks check_introduced_by_file_compiled), cvehound (Kbuild-derived config), PatchLens (FSE 2026, patch-level conditions), KCVEPruner (function-level), Yocto cve-check and SPDX provenance, compile_commands.json.
+gap: Fast, reusable per-object conditions (not per-revision expensive Kmax runs), applied to fix-commit file lists and evaluated against a .config, emitting VEX justifications. Header and function-level granularity and runtime state are not covered. kernel-cve-triage's derivation method is unknown from the claims.
+fit: object-selection - File-level 'built or not under .config' is the question kfold answers, and the demand evidence is the strongest and the only compliance-driven one. Caveat: closest competitors (Kmax-based kernel-cve-triage, cvehound, PatchLens) already target it, and kfold stops at file level.
+
+--- supporting claims
+[18] (pain_point/anecdote, 2024-06-19) Downstream users and CVE triagers must decide, per CVE, whether the affected code is even compiled into their kernel; commenters on the kernel-CNA article say this costs a lot of engineering time and should not be offloaded to the kernel CNA. This is a per-object, per-config question.
+    quote: "Every downstream has to do that evaluation which costs a lot of engineering time"
+    source: How kernel CVE numbers are assigned | mstsxfx (commenter); article by Lee Jones | LWN.net | https://lwn.net/Articles/978711/
+    candidate_problem: why / config applicability: given a CVE fix touching file X.c, decide automatically if X.o is built under my .config (build-condition evaluation for CVE triage)
+
+[19] (need/anecdote, 2024-06-19) A commenter wants machine-sortable metadata so that CVEs not affecting a given build can be rejected, and notes that nobody needs a backport for a module they do not compile. That metadata is essentially the build condition of the touched objects.
+    quote: "I'm pretty sure that everybody will agree that you don't need to backport a CVE fix to a module you don't compile"
+    source: How kernel CVE numbers are assigned | hkario (commenter) | LWN.net | https://lwn.net/Articles/978711/
+    candidate_problem: why / CVE-applicability: publish per-CVE-fix build conditions (formula over CONFIG_*) so downstreams can filter
+
+[20] (workflow_practice/statistic, 2025-12-17) The Civil Infrastructure Platform (10-year kernel maintenance) filters CVEs by its kernel configuration, first automatically and then manually; about 2,000 CVE entries per month arrive for the 6.1 kernel alone. Shows config-based applicability filtering is a real, high-volume, currently partly manual workflow.
+    quote: "takes the CIP kernel configuration into account to weed out the CVEs that cannot be applicable"
+    source: The Civil Infrastructure Platform after (nearly) ten years | Jonathan Corbet | LWN.net | https://lwn.net/Articles/1049604/
+    candidate_problem: why / CVE-applicability at scale: replace manual review of 'is this file built in our config' with exact build conditions
+
+[21] (statistic/statistic, 2025-12-17) CIP CVE review load: the article reports many CVE entries are not applicable and the remainder must be reviewed by hand; over 1,000 patches per month are reviewed for backport consideration. (Quotes are from the same fetched page; the ~2,000/month figure is reported in the fetched summary of that article.)
+    quote: "reviewing huge numbers of CVE entries, many of which are not applicable to the CIP kernel"
+    source: The Civil Infrastructure Platform after (nearly) ten years | Jonathan Corbet | LWN.net | https://lwn.net/Articles/1049604/
+    candidate_problem: why / config-aware backport and CVE triage
+
+[22] (pain_point/anecdote, 2024-02-14) Commenter on the CVE-flood debate: a standard first step is asking whether the exploit applies to the product; the kernel CNA does not say how to answer it for a given configuration. Complements the CNA's own statement that the kernel is infinitely configurable.
+    quote: ""Does this exploit apply to our product" is the standard minimum assessment that everyone does."
+    source: A turning point for CVE numbers | bluca (commenter) | LWN.net | https://lwn.net/Articles/961978/
+    candidate_problem: why / CVE-applicability
+
+[65] (need/anecdote, 2025-12-11) LPC 2025 Build Systems MC, 'Improving Build Time SBoMs' (Joshua Watt, Garmin): goal to cut the flood of vulnerability reports by discarding those that do not match compiled source code or build-time configured features. This is a concrete downstream need for 'which object files are built under config X' (CVE applicability). The page does not say how the build determines compiled files.
+    quote: "fine down the flood of vulnerability information"
+    source: Improving Build Time SBoMs | Joshua Watt (Garmin) | Linux Plumbers Conference 2025, Build Systems MC | https://lpc.events/event/19/contributions/2020/
+    candidate_problem: CVE/vulnerability applicability filtering by config: map CVE-affected files to build conditions and evaluate against a distro/device .config (strong candidate for a new kfold use case).
+
+[66] (existing_tool/tool, 2025-12-11) LPC 2025 refereed talk 'KernelSBOM' (Maximilian Huber): reconstructs the kernel build graph by analyzing .cmd files (recovering commands, inputs, outputs) and emits three linked SPDX 3.0 documents. It requires an actual build and, per the abstract, does not address config dependence. Complementary to (not competing with) a static per-object condition analysis, which needs no build.
+    quote: "reconstructs the complete Linux kernel build graph by analyzing `.cmd` files"
+    source: KernelSBOM: Reconstructing Linux Kernel Builds into Trusted SPDX Bills of Materials | Maximilian Huber | Linux Plumbers Conference 2025, Refereed Track | https://lpc.events/event/19/contributions/2306/
+    candidate_problem: SBOM and compliance: determine what is built without building; kfold conditions give a 'what would be built under config X' view for SBOM planning.
+
+[123] (existing_tool/tool, 2026-06-24) PatchLens (FSE 2026, arXiv 2606.25863, DOI 10.1145/3808126) is a recent static technique that recovers Vulnerability Impact Conditions: Boolean predicates over config options for the variants containing a flaw. It matches patch hunks to source-level presence conditions and analyzes the build system, without compiling variants. It was evaluated on 1,192 Linux, 289 FFmpeg and 100 PHP patches, with an average of 1.84 variables per predicate for Linux. It says CVE text rarely names the required options (about 1% recall) and proposes CI triage and test selection. It overlaps with kfold's idea of per-object conditions, applied to security patches. Header-file impact is future work, and the FSE abstract numbers differ slightly (1,193/290/99, 2.09 variables).
+    quote: "a Boolean predicate over configuration options that denotes all variants that contained the original flaw"
+    source: Automated Detection of Configuration-Specific Security Vulnerabilities via Patch Analysis | de Sant'Anna Paixao, Santos, da Mota Silveira Neto, Menasche, Figueiredo, de Almeida | FSE 2026 / arXiv. FSE page: https://conf.researchr.org/details/fse-2026/fse-2026-research-papers/49/Automated-Detection-of-Configuration-Specific-Security-Vulnerabilities-via-Patch-Anal. A related SBES 2026 tool paper exists at https://cbsoft.sbc.org.br/2026/data/papers/sbes/Patchlens%20A%20Static%20Analysis%20Tool%20for%20Variant-Aware%20Change%20Impact%20Analysis%20in%20Configurable%20Systems.pdf, but its text was unreadable and it is cited only from a search snippet. | https://arxiv.org/abs/2606.25863
+    candidate_problem: Which kernel configurations are affected by a patch/CVE
+
+[148] (need/anecdote, 2020-05-09) Ask HN (2020-05-09, 3 points, 9 comments): OP wants an automatic way to build a kernel with only the functionality his Docker hosts need, for security (fewer drivers, filesystems, eBPF carry fewer CVEs). Replies suggested localmodconfig, Gentoo/LFS, Alpine, or disabling module loading.
+    quote: "I'm looking to improve the security posture by stripping the kernel off unwanted stuff"
+    source: Ask HN: How to build a minified Linux kernel for my Docker? | OP (HN user, name not shown in fetched data) | Hacker News | https://hn.algolia.com/api/v1/items/23126466
+    candidate_problem: Attack-surface reduction by config: what objects/CVE-bearing files does a config build, and what is the minimal config that keeps required features.
+
+[152] (policy/policy, 2024-07-30) The Linux kernel CNA will not gate CVE assignment on config options and tells users to do the config check themselves. Greg Kroah-Hartman on CVE-2024-41067 (btrfs, only reachable with CONFIG_BTRFS_DEBUG per maintainer David Sterba), 2024-07-30/31. Maintainers of config-gated code ask for CVEs to be dropped; the CNA refuses.
+    quote: "If your system does not enable that config option, then there is nothing to worry about, right?"
+    source: Re: CVE-2024-41067: btrfs: scrub: handle RST lookup error correctly | Greg Kroah-Hartman; David Sterba | LKML (lkml.iu.edu archive) | https://lkml.iu.edu/hypermail/linux/kernel/2407.3/08754.html
+    candidate_problem: CVE applicability per configuration: is the file/object affected by a CVE built under my .config (per-object build condition evaluated against a config).
+
+[153] (policy/policy, 2024-07-31) Kernel CNA position, second quote: users must handle config applicability on their side; there should be a 'this does not pertain to us' tick box. Maintainer Sterba had argued the option is not enabled on production kernels (requires CONFIG_BTRFS_DEBUG).
+    quote: "So, should be an easy "this does not pertain to us" check box to tick somewhere if what you say above is true for your systems."
+    source: Re: CVE-2024-41067: btrfs: scrub: handle RST lookup error correctly | Greg Kroah-Hartman | LKML (lkml.iu.edu archive) | https://lkml.iu.edu/hypermail/linux/kernel/2407.3/08787.html
+    candidate_problem: CVE-to-config applicability and VEX 'not_affected' justification generation from build conditions.
+
+[154] (statistic/statistic, 2025-06-04) Siemens/CIP slides (2025-06-04): kernel CNA started issuing CVEs in February 2024, about 60 per week; Linux has about 85,000 files of which typically 5-10% are used; with the CIP defconfig 90-95% of 2024 CVEs were judged not relevant; at EOL of 4.19 about 56% of ~1000 unfixed CVEs could be excluded. Motivation includes the EU Cyber Resilience Act. Authors say better use-case description is required for better results.
+    quote: "Almost all of the CVEs will not be relevant for your specific use-case"
+    source: Triaging CVEs for the Linux Kernel | Christoph Steiger (Siemens) | Siemens open source talk slides (CIP kernel-cve-triage) | https://opensource.siemens.com/events/2025/slides/Christoph_Steiger__Triaging_CVEs_for_the_Linux_Kernel.pdf
+    candidate_problem: CVE triage by config: the dominant, funded, compliance-driven reason to know per-file build status.
+
+[155] (existing_tool/tool, 2025-06-04) CIP kernel-cve-triage already computes per-object build status from a Kconfig. Slide 'Results' shows a check named check_introduced_by_file_compiled emitting objects with built:false and a config condition such as 'CONFIG_MTD_NAND_ATMEL && CONFIG_MTD', then a VEX entry with status not_affected and justification vulnerable_code_not_present. The slides do not say how the condition is derived (could not open the repo README). Its goals: be fast, no false negatives, conservative checks. This is the closest consumer of kfold-style build conditions and a possible competitor/target integration.
+    quote: ""check_introduced_by_file_compiled""
+    source: Triaging CVEs for the Linux Kernel (slide 'Results') | Christoph Steiger | Siemens / CIP | https://opensource.siemens.com/events/2025/slides/Christoph_Steiger__Triaging_CVEs_for_the_Linux_Kernel.pdf
+    candidate_problem: Per-object build condition as an input to CVE relevance checks; precision of file-compiled check (derivation method unknown).
+
+[156] (statistic/statistic, 2026-10-07) OSS Europe 2026 abstract (talk 2026-10-07, Siemens): kernel-cve-triage uses the kernel's Kconfig build configuration, based only on the source tree and its configuration, to decide which CVEs apply; compares to Yocto cve-check; cites about 60 CVEs per week and the EU CRA workload.
+    quote: "reduces false-positive CVEs by up to 95%"
+    source: Triaging CVEs for the Linux Kernel (OSS Europe 2026) | Christoph Steiger, Negar Masoudifar (Siemens) | Open Source Summit Europe 2026 | https://osselceu2026.sched.com/event/2RaWO
+    candidate_problem: CVE applicability via config; recent (Oct 2026) venue interest.
+
+[157] (existing_tool/tool, 2026-06-18) KCVEPruner (Ossillate, open source), lightning talk at KubeCon India 2026-06-18: maps CVEs to vulnerable kernel functions and checks reachability under a kernel config, loadable modules and call graphs; compliance-driven (Kubernetes per-CVE justification). Slide numbers reported by the search tool (not verified on the slides): allyesconfig 2,056 CVEs with 5.3% false positives; Ubuntu 24.04 config 12.11%; tinyconfig 91.43%. Function-level, finer than kfold's object granularity.
+    quote: "approximate practical exploitability"
+    source: Lightning Talk: Pruning the Kernel CVEs With Code Reachability Analysis | Ashish Bijlani (Ossillate Inc) | KubeCon + CloudNativeCon India 2026 | https://kccncind2026.sched.com/event/2IW37
+    candidate_problem: CVE pruning; granularity gap between file-level build conditions and function-level reachability.
+
+[158] (need/anecdote, 2025-08-28) Yocto Project Developer Day 2025 (Ericsson): kernel CVE metadata plus SPDX enhancements in oe-core to cut false positives by about 70% (per abstract summary); wants per-binary information on which source was used to build a package.
+    quote: "enables more detailed per-binary information about the source code used to compile any package"
+    source: Improving CVE Triage for the Linux Kernel using the Yocto Project | Daniel Turull (Ericsson) | Yocto Project Developer Day Amsterdam 2025 | https://pretalx.com/ypdd-amsterdam-2025/talk/HZBAKB
+    candidate_problem: Per-object source-to-binary provenance for SBOM/VEX in Yocto builds.
+
+[159] (pain_point/anecdote, 2026-07-31) BeagleBoard forum (2026-07-31, 9 replies): user needs a CVE list for a TI/BeagleBoard kernel; commercial scanners do not match a custom vendor kernel; the answer pointed to CIP kernel-cve-triage; CRA cited as driver. Shows embedded users struggle to scope kernel CVEs for custom kernels.
+    quote: "I don't think they recognise custom kernel made by TI to match with their database."
+    source: Kernel CVEs | JulMod (OP); RobertCNelson | BeagleBoard forum | https://forum.beagleboard.org/t/kernel-cves/44242
+    candidate_problem: CVE scoping for vendor/custom kernels from the actual build config.
+
+[160] (existing_tool/tool, unknown) cvehound (PyPI): per the search-result summary (page itself failed to load, so unverified), it infers the config required to build the affected code from Kbuild/Makefiles and does not check #ifdefs. Prior work close to kfold's problem; worth reading its implementation.
+    quote: "The cvehound tool infers the configuration needed to build affected code from Kbuild/Makefiles, and it does not check ifdefs."
+    source: cvehound 1.0.4 | unknown | PyPI | https://pypi.org/project/cvehound/1.0.4
+    candidate_problem: Kbuild-derived build conditions for CVE-affected files (existing approach; compare precision with symbolic execution).
+
+[194] (policy/policy, n.d. (kernel docs)) The kernel CNA documentation puts the burden of CVE relevance on users: applicability is the user's to determine, and a large number of assigned CVEs are not relevant to a given system. Kernel CVEs are assigned for essentially every bugfix. A vendor therefore needs a way to decide from its .config which patched files are compiled.
+    quote: "the applicability of any specific CVE is up to the user of Linux to determine"
+    source: CVEs (kernel process documentation) | Linux kernel CNA / kernel.org docs | kernel.org docs | https://www.kernel.org/doc/Documentation/process/cve.rst
+    candidate_problem: CVE triage: map the files changed by a fix commit to whether they are built in a given distro or embedded config (per-object build condition against .config).
+
+[195] (workflow_practice/tool, 2024-03) Practitioner advice for kernel CVE triage: check whether the patched files are part of your kernel build; if not, the fix is unlikely to affect you. The suggested mechanism is compile_commands.json from a built tree, which requires a full build of the target config first. A static per-object condition would replace this build-then-inspect step.
+    quote: "check whether the patched files are actually part of your kernel build"
+    source: Linux kernel CNA (blog) | sigma star gmbh | sigma-star.at blog | https://www.sigma-star.at/blog/2024/03/linux-kernel-cna/
+    candidate_problem: CVE relevance filtering by object file and config without building.
+
+[196] (need/statistic, 2026-08) Vulnerability assessors need to know whether a bug is triggerable under production-tailored configurations, not just whether a version is affected. The ISSTA paper infers a minimal Kconfig option set per CVE; on 88 CVEs the config success rate rose from 62.5% to 96.6%. This is a config-for style problem for CVEs, using an LLM-based pipeline, and it confirms demand for 'which configuration builds the vulnerable code'.
+    quote: "whether a bug is triggerable under production-tailored configurations"
+    source: Inferring 1-Minimal Trigger Configurations for Assessing Linux Kernel CVE Triggerability | Tongjie Wei, Peng Zhang, Zhiwen Hu, Xupu Hu, Chen Lyu, Gangyan Zeng | ISSTA / PACMSE vol. 3 (arXiv 2608.15225) | https://arxiv.org/abs/2608.15225v1
+    candidate_problem: Config-conditioned CVE triggerability and reproduction; the file/object build condition is the necessary first filter.
+
+[201] (need/statistic, 2026-10-07) Kernel CNA issues about 60 CVEs/week; Siemens/CIP's kernel-cve-triage uses the kernel's Kconfig build configuration to decide which CVEs apply to a product, claiming up to 95% fewer false-positive CVEs; motivated by EU CRA compliance. Talk at OSS Europe, 2026-10-07.
+    quote: "using the kernel's Kconfig build configuration to determine which reported CVEs actually apply."
+    source: Triaging CVEs for the Linux Kernel (Christoph Steiger & Negar Masoudifar, Siemens AG) | Christoph Steiger, Negar Masoudifar | Open Source Summit Europe 2026 (sched) | https://osselceu2026.sched.com/event/2RaWO
+    candidate_problem: Config-aware CVE applicability triage: is the file touched by a CVE fix built under my .config?
+
+[202] (existing_tool/tool, 2024-07 (project created July 11, 2024)) kernel-cve-triage README: checks such as check_introduced_by_file_compiled and check_fixed_by_file_compiled decide whether affected files are compiled for a given config; kmax formulas are generated per kernel revision; setup step is expensive. This is the closest existing tool for the CVE use case and is built on Kmax, so kfold must be positioned against it (speed, per-object conditions reusable across configs, Kbuild coverage of non-Linux trees).
+    quote: "This step is computationally expensive and can take a noticeable amount of time, especially for large or complex kernels."
+    source: kernel-cve-triage README (CIP project) | CIP Project / Siemens | gitlab.com cip-project | https://gitlab.com/cip-project/cip-kernel/kernel-cve-triage/-/raw/main/README.md
+    candidate_problem: Fast per-object build conditions for CVE-to-config relevance; cost of kmax-based per-revision formula generation
+
+[203] (policy/policy, 2026 (current docs)) The kernel CVE team states that applicability of a CVE to a system is the user's job and that many assigned CVEs are irrelevant to a given system. This pushes config-based triage onto distros, embedded integrators and CI operators.
+    quote: "the applicability of any specific CVE is up to the user of Linux to determine, it is not up to the CVE assignment team."
+    source: CVEs (kernel process documentation) | Linux kernel CVE team | docs.kernel.org | https://docs.kernel.org/process/cve.html
+    candidate_problem: Per-user, per-config CVE applicability needs a precise file-to-config map
+
+[204] (statistic/statistic, 2025-12-03) Yocto Project Summit talk (Daniel Turull) says kernel CVE metadata plus SPDX per-binary source information in oe-core can cut kernel CVE false positives by 70%; shows distro/embedded builders want the compiled source set tied to CVEs.
+    quote: "can reduce CVE false positives by 70% and provide detailed responses for all kernel-related CVEs."
+    source: Yocto Project Summit 2025.12 talk on kernel CVE triage | Daniel Turull | Yocto Project Summit 2025.12 | https://pretalx.com/yocto-project-summit-2025-12/talk/9PBHQP/
+    candidate_problem: Reducing kernel CVE false positives by knowing which source files are compiled
+
+[205] (counter_evidence/anecdote, 2026-05-26) Embedded-security write-up lists what evidence a triager needs for kernel exposure: config alone is not enough (built-in vs module, loaded modules, runtime availability). This bounds what a build-condition analysis can decide, though it is the necessary first filter.
+    quote: "Product kernel config, built-in/module status, loaded modules, and runtime availability"
+    source: Copy Fail / Dirty Frag embedded Linux device risk | Lynx (vendor blog) | lynx.com | https://www.lynx.com/blog/copy-fail-dirty-frag-embedded-linux-device-risk
+    candidate_problem: CVE exposure needs config plus module/runtime state; build conditions are necessary but not sufficient
+
+[288] (need/policy, n.d.) Kernel CVE policy: the CNA team will not judge whether a CVE applies to a given system. Users must work it out from their own usage and configuration. With the kernel as a CNA creating many CVEs, per-config applicability is pushed onto distros and embedded vendors.
+    quote: "the applicability of any specific CVE is up to the user of Linux to determine"
+    source: CVEs (kernel documentation) |  | docs.kernel.org | https://docs.kernel.org/process/cve.html
+    candidate_problem: CVE applicability: is the fixed file built in my config (object-level build condition)
+
+[289] (need/anecdote, 2024-03) A practitioner post on the kernel CNA tells users to check a CVE's affected-file list against their build. That check is exactly an object-level build-condition query. Scanners that match on version alone do not know the kernel configuration.
+    quote: "there is a good chance that many CVEs affect code your kernel build doesn't has enabled."
+    source: Linux Kernel CNA |  | sigma-star blog | https://sigma-star.at/blog/2024/03/linux-kernel-cna/
+    candidate_problem: CVE triage: affected-file to build-condition mapping
+
+[290] (existing_tool/tool, 2026) A KubeCon India 2026 lightning-talk abstract proposes pruning kernel CVEs via reachability analysis that takes Kconfig build-time configuration as input. This shows demand for config-aware CVE triage and an emerging competitor. It works at function level, not Kbuild-condition level.
+    quote: "many kernel CVEs are in unreachable code, yielding a high reduction in reported exposure."
+    source: Lightning Talk: Pruning the Kernel CVEs with Code Reachability Analysis | Ashish Bijlani (Ossillate Inc) | KubeCon + CloudNativeCon India 2026 (Sched) | https://kccncind2026.sched.com/event/2IW37
+    candidate_problem: CVE triage competitor / validation of demand

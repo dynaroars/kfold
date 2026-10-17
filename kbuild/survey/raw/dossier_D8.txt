@@ -1,0 +1,132 @@
+=== PROBLEM P9: Distro, Android and embedded config maintenance (H8)
+who: Distro kernel maintainers (Debian, Fedora/RHEL, Ubuntu), Android OEMs/vendors, ChromeOS, Yocto/OpenWrt integrators
+strength: Moderate. About 25 claims from independent documentation and lists. Mostly docs/process descriptions, not pain statements. Many are old (2011-2018). The 2012 LWN thread is the only direct pain statement. Pain is focused on Kconfig/fragment mechanics, not Kbuild object selection.
+existing: merge_config.sh, diffconfig, kernel_configcheck/config audit (Yocto), check-configs.pl (Fedora), VTS/compatibility-matrix check (Android), kconfigeditor2 (Debian).
+gap: Predict, for a fragment or option change, which objects are added or dropped, and why a requested option or driver did not take effect. Generate minimal fragments from needed objects. Most of the pain is in the Kconfig layer.
+fit: partial - Object-delta views help reviewers. The failure points the claims describe (dropped options, dependency chains) are Kconfig-resolution problems that require the Kconfig model beyond Kbuild conditions, and no distro maintainer here asks for object-level output.
+
+--- supporting claims
+[44] (workflow_practice/anecdote, 2012-07-18) Distribution configs (2012, older): Torvalds wanted every option in a distro config to carry a comment saying why it is needed. Ben Hutchings said he sometimes does not know what depends on an option, and a Fedora maintainer was blindsided by requirements. Option-to-object dependency knowledge is missing for configurers. Foundational, pre-2023.
+    quote: "doesn't mean I know what's using or depending on it now."
+    source: Kernel configuration for distributions | Jake Edge (Ben Hutchings quoted) | LWN.net | https://lwn.net/Articles/507239/
+    candidate_problem: why: which objects does an option gate? supports distro config minimization
+
+[69] (pain_point/anecdote, 2025-12-11) LPC 2025 Build Systems MC, 'Debian Official Debug Kernel for All?' (Kim, Jin): developers build their own debug kernels, causing inconsistent reproduction and blocking Debian kernels from use with syzbot; Debian team is cautious because extra flavors raise build time, archive storage and mirror traffic; a 'minimal debug configuration' for syzbot/security auditing is an open question. Distro config policy is hand-negotiated.
+    quote: "an officially supported, sanitizer-enabled kernel image is not yet available"
+    source: Debian Official Debug Kernel for All? | Yunseong Kim (Ericsson), seonghee jin (Georgia Tech) | Linux Plumbers Conference 2025, Build Systems MC | https://lpc.events/event/19/contributions/2030/
+    candidate_problem: Distro maintainers weighing config flavors need to know which objects a flavor adds or drops (config-delta impact analysis); page names no specific CONFIG symbols.
+
+[70] (pain_point/policy, 2026 (current docs)) Android GKI FAQ: devices use a config fragment on top of gki_defconfig to build vendor modules, and 'there's no way to avoid some manual examination of configuration options'; scripts/diffconfig is the suggested tool; mismatched ABIs between GKI kernel and module configuration are an 'implicit module config dependency'. Shows vendor/OEM config reconciliation is manual.
+    quote: "There's no way to avoid some manual examination of configuration options to optimize the fragment."
+    source: Android kernel frequently asked questions | Android Open Source Project | source.android.com (GKI documentation) | https://source.android.com/docs/core/architecture/kernel/gki-faq
+    candidate_problem: Fragment/config delta reasoning: which objects change when a vendor fragment is applied over gki_defconfig (build-condition diff instead of textual diffconfig).
+
+[71] (pain_point/anecdote, 2026-05-29) Embedded Recipes 2026 (Yocto workshop) talk 'Config Fragments: Cure or Curse?' (David Heidelberg, 29 May 2026): embedded/mobile devices often rely on device-specific configuration fragments maintained out of tree; even a close-to-mainline kernel can need a bespoke fragment to boot; mainline kernels with similar support frequently yield partly working hardware.
+    quote: "they often rely on device-specific configuration fragments maintained out-of-tree"
+    source: Config Fragments: Cure or Curse? | David Heidelberg | Embedded Recipes 2026 (Yocto Project Workshop) | https://pretalx.com/yocto-embedded-recipes-2026/talk/39YTU9/
+    candidate_problem: Embedded configurers lack a way to tell which objects (drivers) a fragment must enable for a board; condition model could compute minimal fragments (config-for generalized to boards). Abstract only; the talk body was not seen.
+
+[72] (workflow_practice/anecdote, 2023-11-14) LPC 2023 Build Systems MC 'kernel: build system outputs and workflows (and how to balance them)' (Bruce Ashfield, AMD): how the kernel is used (UAPI headers, LTS/-stable vs bleeding edge, testing, supported versions) impacts how it is configured, built, deployed; session covers OpenEmbedded/Yocto kernel integration pain points. Config handled via fragments in Yocto; no coverage tooling mentioned.
+    quote: "impact how the kernel is configured, built, deployed and the outputs consumed"
+    source: kernel: build system outputs and workflows (and how to balance them) | Bruce Ashfield (AMD) | Linux Plumbers Conference 2023, Build Systems MC | https://lpc.events/event/17/contributions/1640/
+    candidate_problem: Embedded build-system integrators carry kernel config fragments per product; no per-object impact analysis offered.
+
+[144] (pain_point/anecdote, 2011-09-01) Driver 'does not build' because of unmet Kconfig dependencies that the user did not know about. Yocto list 2011: reporter could not get e100 to build; diagnosis was missing NET_PCI/MII; a maintainer said a warning should appear when a fragment option does not reach .config, and the reporter did not confirm that it did.
+    quote: "Yes, the problem was due to missing dependent options.."
+    source: [yocto] e100 driver does not build | Rahul Saxena (OP); Tom Zanussi, Bruce Ashfield (replies) | Yocto Project mailing list | https://docs.yoctoproject.org/pipermail/yocto/2011-September/002629.html
+    candidate_problem: Given a target object, compute the full set of options (including transitive depends/select) required to build it (config-for), and explain why a requested option was dropped.
+
+[145] (pain_point/anecdote, 2017-09-30) Kconfig fragments in Yocto silently fail to reach the final .config, and the audit task does not catch it. 2017 thread: after upgrading to morty the OP's fragments no longer applied; kernel_configcheck did not flag it; the maintainer's first answer was that the cause 'could be either' his recipe or the lower-level class.
+    quote: "The kernel_configcheck task doesn't catch the error either."
+    source: [yocto] Configuration fragments not making it into kernel configuration | Jonathan Haws (OP); Bruce Ashfield | Yocto Project mailing list | https://docs.yoctoproject.org/pipermail/yocto/2017-October/038236.html
+    candidate_problem: Explaining why a requested option or object is absent from a .config/build ('why' command): the chain of unmet dependencies or Makefile conditions.
+
+[146] (policy/policy, 2015-04-04) Yocto maintainer 2015: the kernel Kconfig system overrides fragments; old values or values with missing dependencies are removed during configuration, the tools only warn, and the audit details had only recently become visible in build output. Shows the embedded ecosystem relies on after-the-fact warnings rather than a model of dependencies.
+    quote: "the kernel configuration system (i.e. korg, not yocto) has the final say."
+    source: [yocto] [kernel config]: specified values did not make it into the kernel's final configuration | Bruce Ashfield (reply) | Yocto Project mailing list | https://docs.yoctoproject.org/pipermail/yocto/2015-April/024392.html
+    candidate_problem: Pre-build prediction of which requested options will survive Kconfig resolution and which objects they build.
+
+[206] (policy/tool, 2026 (current docs)) Yocto kernel docs: a config audit task validates that requested fragment options actually appear in the final .config. The audit exists because requested options are silently dropped (dependencies unmet).
+    quote: "Running this task produces warnings for when a requested configuration does not appear in the final `.config` file"
+    source: Yocto Project Linux Kernel Development Manual, common tasks | Yocto Project | docs.yoctoproject.org | https://docs.yoctoproject.org/kernel-dev/common.html
+    candidate_problem: Detecting requested options that silently do not take effect; explaining why an object/option is not built
+
+[207] (pain_point/anecdote, undated (current docs)) ChromeOS kernel config guide: enabling a config without its dependencies makes it vanish, and editing a shared option must be repeated for each flavour (~10) with silent no-op if one is missed.
+    quote: "If you miss one, then the result may be no change, which can be very confusing."
+    source: Kernel Configuration (Chromium OS developer library) | ChromiumOS kernel team | chromium.org | https://www.chromium.org/chromium-os/developer-library/guides/kernel/kernel-configuration/
+    candidate_problem: Silent no-op/disappearing config changes across a hierarchy of split configs; need to explain why
+
+[208] (pain_point/anecdote, undated (current docs)) Same ChromeOS guide: symptom and cause of options vanishing because dependencies were not enabled.
+    quote: "your configs are disappearing, then you've likely enabled a config without enabling all of its dependencies"
+    source: Kernel Configuration (Chromium OS developer library) | ChromiumOS kernel team | chromium.org | https://www.chromium.org/chromium-os/developer-library/guides/kernel/kernel-configuration/
+    candidate_problem: Dependency-driven silent disabling of options; need a config-for style repair
+
+[209] (workflow_practice/policy, undated (current docs)) ChromeOS maintains per-flavour configs as a hierarchy (base, arch, board) with oldconfig regeneration and splitting, to make variants easier to maintain.
+    quote: "Copy the new config to the appropriate place in the chromeos/config and then run oldconfig"
+    source: Kernel Configuration (Chromium OS developer library) | ChromiumOS kernel team | chromium.org | https://www.chromium.org/chromium-os/developer-library/guides/kernel/kernel-configuration/
+    candidate_problem: Config maintenance by hand across many flavours
+
+[210] (pain_point/policy, 2025 (page notes android-latest-release as of 2025-03-27)) Android GKI FAQ: trimming a vendor config fragment on top of gki_defconfig is manual; scripts/diffconfig is the suggested aid.
+    quote: "There's no way to avoid some manual examination of configuration options to optimize the fragment"
+    source: Android kernel FAQ (GKI) | Android Open Source Project | source.android.com | https://source.android.com/docs/core/architecture/kernel/gki-faq
+    candidate_problem: Minimal config fragments needed to build a given vendor module/object set
+
+[211] (policy/policy, undated (cuttlefish-testing-release branch)) AOSP kernel configs README: required Android kernel config fragments are not advisory; VTS tests them and the compatibility matrix check compares them at boot. Config sets are kept per kernel version.
+    quote: "the base kernel configs are not just advisory. They are tested as part of VTS"
+    source: Android Kernel Configs README | Android Open Source Project | android.googlesource.com | https://android.googlesource.com/kernel/configs/+/refs/heads/master-cuttlefish-testing-release/README.md
+    candidate_problem: Verifying required options/objects are present in vendor kernels
+
+[212] (workflow_practice/policy, 2025-01-30) Fedora kernel-ark: new options are reviewed by moving them from a pending directory to the ark hierarchy; reviewers must ACK the added files and can reply with a better value. Automated MRs titled 'New configs in <path>' are the review unit.
+    quote: "The final options that need to be ACKed are the files that are being added to the ark hierarchy."
+    source: [redhat] New configs in lib/Kconfig (kernel-ark MR 3665) | Fedora Kernel Team | gitlab.com cki-project/kernel-ark | https://gitlab.com/cki-project/kernel-ark/-/merge_requests/3665
+    candidate_problem: Manual per-option review of new Kconfig symbols on each rebase
+
+[213] (policy/policy, undated (el9, 5.14 kernel)) RHEL/Fedora kernel config README: layered directories (common, rhel, fedora, pending-*, custom-overrides); pending holds options not yet reviewed and is expected to be empty at branch time.
+    quote: "it is expected that these directories will be empty at branch time."
+    source: redhat/configs/README (AlmaLinux 9 kernel mirror) | Red Hat kernel team (via AlmaLinux mirror) | git.almalinux.org | https://git.almalinux.org/almalinux/kernel/raw/branch/a9/redhat/configs/README
+    candidate_problem: Tracking which new options still need human review before branching
+
+[214] (policy/policy, undated (current docs)) Ubuntu kernel config docs: all config info (per-arch, per-flavour values and metadata) lives in one annotations file; after a rebase onto a new upstream release every .config must be refreshed, and critical options must keep fixed values.
+    quote: "after a rebase on a new upstream release, all .config files need to be refreshed"
+    source: Working with the Ubuntu kernel config | Canonical kernel team | documentation.ubuntu.com/kteam-docs | https://documentation.ubuntu.com/kteam-docs/en/public/_sources/reference/kernels/uknext/kernel_config.rst.txt
+    candidate_problem: Config refresh and policy enforcement across arch/flavour on every upstream rebase
+
+[215] (workflow_practice/anecdote, 2024-02) Debian: enabling a kernel setting means cloning the packaging repo, generating patched sources, hand-editing debian/config/**/config and running kconfigeditor2's process.py to sort the file; the script fails if debian/rules source was skipped (needs the generated Kconfig tree).
+    quote: "../kernel-team/utils/kconfigeditor2/process.py ."
+    source: Enabling Kernel Settings in Debian | Emanuele Rocca | linux.it/~ema | https://www.linux.it/~ema/posts/enabling-kernel-settings-in-debian/
+    candidate_problem: Manual, multi-step config editing in distro packaging; no query of which options gate which objects
+
+[216] (pain_point/anecdote, 2018-02-25) LWN reader comment on distro kernel updates: make oldconfig is not enough to catch newly added important options.
+    quote: "'make oldconfig' only gets you so far. It's rather easy to overlook an important newly-added option."
+    source: More stable kernel updates (LWN, comment) | wx (LWN commenter #103979) | LWN.net | https://lwn.net/Articles/747995/
+    candidate_problem: Reviewing new Kconfig options on kernel upgrades
+
+[217] (pain_point/anecdote, 2022-12-28) OpenWrt developer asks for a way to refresh a hand-made kernel config after kernel version bumps; the only answer was kernel_menuconfig, and the reply admitted not knowing the env script. Shows lack of a diff/refresh tool.
+    quote: "How do I easily refresh it to pick up new stuff from target/linux/x86/64/config-${KVER}"
+    source: Updating env/kernel-config after rebasing/kernel version bump | Philip Prindeville | openwrt-devel mailing list | https://lists.openwrt.org/pipermail/openwrt-devel/2022-December/040063.html
+    candidate_problem: Refreshing embedded-distro kernel configs after version bumps
+
+[218] (pain_point/anecdote, 2016-01-18) LKML 2016: with oldconfig, a dependency-satisfying step silently dropped CONFIG_MICROCODE, an important option. Illustrates the silent-drop problem (old but foundational).
+    quote: "My problem was, CONFIG_MICROCODE got dropped silently"
+    source: Re: [RFC PATCH] x86/kconfig: Sanity-check config file during oldconfig | Thomas Voegtle (quoted by Borislav Petkov) | LKML | https://lkml.iu.edu/hypermail/linux/kernel/1601.2/00705.html
+    candidate_problem: Silent dropping of options on oldconfig due to unmet dependencies
+
+[219] (pain_point/anecdote, 2012-07) Distro maintainers' view in the 2012 LWN thread on Linus's distro-Kconfig profile idea: a single Debian release produces many configs and figuring out the right options is the hard part. Old, foundational context.
+    quote: "a single Debian release can produce 30-40 different kernel configs"
+    source: LWN article and comments on simplifying kernel configuration for distro issues | LWN commenter | LWN.net | https://lwn.net/Articles/507570/
+    candidate_problem: Scale of per-distro config sets (30-40 configs per release) makes manual review costly
+
+[224] (counter_evidence/policy, 2025) Android GKI FAQ says GKI-compliant devices layer a config fragment on gki_defconfig and gives sample fragments; so Android configuration is largely about a small fragment diff, which diffconfig already supports. A build-condition analysis adds value only for explaining or minimizing fragments.
+    quote: "Examples that are part of the ACK codebase include Cuttlefish and DB845c."
+    source: Android kernel FAQ (GKI) | Android Open Source Project | source.android.com | https://source.android.com/docs/core/architecture/kernel/gki-faq
+    candidate_problem: Whether fragment-level Android config work needs per-object conditions
+
+[297] (pain_point/anecdote, 2012) Distro maintainers report the burden of maintaining many kernel configs. A 2012 LWN thread: a single Debian release can need 30-40 different configs, and the hard part is figuring out what the correct options should be. This is dated and not about Kbuild, but it describes the distro/embedded configurer need.
+    quote: "30-40 different kernel configs"
+    source: LWN comment thread on simplifying kernel configuration for distro issues | dlang (commenter) | LWN.net | https://lwn.net/Articles/507570/
+    candidate_problem: distro/embedded config management: which objects does my config build or miss
+
+[298] (pain_point/anecdote, n.d.) Fedora's kernel task wish list asks for config tidying and states plainly that the config files are huge. The current tool is scripts/check-configs.pl, which flags configs that could be deleted. The need is config hygiene and shrinking; the page does not ask for object-level build conditions.
+    quote: "The config files are large and enormous. Can they be refactored to be smaller and more managable?"
+    source: Fedora Kernel Task Wish List |  | Fedora Project Wiki | https://fedoraproject.org/wiki/Kernel/TaskWishList
+    candidate_problem: distro config hygiene (undated page; adjacent need: configs that are dead or build nothing)

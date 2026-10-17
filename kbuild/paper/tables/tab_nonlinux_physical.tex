@@ -1,0 +1,10 @@
+\begin{tabular}{lrrrrrrr}
+\toprule
+Configuration & Pred. & TP & FP & $FN_U$ & $O$ & Prec. & Overlap \\
+\midrule
+Barebox \texttt{sandbox\_defconfig} & 393 & 376 & 17 & 0 & 30 & 95.7\% & 92.6\% \\
+Das U-Boot \texttt{sandbox\_defconfig} & 970 & 880 & 90 & 12 & 231 & 90.7\% & 78.4\% \\
+BusyBox \texttt{defconfig} & 162 & 162 & 0 & 0 & 29 & 100.0\% & 84.8\% \\
+coreboot QEMU i440fx & 316 & 244 & 72 & 0 & 430 & 77.2\% & 36.2\% \\
+\bottomrule
+\end{tabular}

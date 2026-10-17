@@ -1,0 +1,42 @@
+=== PROBLEM P3: Stable and backport build breakage in specific arch/config pairs (H3)
+who: Stable maintainers, stable-rc testers (Roeck, Linaro LKFT), distro kernel maintainers
+strength: Moderate to weak. Seven claims, mostly LKML anecdotes and one stat (155 builds). Independent testers. The stable rules (261) frame it as no policy burden. There is no data on how often the cause is object selection.
+existing: Roeck's fixed per-arch build matrix, Linaro LKFT/TuxSuite stable-rc builds, 0-day.
+gap: Predicting, from a backport's touched objects and the old tree's Makefile/Kconfig, which (arch, config) pairs build those objects and so should be built before posting the rc. Whether Makefile or Kconfig differences between old trees cause breaks is untested.
+fit: partial - The config-for step on an old tree could choose which configs to build for a backport. The documented failures in claim 188 are toolchain and C-code causes, which kfold does not address. This is a speculative fit and needs a measurement on stable breakage history.
+
+--- supporting claims
+[16] (pain_point/anecdote, 2023-08-10) Guenter Roeck's stable-review aside shows a per-arch allmodconfig build failing in a 5.15 stable release candidate that other testers reported clean. Different testers cover different configs, so the same release is reported as both working and broken.
+    quote: "fwiw, aarch64:allmodconfig doesn't compile."
+    source: Re: [PATCH 5.15 00/92] 5.15.126-rc1 review | Guenter Roeck | LKML (lkml.iu.edu mirror) | https://lkml.iu.edu/hypermail/linux/kernel/2308.1/03550.html
+    candidate_problem: Weak for kfold; it shows config-by-arch coverage differences. Closer to the config-for and blindspots use cases only if the failure was in a specific object, which the page does not say.
+
+[35] (pain_point/anecdote, 2026-03-05) Stable-kernel releases shipped mainly to fix build breakage show that build failures from specific configs/arches still reach stable users (6.12.75/6.6.128/6.1.165 broke builds for some). Which configs a backport affects is not checked systematically before release.
+    quote: "an upgrade is only necessary for those who have observed a build failure with the 6.12.75, 6.6.128, or 6.1.165 kernels."
+    source: New stable kernels to address build failures | LWN brief | LWN.net | https://lwn.net/Articles/1061524/
+    candidate_problem: config-for: derive the configs that exercise a backport's touched objects to build-test stable patches
+
+[186] (statistic/statistic, 2022-12) Guenter Roeck's stable-review build matrix, shown by his replies on LKML: 6.0.15-rc1 (Dec 2022) 155 builds, all pass, and 500 qemu tests with 2 failures on arm:xilinx-zynq-a9 (failing since 4.19.y). A 2014 3.4.97 review had 137 builds with 111 pass, 20 skipped, 6 failed (alpha:allmodconfig, arm:spear6xx_defconfig, score:defconfig, sparc64:allmodconfig, unicore32:defconfig, xtensa:allmodconfig). Stable builds use a fixed per-arch list of defconfigs plus allmodconfig; per-release build failures have been rare in recent years.
+    quote: "total: 155 pass: 155 fail: 0"
+    source: Re: [PATCH 6.0 00/28] 6.0.15-rc1 review | Guenter Roeck | LKML | https://lkml.iu.edu/hypermail/linux/kernel/2212.2/04008.html
+    candidate_problem: Stable-release testers use a fixed list of about 150 build configs; failures concentrate in non-x86 allmodconfig/defconfig.
+
+[187] (statistic/statistic, 2014-07) Older stable data point for the same tester (3.4.97-rc, July 2014): 137 builds, 111 pass, 20 skipped, 6 fail, with the failed builds listed per arch:config. Roeck said earlier versions had up to ten build failures per release. Shows stable build breakage historically came from backports interacting with architecture-specific config builds.
+    quote: "total: 137 pass: 111 skipped: 20 fail: 6"
+    source: Re: [PATCH 3.4 00/19] 3.4.97-stable review | Guenter Roeck | LKML | https://lkml.iu.edu/hypermail/linux/kernel/1407.0/03297.html
+    candidate_problem: Backports break builds in specific arch/config pairs that a per-object condition could predict from the patch.
+
+[188] (pain_point/anecdote, 2025-12) Recent stable-rc build failures reported by Linaro (5.15.197-rc1, Dec 2025): arm failed in 14 configs (gcc-8, gcc-12, clang-21) from a Tegra fuse backport, mips in 22 configs from a tlb-r4k.c backport, powerpc in 3 configs (including gcc-8-allnoconfig) from a mempool backport using C99 for-declarations on an old compiler. Three backported commits broke builds in each of three architectures, found only after the -rc posting.
+    quote: "'for' loop initial declarations are only allowed in C99 or C11 mode"
+    source: Re: [PATCH 5.15 000/392] 5.15.197-rc1 review | Linaro LKFT (Naresh Kamboju and others) | LKML | https://lkml.iu.edu/hypermail/linux/kernel/2512.0/07713.html
+    candidate_problem: A backported patch breaks builds on arch/config combinations nobody tested before posting the rc; the object-level condition of the touched file would say which configs build it.
+
+[261] (counter_evidence/policy, n.d.) Stable-kernel rules impose no explicit compile or config requirement apart from build errors being valid fixes (but not for things marked CONFIG_BROKEN) and the fix being obviously correct and tested. Stable backporting build breakage is not framed as a policy burden there.
+    quote: "It fixes a problem like an oops, a hang, data corruption, a real security issue, a hardware quirk, a build error (but not for things marked CONFIG_BROKEN)"
+    source: Everything you ever wanted to know about Linux -stable releases |  | docs.kernel.org | https://docs.kernel.org/process/stable-kernel-rules.html
+    candidate_problem: Stable rules do not frame multi-config builds as a requirement, so the stable-backport angle needs evidence from other sources (mailing lists).
+
+[262] (pain_point/policy, n.d.) The stable-kernel rules put the onus on the submitter to make backports apply cleanly and list prerequisites. A claim that a stable patch builds under the configurations of old trees is an implicit burden.
+    quote: "Specify any additional patch prerequisites for cherry picking:"
+    source: Everything you ever wanted to know about Linux -stable releases |  | docs.kernel.org | https://docs.kernel.org/process/stable-kernel-rules.html
+    candidate_problem: Backports to old trees change Makefiles and Kconfig. Comparing object build conditions across versions could flag configs where a backport changes what is built. This is a speculative fit.
