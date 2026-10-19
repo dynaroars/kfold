@@ -8,11 +8,11 @@ Output, under <target_dir>/busybox/:
   busybox-1.38.0.tar.bz2  the release tarball
   src/                    analysis tree: release + generated Kbuild files
     Makefile              top-level Makefile, the entry point of the analysis
-    */Kbuild              per-directory build rules (obj-y, lib-y, ...) that kfold analyzes
+    */Kbuild              per-directory build rules (obj-y, lib-y, ...) that the tool analyzes
     */Config.in           Kconfig option definitions and dependencies
   0/ ... <n_build-1>/     build trees: release + `make randconfig` + `make -k`
     .config               option values (CONFIG_X=y or unset) to evaluate build conditions against
-    **/*.o                objects the build compiled, to compare with kfold's prediction
+    **/*.o                objects the build compiled, to compare with the tool's prediction
 
 Output, under <csv_dir>/:
   busybox_build.csv       make's return code per configuration (nonzero: some file failed)
@@ -26,7 +26,7 @@ import re
 
 from scenario.helper import progress_bar
 
-# Options `make randconfig` must not change, each of which made random builds
+# options `make randconfig` must not change, each of which made random builds
 # fail for reasons unrelated to Kbuild ('y': set, 'n': not set).
 PINNED_OPTIONS = {
     'WERROR': 'n',               # GCC warnings in lzop.c, od.c, vi.c, ... become errors
@@ -71,7 +71,7 @@ def gen_build_files(src):
 
 
 def pin_options(config, options):
-    # Replace the given options in .config with their fixed values. BusyBox's
+    # replace the given options in .config with their fixed values. BusyBox's
     # old kconfig keeps the first value it reads and re-randomizes choices
     # under KCONFIG_ALLCONFIG, so this deletes the old lines first.
     with open(config) as f:
@@ -84,7 +84,7 @@ def pin_options(config, options):
 
 
 def build_random_configs(path, root, n_build, csv_path):
-    # Each random configuration gets its own copy <i>/ holding its .config and
+    # each random configuration gets its own copy <i>/ holding its .config and
     # objects. make -k keeps going past files that fail to compile, and the
     # CSV records its return code.
     pbar = progress_bar.create(total=n_build, unit='config', desc='    - `make` random configs',
@@ -93,7 +93,7 @@ def build_random_configs(path, root, n_build, csv_path):
         build = extract(path, root, str(i))
         subprocess.run(['make', 'randconfig'], cwd=build, check=True,
                        capture_output=True)
-        # Pin options that break the build for reasons unrelated to Kbuild,
+        # pin options that break the build for reasons unrelated to Kbuild,
         # then let oldconfig resolve the options that depend on them.
         pin_options(os.path.join(build, '.config'), PINNED_OPTIONS)
         subprocess.run(['make', 'oldconfig'], cwd=build, check=True,

@@ -2,7 +2,7 @@ import os
 
 import z3
 
-from kfold import parse, execute, collect, descend
+from tool import parse, execute, collect, descend
 
 
 def analyze(src, top_dirs):
