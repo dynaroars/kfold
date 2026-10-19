@@ -70,8 +70,34 @@ def to_words(tokens):
     return words
 
 
+# the most words from_words() checks for mutual exclusion, one solver call per pair
+MAX_EXCLUSIVE = 16
+
+
+def exclusive(words):
+    # whether no configuration has two of the words, such as BITS = 32 under
+    # CONFIG_X86_32 and 64 otherwise
+    conditions = list(words.values())
+    for i, c1 in enumerate(conditions):
+        for c2 in conditions[i + 1:]:
+            solver = z3.Solver()
+            solver.add(c1, c2)
+            if solver.check() == z3.sat:
+                return False
+    return True
+
+
 def from_words(words):
-    # one token per word; the empty alternative covers the configurations without it
+    # one token per word, with the empty alternative for the configurations without
+    # it. Words that never occur together form a single token, so text glued around
+    # the reference joins whichever word is present: `usercopy_$(BITS).o` gives
+    # usercopy_32.o or usercopy_64.o, with no word for the absent one
+    if 1 < len(words) <= MAX_EXCLUSIVE and exclusive(words):
+        token = list(words.items())
+        rest = z3.simplify(z3.Not(z3.Or(list(words.values()))))
+        if not z3.is_false(rest):
+            token.append(('', rest))
+        return [token]
     tokens = []
     for word, path_condition in words.items():
         token = [(word, path_condition)]

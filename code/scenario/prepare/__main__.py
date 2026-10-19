@@ -1,5 +1,5 @@
 from scenario.helper.args import parse_args
-from . import busybox, linux_tinyconfig
+from . import busybox, linux, coreboot
 
 def main():
     args = parse_args()

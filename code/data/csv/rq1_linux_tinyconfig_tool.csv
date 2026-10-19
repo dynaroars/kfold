@@ -1,2 +1,0 @@
-config,analyze_seconds,n_on,predicted,observed,tp,fp,fn_u,out,precision,overlap
-0,33.25656683900161,368,454,511,445,9,2,64,0.9801762114537445,0.8708414872798435

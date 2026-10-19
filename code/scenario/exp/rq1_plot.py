@@ -1,3 +1,5 @@
+import random
+import json
 import os
 
 import matplotlib
@@ -5,10 +7,15 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from scenario.helper import target
 from scenario import helper
 
-# marker per tool, so overlapping points of the two tools stay visible
-MARKER = {'tool': 'o', 'kmax': 'x'}
+# the error counts of the paper's metrics, as (CSV column, panel title)
+ERRORS = [
+    ('fp', 'false positives'),
+    ('fn_u', 'missed extracted objects'),
+    ('out', 'compiled objects outside U'),
+]
 
 
 def _save(fig, out):
@@ -18,65 +25,96 @@ def _save(fig, out):
     print(f'[save] {out}')
 
 
-def _plot_agreement(runs, out):
-    df = pd.concat(runs.values())
-    fig, ax = plt.subplots(figsize=helper.plot.figsize(0.48 * helper.plot.TEXT_PT, 1.0))
-    # one marker per configuration and tool; markers on the dashed diagonal are exact agreement
-    low = 0.95 * min(df['observed'].min(), df['predicted'].min())
-    high = 1.05 * max(df['observed'].max(), df['predicted'].max())
-    ax.plot([low, high], [low, high], linestyle='--', linewidth=1,
-            color=helper.plot.MUTED, zorder=1)
-    summary = []
-    for tool, run in runs.items():
-        ax.scatter(run['observed'], run['predicted'], s=24, marker=MARKER[tool],
-                   color=helper.plot.SERIES[tool], linewidth=1, zorder=2,
-                   label=helper.plot.LABEL[tool])
-        summary.append(f'{helper.plot.LABEL[tool]}: precision '
-                       f'{run["tp"].sum() / run["predicted"].sum():.3f}, overlap '
-                       f'{run["tp"].sum() / run["observed"].sum():.3f}')
-    ax.set_xlim(low, high)
-    ax.set_ylim(low, high)
-    ax.set_aspect('equal')
-    ax.set_xlabel('compiled objects')
-    ax.set_ylabel('predicted objects')
-    # white box, so the diagonal passes behind the text
-    n = len(df) // len(runs)
-    ax.text(0.04, 0.96, f'{n} configuration{"s" * (n > 1)}\n' + '\n'.join(summary),
-            transform=ax.transAxes, va='top', zorder=3,
-            bbox={'facecolor': 'white', 'edgecolor': 'none', 'pad': 1.5})
-    ax.legend(loc='lower right')
+def _load(args):
+    # {(system, tool): (per-configuration rows, {config: {error: [objects]}} or None)}
+    runs = {}
+    for system in target.VARIABLES:
+        for tool in helper.plot.SERIES:
+            csv_path = os.path.join(args.csv_dir, f'rq1_{system}_{tool}.csv')
+            if not os.path.isfile(csv_path):
+                continue
+            errors_path = os.path.join(args.analysis_dir, tool, f'{system}.rq1.json')
+            errors = None
+            if os.path.isfile(errors_path):
+                with open(errors_path) as f:
+                    errors = json.load(f)
+            runs[system, tool] = (pd.read_csv(csv_path), errors)
+            print(f'[load] {csv_path}')
+    return runs
+
+
+def _summary(runs, out):
+    # one row per system and tool, over all its configurations: precision is the share
+    # of predicted objects that were compiled, recall the share of compiled objects
+    # that were predicted (the paper's overlap TP / |B_c|)
+    rows = []
+    for (system, tool), (df, _) in runs.items():
+        rows.append({'system': helper.plot.SYSTEM[system], 'tool': helper.plot.LABEL[tool],
+                     'configs': len(df),
+                     'precision': df['tp'].sum() / df['predicted'].sum(),
+                     'recall': df['tp'].sum() / df['observed'].sum()})
+    summary = pd.DataFrame(rows)
+    summary.to_csv(out, index=False)
+    print(summary.to_string(index=False))
+    print(f'[save] {out}')
+
+
+def _plot_errors(runs, out):
+    # one panel per error count, one marker per configuration; x is the system and the
+    # tools sit side by side, spread a little so equal counts stay visible
+    systems = list(dict.fromkeys(system for system, _ in runs))
+    jitter = random.Random(0)
+    fig, axes = plt.subplots(1, len(ERRORS), figsize=helper.plot.figsize(0.98 * helper.plot.TEXT_PT, 0.3))
+    for ax, (column, title) in zip(axes, ERRORS):
+        for (system, tool), (df, _) in runs.items():
+            x = systems.index(system) + (-0.17 if tool == 'tool' else 0.17)
+            xs = [x + jitter.uniform(-0.07, 0.07) for _ in range(len(df))]
+            ax.scatter(xs, df[column], s=18, marker=helper.plot.MARKER[tool],
+                       color=helper.plot.SERIES[tool], linewidth=1, zorder=2,
+                       label=helper.plot.LABEL[tool])
+        ax.set_title(title, fontsize=helper.plot.FONT_PT)
+        ax.set_xticks(range(len(systems)), [helper.plot.SYSTEM[s] for s in systems])
+        ax.set_xlim(-0.5, len(systems) - 0.5)
+        ax.set_ylim(bottom=-0.05 * max(1, ax.get_ylim()[1]))
+        ax.grid(axis='x', visible=False)
+    axes[0].set_ylabel('objects per configuration')
+    handles, labels = axes[0].get_legend_handles_labels()
+    unique = dict(zip(labels, handles))
+    axes[-1].legend(unique.values(), unique.keys(), loc='upper left')
     _save(fig, out)
 
 
 def _plot_time(runs, out):
-    # one bar per tool: the wall-clock time of its whole-tree analysis
-    tools = list(runs)
-    seconds = [runs[tool]['analyze_seconds'].iloc[0] for tool in tools]
-    fig, ax = plt.subplots(figsize=helper.plot.figsize(0.48 * helper.plot.TEXT_PT, 0.35))
-    ax.barh(range(len(tools)), seconds, height=0.5,
-            color=[helper.plot.SERIES[tool] for tool in tools])
-    for y, s in enumerate(seconds):
-        ax.text(s, y, f' {s:.1f} s', va='center')
-    ax.set_yticks(range(len(tools)), [helper.plot.LABEL[tool] for tool in tools])
+    # one bar per system and tool: the wall-clock time of the whole-tree analysis, on a
+    # log scale since the systems differ by orders of magnitude
+    systems = list(dict.fromkeys(system for system, _ in runs))
+    fig, ax = plt.subplots(figsize=helper.plot.figsize(0.48 * helper.plot.TEXT_PT, 0.45))
+    for (system, tool), (df, _) in runs.items():
+        y = systems.index(system) + (-0.2 if tool == 'tool' else 0.2)
+        seconds = df['analyze_seconds'].iloc[0]
+        ax.barh(y, seconds, height=0.36, color=helper.plot.SERIES[tool],
+                label=helper.plot.LABEL[tool])
+        ax.text(seconds, y, f' {seconds:.1f} s', va='center')
+    ax.set_xscale('log')
+    ax.set_yticks(range(len(systems)), [helper.plot.SYSTEM[s] for s in systems])
     ax.invert_yaxis()
-    ax.set_xlim(0, 1.25 * max(seconds))
+    ax.set_xlim(right=ax.get_xlim()[1] * 8)
     ax.set_xlabel('analysis time (s)')
     ax.grid(axis='y', visible=False)
+    handles, labels = ax.get_legend_handles_labels()
+    unique = dict(zip(labels, handles))
+    # top right: BusyBox's bars are short, so the legend covers no bar or label there
+    ax.legend(unique.values(), unique.keys(), loc='upper right')
     _save(fig, out)
 
 
 def main():
     args = helper.args.parse_args()
-    runs = {}
-    for tool in helper.plot.SERIES:
-        csv_path = os.path.join(args.csv_dir, f'rq1_{args.target}_{tool}.csv')
-        if os.path.isfile(csv_path):
-            runs[tool] = pd.read_csv(csv_path)
-            print(f'[load] {csv_path}')
-
+    runs = _load(args)
     helper.plot.apply()
-    _plot_agreement(runs, os.path.join(args.figure_dir, f'rq1_{args.target}.pdf'))
-    _plot_time(runs, os.path.join(args.figure_dir, f'rq1_time_{args.target}.pdf'))
+    _summary(runs, os.path.join(args.csv_dir, 'rq1_summary.csv'))
+    _plot_errors(runs, os.path.join(args.figure_dir, 'rq1.pdf'))
+    _plot_time(runs, os.path.join(args.figure_dir, 'rq1_time.pdf'))
 
 
 if __name__ == '__main__':

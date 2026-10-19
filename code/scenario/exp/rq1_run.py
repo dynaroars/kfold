@@ -15,6 +15,9 @@ def _analyze(args, path):
     name = args.target
     progress = helper.progress_bar.create_growing('dir', f'rq1.analyze.{name}.{args.tool}')
     if args.tool == 'kmax':
+        if name not in target.KMAXALL:
+            raise SystemExit(f'Kmax analyzes Kbuild trees, and {name} has no kmaxall '
+                             f'arguments in scenario/helper/target.py')
         log_path = os.path.join(args.analysis_dir, args.tool, f'{name}.log')
         with open(log_path, 'w') as log:
             conditions = kmax.analyze(path, target.VARIABLES[name], target.KMAXALL[name],
@@ -75,6 +78,9 @@ def main():
         desc=f'rq1.run.{args.target}.{args.tool}',
         csv_path=csv_path,
     )
+    # the objects behind fp, fn_u, and out of every configuration, to count distinct
+    # objects across configurations and to group the errors by cause
+    errors = {}
     for name in trees:
         tree = os.path.join(root, name)
         on = read_config(os.path.join(tree, '.config'))
@@ -84,20 +90,30 @@ def main():
         # metrics of the paper's setup: fn_u are extracted objects the analysis missed,
         # out are compiled objects outside the extracted universe; analyze_seconds is
         # the one whole-tree analysis, repeated on every row
+        errors[name] = {
+            'fp': sorted(predicted - observed),
+            'fn_u': sorted((observed & conditions.keys()) - predicted),
+            'out': sorted(observed - conditions.keys()),
+        }
         pbar.step(
             analyze_seconds=analyze_seconds,
+            universe=len(conditions),
             n_on=len(on),
             predicted=len(predicted),
             observed=len(observed),
             tp=tp,
-            fp=len(predicted - observed),
-            fn_u=len((observed & conditions.keys()) - predicted),
-            out=len(observed - conditions.keys()),
+            fp=len(errors[name]['fp']),
+            fn_u=len(errors[name]['fn_u']),
+            out=len(errors[name]['out']),
             precision=tp / len(predicted),
             overlap=tp / len(observed),
         )
     pbar.to_csv()
     print(f'[save] {csv_path}')
+    errors_path = os.path.join(args.analysis_dir, args.tool, f'{args.target}.rq1.json')
+    with open(errors_path, 'w') as f:
+        json.dump(errors, f, indent=1)
+    print(f'[save] {errors_path}')
 
 
 if __name__ == '__main__':

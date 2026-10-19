@@ -11,6 +11,10 @@ FONT_PT = 8
 # the reference line, and the recessive grid and axes
 SERIES = {'tool': '#2a78d6', 'kmax': '#eb6834'}
 LABEL = {'tool': 'Tool', 'kmax': 'Kmax'}
+# marker per tool, so overlapping points of the two tools stay visible
+MARKER = {'tool': 'o', 'kmax': 'x'}
+# display name per target system
+SYSTEM = {'busybox': 'BusyBox', 'linux': 'Linux', 'coreboot': 'coreboot'}
 MUTED = '#898781'
 GRID = '#e1e0d9'
 AXIS = '#c3c2b7'

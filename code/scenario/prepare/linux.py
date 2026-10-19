@@ -1,12 +1,13 @@
-'''Prepare Linux 7.2.8 for analysis and build --n_build configurations: its i386
-tinyconfig and n_build - 1 perturbations of it.
+'''Prepare Linux 7.2.8 for analysis and build --n_build x86 configurations: the i386
+tinyconfig and n_build - 1 perturbations of it. The analysis does not depend on the
+configuration; tinyconfig is only the starting point of the configurations evaluated.
 
 Input:
   https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.8.tar.xz (checked against its SHA256)
   PINNED_OPTIONS          options fixed in every perturbation
   PERTURB_RATE            share of the other Boolean options a perturbation flips
 
-Output, under <target_dir>/linux_tinyconfig/:
+Output, under <target_dir>/linux/:
   linux-7.2.8.tar.xz      the release tarball
   src/                    analysis tree: the unmodified release
     Makefile              top-level Makefile, the entry point of the analysis
@@ -18,14 +19,13 @@ Output, under <target_dir>/linux_tinyconfig/:
     **/*.o                objects the build compiled, to compare with the tool's prediction
 
 Output, under <csv_dir>/:
-  prepare_linux_tinyconfig.csv  per configuration: options flipped, options that differ
-                                from tinyconfig after olddefconfig, and make's return code
+  prepare_linux.csv       per configuration: options flipped, options that differ from
+                          tinyconfig after olddefconfig, and make's return code
 '''
 import subprocess
-import random
 import os
 
-from scenario.prepare.helper import download, extract
+from scenario.prepare.helper import download, extract, read_config, write_config, perturb, changed
 from scenario.helper import progress_bar
 
 VERSION = 'linux-7.2.8'
@@ -38,37 +38,6 @@ PINNED_OPTIONS = {
     'WERROR': 'n',   # GCC warnings would become errors, as in the earlier evaluation
 }
 PERTURB_RATE = 0.05
-
-
-def read_config(path):
-    # {option: value} in file order, with 'n' for "# CONFIG_X is not set"
-    options = {}
-    with open(path) as f:
-        for line in f:
-            if line.startswith('CONFIG_'):
-                name, value = line.rstrip('\n').split('=', 1)
-                options[name[len('CONFIG_'):]] = value
-            elif line.startswith('# CONFIG_') and line.endswith(' is not set\n'):
-                options[line[len('# CONFIG_'):-len(' is not set\n')]] = 'n'
-    return options
-
-
-def write_config(path, options):
-    with open(path, 'w') as f:
-        for name, value in options.items():
-            f.write(f'# CONFIG_{name} is not set\n' if value == 'n' else f'CONFIG_{name}={value}\n')
-
-
-def perturb(options, seed):
-    # flip a seeded random PERTURB_RATE of the unpinned Boolean options, then pin
-    candidates = [name for name, value in options.items()
-                  if value in ('y', 'n') and name not in PINNED_OPTIONS]
-    flipped = random.Random(seed).sample(candidates, round(PERTURB_RATE * len(candidates)))
-    perturbed = dict(options)
-    for name in flipped:
-        perturbed[name] = 'n' if options[name] == 'y' else 'y'
-    perturbed.update(PINNED_OPTIONS)
-    return perturbed, flipped
 
 
 def build(root, n_build, csv_path):
@@ -87,22 +56,20 @@ def build(root, n_build, csv_path):
     for i in range(1, n_build):
         tree = os.path.abspath(os.path.join(root, str(i)))
         os.makedirs(tree, exist_ok=True)
-        perturbed, flipped = perturb(base, seed=i)
+        perturbed, flipped = perturb(base, i, PINNED_OPTIONS, PERTURB_RATE)
         write_config(os.path.join(tree, '.config'), perturbed)
         subprocess.run([*MAKE, '-C', src, f'O={tree}', 'olddefconfig'], check=True,
                        capture_output=True)
         final = read_config(os.path.join(tree, '.config'))
-        changed = sum(final.get(name, 'n') != value for name, value in base.items()) + \
-            sum(name not in base and value != 'n' for name, value in final.items())
         result = subprocess.run([*MAKE, '-C', src, f'O={tree}', '-k', f'-j{os.cpu_count()}'],
                                 capture_output=True)
-        pbar.step(flipped=len(flipped), changed=changed, returncode=result.returncode)
+        pbar.step(flipped=len(flipped), changed=changed(base, final), returncode=result.returncode)
     pbar.to_csv()
 
 
 def prepare(args):
-    print('[+] preparing linux tinyconfig:')
-    root = os.path.join(args.target_dir, 'linux_tinyconfig')
+    print('[+] preparing linux:')
+    root = os.path.join(args.target_dir, 'linux')
     os.makedirs(root, exist_ok=True)
 
     url = f'https://cdn.kernel.org/pub/linux/kernel/v7.x/{VERSION}.tar.xz'
@@ -116,4 +83,4 @@ def prepare(args):
     extract(path, root, 'src', VERSION)
     extract(path, root, '0', VERSION)
 
-    build(root, args.n_build, os.path.join(args.csv_dir, 'prepare_linux_tinyconfig.csv'))
+    build(root, args.n_build, os.path.join(args.csv_dir, 'prepare_linux.csv'))

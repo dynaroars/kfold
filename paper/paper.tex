@@ -403,7 +403,7 @@ For whole-tree performance measurements, we run each tool three times per subjec
 \subsection{RQ1: Build Agreement}\label{sec:rq1}
 
 This subsection reports preliminary build-agreement results on BusyBox, the first subject analyzed with the current implementation.
-\tl{Preliminary: BusyBox only. The numbers below are typed from code/data/csv/rq1\_busybox.csv; define them as macros in paper.sty before submission. The setup paragraphs above and \autoref{tab:subjects} still describe the earlier pipeline (BusyBox \texttt{defconfig}); align them with this protocol.}
+\tl{Preliminary: BusyBox only. The numbers below are typed from code/data/csv/rq1\_busybox\_tool.csv and rq1\_busybox\_kmax.csv; define them as macros in paper.sty before submission. The setup paragraphs above and \autoref{tab:subjects} still describe the earlier pipeline (BusyBox \texttt{defconfig}, three timing runs per tool); align them with this protocol, which times a single run.}
 
 \emph{Protocol.}
 \tool{} analyzes the BusyBox 1.38.0 tree once and extracts a universe $U$ of 625 objects in 1.3\,s.
@@ -416,20 +416,52 @@ the Sun RPC and Linux~2.4 module interfaces that current glibc no longer offers,
 and \texttt{NOMMU}, under which \texttt{telnetd} fails to link.
 All other options keep their random values.
 The ground truth $B_c$ of a configuration $c$ consists of the \texttt{.o} files in its build tree, excluding the \texttt{built-in.o} archives produced by linking and the host tools under \texttt{scripts/} that run the configurator.
+We run Kmax (\texttt{kmaxall} v4.10, Boolean options) from the same 30 entry directories, conjoin the condition of each object with the conditions of the directory entries above it, and score its conditions with the same evaluation and metrics.
+For each tool, we record the wall-clock time of one whole-tree analysis.
 
 \emph{Results.}
-\autoref{fig:rq1} compares the predicted and compiled object counts of each configuration.
-The ten configurations enable between 357 and 415 options and compile between 388 and 425 objects, 4,083 in total.
+On BusyBox, the ten configurations enable between 357 and 415 options and compile between 388 and 425 objects, 4,083 in total.
 For every configuration, the predicted set $P_c$ equals $B_c$: \tool{} reports no false positives, no in-universe false negatives, and no compiled object outside $U$, so precision and overlap are both 1.0.
+Kmax extracts the same 625 objects and reaches the same agreement.
+Its conditions are logically equivalent to those of \tool{}: for each of the 625 objects, Z3 finds no configuration under which the two conditions differ.
+BusyBox therefore does not separate the two tools on accuracy; its Kbuild files consist mostly of goal definitions such as \texttt{lib-\$(CONFIG\_TAR) += tar.o}, with a few conditionals and no composite objects, explicit object rules, or included Makefiles.
 One build stops at the final link because the host lacks the PAM development library; all of its objects compile, so its object inventory is complete.
 The build conditions are mostly small: 149 of the 625 conditions are constant true, 351 consist of a single option, and the remaining 125 combine several options, such as the condition of \texttt{modutils/modutils.o}, a disjunction over seven options.
 These results hold for the sampled configurations; agreement on ten configurations does not establish the conditions for configurations outside the sample.
 
+\autoref{tab:rq1} summarizes the agreement of both tools on BusyBox and on ten Linux configurations, the \texttt{tinyconfig} of i386 and nine perturbations of it.
+Precision is the share of predicted objects that the builds compile, and recall is the share of compiled objects that the tool predicts, the overlap $TP / |B_c|$ of the setup, both over all configurations of a system.
+On Linux, \tool{} reports no false positive and no in-universe false negative in any of the ten configurations, while Kmax reports 7 to 31 false positives and 22 to 27 in-universe false negatives per configuration.
+\tool{} expands \texttt{arch/\$(SRCARCH)/} in the root Kbuild file and so reaches objects under \texttt{arch/x86/} that Kmax misses, and it replaces each composite object, such as \texttt{drivers/acpi/acpica/acpi.o}, by the members that Kbuild compiles.
+The 48 to 51 compiled objects per configuration that remain outside the universe of \tool{} are not selected by any goal definition: the boot image and real-mode objects under \texttt{arch/x86/boot/} and \texttt{arch/x86/realmode/}, built by explicit rules, host programs under \texttt{arch/x86/tools/}, and objects of the final link, such as \texttt{vmlinux.o} and the \texttt{kallsyms} objects.
+
+\autoref{fig:rq1} reports the wall-clock time of one whole-tree analysis by each tool.
+On BusyBox, \tool{} takes 1.3\,s and Kmax 5.0\,s; on the x86 tree of Linux, \tool{} takes 36.7\,s and Kmax 310.6\,s, which is 8.5 times longer.
+Kmax runs a separate \texttt{kmax} process for every directory it reaches, including directories whose names it leaves unexpanded, while \tool{} executes all Makefiles in one process.
+Each time comes from a single run of each tool, so these numbers describe one measurement; RQ2 compares the scaling of the two approaches.
+\tl{Numbers from code/data/csv/rq1\_*.csv and analysis/<tool>/<system>.rq1.json; define them as macros. Describe the Linux protocol (tinyconfig of i386 and nine perturbations flipping 5\% of its Boolean options, MODULES and WERROR pinned) in the setup, and group the false positives and misses of Kmax by cause.}
+
+\begin{table}[t]
+\centering\footnotesize
+\caption{Precision and recall of the build conditions of each tool over all sampled configurations.}
+\label{tab:rq1}
+\begin{tabular}{llrrr}
+\toprule
+System & Tool & Configurations & Precision & Recall \\
+\midrule
+BusyBox & \tool{} & 10 & 1.000 & 1.000 \\
+BusyBox & Kmax & 10 & 1.000 & 1.000 \\
+Linux & \tool{} & 10 & 1.000 & 0.918 \\
+Linux & Kmax & 10 & 0.973 & 0.835 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \begin{figure}[t]
 \centering
-\includegraphics{figure/result/rq1_busybox.pdf}
-\caption{Predicted and compiled object counts for ten random BusyBox configurations.}
-\Description{A scatter plot with one marker per configuration; all ten markers lie on the diagonal where the predicted count equals the compiled count.}
+\includegraphics{figure/result/rq1_time.pdf}
+\caption{Whole-tree analysis time on BusyBox and Linux.}
+\Description{A bar chart of analysis time on a log scale: on BusyBox, 1.3 seconds for the tool and 5.0 seconds for Kmax; on Linux, 36.7 seconds for the tool and 310.6 seconds for Kmax.}
 \label{fig:rq1}
 \end{figure}
 
