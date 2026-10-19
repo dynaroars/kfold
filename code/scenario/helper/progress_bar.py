@@ -76,6 +76,20 @@ class ProgressBar:
 def create(total, unit, desc, csv_path):
     return ProgressBar(total, unit, desc, csv_path)
 
+def create_growing(unit, desc):
+    # a bar for a loop whose total grows while it runs, such as the tool's directory
+    # worklist; the returned function takes done, left, and values to show beside the bar
+    pbar = tqdm.tqdm(total=0, unit=unit, desc=desc, dynamic_ncols=True)
+
+    def update(done, left, **postfix):
+        pbar.total = done + left
+        pbar.n = done
+        pbar.set_postfix(**postfix, refresh=False)
+        pbar.refresh()
+        if left == 0:
+            pbar.close()
+    return update
+
 if __name__ == '__main__':
     import time
     pbar = ProgressBar(total=10, unit='iteration', desc='demo',

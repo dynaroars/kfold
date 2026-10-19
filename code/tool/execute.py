@@ -41,6 +41,11 @@ def cross(left, right):
     return token
 
 
+# the number of strings alternatives() builds before giving up: each word that depends
+# on options doubles them, so a long option-dependent list would never finish
+MAX_ALTERNATIVES = 4096
+
+
 def alternatives(tokens):
     '''Return [(string, path condition)] for every way the tokens can expand.'''
     result = [('', TRUE)]
@@ -49,6 +54,9 @@ def alternatives(tokens):
                   for s1, g1 in result for s2, g2 in token
                   for path_condition in [z3.simplify(z3.And(g1, g2))]
                   if not z3.is_false(path_condition)]
+        if len(result) > MAX_ALTERNATIVES:
+            raise NotImplementedError(f'more than {MAX_ALTERNATIVES} alternatives while expanding '
+                                      f'{len(tokens)} tokens, first {tokens[0][:3]}')
     return result
 
 
@@ -103,10 +111,11 @@ def substitute(pattern, replacement, word):
 
 
 def filter_words(patterns, tokens, keep):
-    # $(filter) when keep, $(filter-out) otherwise; the pattern list can depend on
-    # options, so a word is kept under the path conditions of the pattern lists
-    # that match it (filter) or do not match it (filter-out)
-    pattern_lists = [(s.split(), g) for s, g in alternatives(patterns)]
+    # $(filter) when keep, $(filter-out) otherwise. A word matches when some pattern
+    # word matches it, and each pattern word can depend on options, so a word matches
+    # under the disjunction of the path conditions of the pattern words that match it;
+    # this is linear in the patterns, where listing whole pattern lists is exponential
+    pattern_words = [(s.split(), g) for token in patterns for s, g in token]
     result = []
     for token in tokens:
         new = []
@@ -116,7 +125,7 @@ def filter_words(patterns, tokens, keep):
                 continue
             if len(s.split()) > 1:
                 raise NotImplementedError(f'filter on a multi-word alternative: {s!r}')
-            matched = z3.Or([c for p, c in pattern_lists if any(match(x, s) is not None for x in p)])
+            matched = z3.Or([c for p, c in pattern_words if any(match(x, s) is not None for x in p)])
             kept = matched if keep else z3.Not(matched)
             for word, condition in ((s, z3.And(g, kept)), ('', z3.And(g, z3.Not(kept)))):
                 condition = z3.simplify(condition)
