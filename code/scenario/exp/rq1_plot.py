@@ -31,7 +31,7 @@ def main():
     ax.text(0.04, 0.96,
             f'{len(df)} configurations\n'
             f'precision {df["tp"].sum() / df["predicted"].sum():.3f}\n'
-            f'recall {df["tp"].sum() / df["observed"].sum():.3f}',
+            f'overlap {df["tp"].sum() / df["observed"].sum():.3f}',
             transform=ax.transAxes, va='top')
     fig.tight_layout(pad=0.15)
     out = os.path.join(args.figure_dir, f'rq1_{args.target}.pdf')

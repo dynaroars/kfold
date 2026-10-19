@@ -44,15 +44,18 @@ def main():
         predicted = evaluate(conditions, on)
         observed = _observed(tree)
         tp = len(predicted & observed)
+        # metrics of the paper's setup: fn_u are extracted objects the analysis missed,
+        # out are compiled objects outside the extracted universe
         pbar.step(
             n_on=len(on),
             predicted=len(predicted),
             observed=len(observed),
             tp=tp,
             fp=len(predicted - observed),
-            fn=len(observed - predicted),
+            fn_u=len((observed & conditions.keys()) - predicted),
+            out=len(observed - conditions.keys()),
             precision=tp / len(predicted),
-            recall=tp / len(observed),
+            overlap=tp / len(observed),
         )
     pbar.to_csv()
     print(f'[save] {csv_path}')
