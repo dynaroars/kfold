@@ -68,6 +68,8 @@ class ProgressBar:
         self._display()
 
     def to_csv(self):
+        # close the bar first: it ends the line, and tqdm does not redraw it at exit
+        self.pbar.close()
         df = pd.DataFrame(self.csv_data)
         df.to_csv(self.csv_path, index=None)
 
