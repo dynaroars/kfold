@@ -11,3 +11,5 @@ __pycache__/
 .DS_Store
 *.swp
 *~
+
+code/data/target/

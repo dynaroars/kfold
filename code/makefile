@@ -3,4 +3,4 @@ all:
 
 
 prepare:
-	python3 -m scenario.prepare.busybox
+	python3 -m scenario.prepare --target=busybox

@@ -1,5 +1,4 @@
 import argparse
-import torch
 import os
 
 def maybe_mkdir(args):
