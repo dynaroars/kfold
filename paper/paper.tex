@@ -95,7 +95,7 @@ On concrete Linux builds ranging from minimal to all-modular configurations, the
     When a developer configures the kernel using a tool such as \texttt{make menuconfig} or \texttt{make defconfig}, the selections are written to a flat text file named \texttt{.config}.
 
     Kbuild uses GNU Make to translate the settings in \texttt{.config} into compilation and linking commands.
-    Rather than writing explicit compilation rules for every file, Kbuild Makefiles populate reserved variables termed \emph{goal definitions}~\cite{gazzillo2017kmax}:
+    Kbuild Makefiles define compilation targets by populating reserved variables termed \emph{goal definitions}~\cite{gazzillo2017kmax}:
     \texttt{obj-y} lists object files compiled and linked into the kernel image (\texttt{vmlinux} or archive \texttt{built-in.a});
     \texttt{obj-m} lists object files compiled as loadable kernel modules;
     and \texttt{lib-y} lists archive library objects.
@@ -124,7 +124,7 @@ On concrete Linux builds ranging from minimal to all-modular configurations, the
     When a program contains $k$ sequential, independent branches, path forking generates $2^k$ distinct execution paths, leading to path explosion.
     To mitigate path explosion, \emph{state merging} combines the symbolic states of converging paths at join points~\cite{kuznetsov2012efficient,avgerinos2014enhancing}.
     Traditional state merging introduces auxiliary variables and if-then-else expressions at join points, which can increase formula complexity for downstream constraint solvers.
-    MultiSE~\cite{sen2015multise} introduced \emph{value summaries}, mapping each program variable to a set of guarded expressions $\{(\phi_1, v_1), (\phi_2, v_2), \dots\}$ where the path conditions $\phi_i$ partition the configuration space.
+    MultiSE~\cite{sen2015multise} introduced \emph{value summaries}, mapping each program variable to a set of conditional value expressions $\{(\phi_1, v_1), (\phi_2, v_2), \dots\}$ where the path conditions $\phi_i$ partition the configuration space.
     MultiSE updates value summaries incrementally at every assignment and performs conditional updates during overwrites, avoiding auxiliary variables.
     In this paper, we adapt value summaries and state merging to the domain of Kbuild Makefiles, treating target variables as sets of independent words.
 
@@ -196,94 +196,82 @@ On concrete Linux builds ranging from minimal to all-modular configurations, the
 
 \section{Approach}
   \label{sec:approach}
+  This section presents the design and algorithms of \tool{}.
+  We first define the overall analysis setting and state representation (\autoref{sec:approach:state}).
+  We then describe the intra-Makefile symbolic executor (\textsc{Exec}), covering variable assignments (\autoref{sec:approach:assign}), word and expression expansions (\autoref{sec:approach:expand}), and state merging at conditional branches (\autoref{sec:approach:merge}).
+  Next, we present the inter-Makefile worklist algorithm that traverses the directory hierarchy (\autoref{sec:approach:dirs}).
+  Finally, we detail how extracted words are translated into physical object files (\autoref{sec:approach:objects}), how developer queries are formulated via SMT solving (\autoref{sec:approach:use}), and the analysis boundaries (\autoref{sec:approach:meaning}).
 
-  \subsection{Symbolic State and Algorithm}
-    \label{sec:approach:state}
-    This subsection defines the symbolic state representation and the top-level worklist algorithm that traverses the Makefile hierarchy of a project.
-    Let $M$ be a collection of Kbuild Makefiles and $c$ be a configuration that assigns values to the configuration options referenced in $M$.
-    For each target object $o$, \tool{} computes a quantifier-free formula $\Phi_M(o)$, its build condition, such that evaluating $\Phi_M(o)$ under $c$ predicts whether Kbuild compiles $o$ under $c$.
-    The symbolic state $\sigma$ is an abstract symbol table that maps each Make variable $n$ to a set of words, where each word $w$ is associated with a path condition $\phi$ over symbolic configuration options:
-    $$\sigma[n] = \{ w \mapsto \phi_w \}$$
-    An entry $w \mapsto \phi$ records that the word $w$ is a member of variable $n$ along all execution paths whose configuration satisfies the path condition $\phi$, a Boolean formula over configuration options.
-    This representation forms a Boolean value summary~\cite{sen2015multise} over word membership, or a variational set of words~\cite{walkingshaw2014variational}.
-    We write $\sigma[n](w) = \bot$ when $w$ is absent from $\sigma[n]$.
-    The join operator $\sqcup$ computes the union of two word sets, coalescing duplicate words by taking the disjunction of their path conditions:
-    $$(w \mapsto \phi) \sqcup (w \mapsto \phi') = (w \mapsto \phi \lor \phi')$$
-    and dropping entries with unsatisfiable path conditions~\cite{sen2015multise}.
-    Unlike value summaries over scalar variables whose path conditions are mutually exclusive, the path conditions of distinct words in $\sigma[n]$ may overlap because a single configuration can include multiple space-separated words in a Make variable (\eg, \texttt{obj-y := a.o b.o}).
-    For an individual Makefile, \textsc{Exec} (\autoref{alg:exec}) evaluates its statements in a single pass starting from an empty symbolic state under the ambient path condition $\top$; restricting a state to a formula $\delta$ conjoins $\delta$ with the path condition of every word in the state.
+  \subsection{Setting and Symbolic State Representation}\label{sec:approach:state}
+  Let $M$ be a repository of Kbuild Makefiles and $c$ be a concrete configuration assigning values to all configuration options referenced in $M$.
+  For each target object $o$, \tool{} computes a quantifier-free first-order logic formula $\Phi_M(o)$, termed its \emph{build condition}, such that $c \models \Phi_M(o)$ if and only if Kbuild compiles $o$ under configuration $c$.
 
-    \begin{algorithm}[t]
-    \caption{Build conditions of the objects of a source tree}\label{alg:extract}
-    \KwIn{entry Makefiles $E$ with their path conditions, goal-definition prefixes $\Gamma$}
-    \KwOut{map $\Phi$ from objects to build conditions}
-    $R[m] \gets \bot$ for each Makefile $m$; $Q \gets E$; $\Phi[o] \gets \bot$ for each object $o$\;
-    \While{$Q$ is nonempty}{\label{line:loop}
-      remove $(m,\gamma)$ from $Q$\;
-      $\delta \gets \gamma \land \neg R[m]$\;\label{line:delta}
-      \lIf{$\delta$ is unsatisfiable}{\textbf{continue}}\label{line:skip}
-      $S \gets$ state of $m$ after \textsc{Exec}, restricted to $\delta$\;\label{line:exec}
-      $R[m] \gets R[m] \lor \gamma$\;\label{line:covered}
-      \ForEach{subdirectory $d$ with path condition $\eta$ in $S$}{
-        add (Makefile of $d$, $\eta$) to $Q$\;\label{line:descend}
+  In Kbuild Makefiles, GNU Make variables store whitespace-separated sequences of words (file paths, directory names, compiler flags).
+  To track variability across all configurations simultaneously, \tool{} represents the symbolic state $\sigma$ as an abstract symbol table mapping each variable name $n$ to a set of words, where each word $w$ is associated with a path condition $\phi_w$:
+  $$\sigma[n] = \{ w \mapsto \phi_w \}$$
+  Here, the path condition $\phi_w$ is a quantifier-free Boolean formula over symbolic configuration options.
+  An entry $w \mapsto \phi$ denotes that word $w$ is present in variable $n$ under all configurations satisfying $\phi$.
+  This formulation corresponds to a Boolean value summary~\cite{sen2015multise} over word membership (and a variational set of words~\cite{walkingshaw2014variational}).
+  Unlike value summaries over scalar variables in imperative programs whose values are mutually exclusive, Make variables can hold multiple words simultaneously under a single configuration (\eg, \texttt{obj-y := a.o b.o}), so the path conditions of distinct words in $\sigma[n]$ may overlap.
+
+  We write $\sigma[n](w) = \bot$ when word $w$ is absent from $\sigma[n]$.
+  The join operator $\sqcup$ computes the union of two word sets, coalescing duplicate words by taking the disjunction of their path conditions:
+  $$(w \mapsto \phi) \sqcup (w \mapsto \phi') = (w \mapsto \phi \lor \phi')$$
+  and removing any entry whose path condition simplifies to false ($\bot$)~\cite{sen2015multise}.
+  Restricting a symbolic state $\sigma$ to a condition $\delta$ conjoins $\delta$ with the path condition of every word in every variable: $\sigma|_\delta[n] = \{w \mapsto \phi \land \delta : (w \mapsto \phi) \in \sigma[n]\}$.
+
+  \subsection{Statement Execution and Assignments}\label{sec:approach:assign}
+  \autoref{alg:exec} (\textsc{Exec}) executes the statements of an individual Makefile in a single pass under an ambient path condition $g$, which represents the conjunction of enclosing conditional branches (the reaching configuration~\cite{gazzillo2017kmax}).
+
+  \begin{algorithm}[t]
+  \caption{\textsc{Exec}: symbolic execution of one statement}\label{alg:exec}
+  \KwIn{statement $s$, state $\sigma$, ambient path condition $g$}
+  \KwOut{updated state $\sigma$}
+  \uIf{$s$ is an assignment $x\ \mathit{op}\ e$}{
+    $V \gets$ the words $w \mapsto \phi_w$ of $e$ (or $e \mapsto \top$ if recursively expanded)\;\label{line:rhs}
+    \ForEach{name $n$ with path condition $\psi_n$ in the expansion of $x$}{\label{line:lhs}
+      $\psi \gets g \land \psi_n$\;
+      \uIf{$\mathit{op}$ is an overwrite or $\sigma[n]$ is undefined}{
+        $\sigma[n] \gets \{w \mapsto \psi \land \phi_w\} \sqcup \{w \mapsto \phi \land \neg\psi : (w \mapsto \phi) \in \sigma[n]\}$\;\label{line:overwrite}
       }
-      \ForEach{object $(o,\phi)$ selected by $S$ through $\Gamma$}{
-        $\Phi[o] \gets \Phi[o] \lor \phi$\;\label{line:object}
-      }
-    }
-    \Return $\textsc{Close}(\Phi)$\tcp*{objects that rules need}\label{line:close}
-    \end{algorithm}
-
-    \autoref{alg:extract} takes a project's entry Makefiles $E$ and goal-definition prefixes $\Gamma$, and returns the build-condition map $\Phi$.
-    It maintains a worklist $Q$ of pairs $(m, \gamma)$, where $\gamma$ is the path condition under which Kbuild descends into Makefile $m$, together with a table $R[m]$ recording the disjunction of path conditions already explored for $m$.
-    In each iteration (\autoref{line:loop}), the algorithm dequeues $(m, \gamma)$, restricts attention to the unexplored configurations $\delta = \gamma \land \neg R[m]$ (\autoref{line:delta}), and skips the visit if $\delta$ is unsatisfiable (\autoref{line:skip}).
-    Otherwise, it symbolically executes $m$ and restricts the resulting state $S$ to $\delta$ (\autoref{line:exec}), updates the explored path condition $R[m]$ (\autoref{line:covered}), enqueues each subdirectory referenced in $S$ along with its path condition (\autoref{line:descend}), and accumulates the build conditions of all objects selected via $\Gamma$ (\autoref{line:object}).
-    When multiple Makefiles or directory routes select the same object $o$, the disjunction at \autoref{line:object} combines their conditions.
-    For \autoref{lst:example}, the symbolic state $S$ after \autoref{line:exec} contains the words of \texttt{obj-y} and \texttt{obj-m} with their path conditions from \autoref{tab:example}, conjoined with the path condition of the \texttt{fs/ext4/} directory.
-
-    \begin{algorithm}[t]
-    \caption{\textsc{Exec}: symbolic execution of one statement}\label{alg:exec}
-    \KwIn{statement $s$, state $\sigma$, ambient path condition $g$}
-    \KwOut{updated state $\sigma$}
-    \uIf{$s$ is an assignment $x\ \mathit{op}\ e$}{
-      $V \gets$ the words $w \mapsto \phi_w$ of $e$ (or $e \mapsto \top$ if the variable is recursively expanded)\;\label{line:rhs}
-      \ForEach{name $n$ with path condition $\psi_n$ in the expansion of $x$}{\label{line:lhs}
-        $\psi \gets g \land \psi_n$\;
-        \uIf{$\mathit{op}$ is an overwrite or $\sigma[n]$ is undefined}{
-          $\sigma[n] \gets \{w \mapsto \psi \land \phi_w\} \sqcup \{w \mapsto \phi \land \neg\psi : (w \mapsto \phi) \in \sigma[n]\}$\;\label{line:overwrite}
-        }
-        \Else{
-          $\sigma[n] \gets \sigma[n] \sqcup \{w \mapsto \psi \land \phi_w\}$\;\label{line:append}
-        }
+      \Else{
+        $\sigma[n] \gets \sigma[n] \sqcup \{w \mapsto \psi \land \phi_w\}$\;\label{line:append}
       }
     }
-    \ElseIf{$s$ is a conditional with test $t$, then-arm $T$, else-arm $F$}{
-      $\kappa \gets$ condition under which $t$ holds; $\sigma_t, \sigma_e \gets$ copies of $\sigma$\;\label{line:copy}
-      $\textsc{Exec}(T,\sigma_t,g\land\kappa)$; $\textsc{Exec}(F,\sigma_e,g\land\neg\kappa)$\;
-      \ForEach{name $n$ assigned in $T$ or $F$ and word $w$}{\label{line:mergeloop}
-        \uIf{$\sigma_t[n](w) = \sigma_e[n](w) = \phi$}{$\sigma[n](w) \gets g \land \phi$\;\label{line:same}}
-        \Else{$\sigma[n](w) \gets (g \land \kappa \land \sigma_t[n](w)) \lor (g \land \neg\kappa \land \sigma_e[n](w))$\;\label{line:merge}}
-      }
+  }
+  \ElseIf{$s$ is a conditional with test $t$, then-arm $T$, else-arm $F$}{
+    $\kappa \gets$ condition under which $t$ holds; $\sigma_t, \sigma_e \gets$ copies of $\sigma$\;\label{line:copy}
+    $\textsc{Exec}(T,\sigma_t,g\land\kappa)$; $\textsc{Exec}(F,\sigma_e,g\land\neg\kappa)$\;
+    \ForEach{name $n$ assigned in $T$ or $F$ and word $w$}{\label{line:mergeloop}
+      \uIf{$\sigma_t[n](w) = \sigma_e[n](w) = \phi$}{$\sigma[n](w) \gets g \land \phi$\;\label{line:same}}
+      \Else{$\sigma[n](w) \gets (g \land \kappa \land \sigma_t[n](w)) \lor (g \land \neg\kappa \land \sigma_e[n](w))$\;\label{line:merge}}
     }
-    \Return $\sigma$\;
-    \end{algorithm}
+  }
+  \Return $\sigma$\;
+  \end{algorithm}
 
-  \subsection{Assignments}\label{sec:approach:assign}
-  This subsection explains how \tool{} symbolically executes variable assignments, including runtime variable name construction, conditional updates on overwrites, and the two Make variable flavors.
-  \autoref{alg:exec} evaluates each statement under an ambient path condition $g$ representing the conjunction of enclosing branch conditions, which Kmax calls the reaching configuration~\cite{gazzillo2017kmax}.
-  Because Make allows variable names on the left-hand side of an assignment to be computed dynamically via variable expansion, as in \texttt{obj-\$(CONFIG\_EXT4\_FS)}, \autoref{line:lhs} expands the left-hand expression $x$ into concrete variable names $n$ paired with their path conditions $\psi_n$: \texttt{obj-y} under $E = \mathtt{y}$, \texttt{obj-m} under $E = \mathtt{m}$, and \texttt{obj-} when the option is unset.
+  GNU Make allows variable names on the left-hand side of an assignment to be computed dynamically via variable expansion, as in \texttt{obj-\$(CONFIG\_EXT4\_FS)}.
+  \autoref{line:lhs} expands the left-hand expression $x$ into concrete variable names $n$ paired with their path conditions $\psi_n$: \texttt{obj-y} under $E = \mathtt{y}$, \texttt{obj-m} under $E = \mathtt{m}$, and \texttt{obj-} when unset.
   A single assignment statement can thus update multiple target variables under different effective path conditions $\psi = g \land \psi_n$.
-  An append assignment (\texttt{+=}) unions the right-hand words into $\sigma[n]$, conjoining each word's path condition $\phi_w$ with $\psi$ (\autoref{line:append}).
-  An overwrite assignment (\texttt{:=} or \texttt{=}) replaces the variable's contents only on paths where $\psi$ holds: \autoref{line:overwrite} performs a conditional update~\cite{sen2015multise,gazzillo2017kmax} that assigns the path condition $\psi \land \phi_w$ to each new word while restricting every pre-existing word $(w \mapsto \phi) \in \sigma[n]$ to $\phi \land \neg\psi$.
-  In \autoref{lst:example}, line~2 overwrites \texttt{obj-y} under $\psi = (T = \mathtt{y})$, strengthening the path condition of \texttt{ext4.o} from $E = \mathtt{y}$ to $(E = \mathtt{y}) \land \neg(T = \mathtt{y})$.
-  Conjoining $\neg\psi$ ensures that \texttt{ext4.o} is excluded under $(E = \mathtt{y}) \land (T = \mathtt{y})$, matching concrete Make evaluation where the second assignment replaces the earlier value.
 
-  \tool{} also models the two variable flavors in GNU Make, following the distinction in SYMake~\cite{tamrawi2012symmake} and Kmax~\cite{gazzillo2017kmax}.
-  A simply-expanded variable (\texttt{:=}) evaluates its right-hand side immediately at assignment time.
-  A recursively-expanded variable (\texttt{=}) stores its right-hand side verbatim and defers evaluation until the variable is referenced; accordingly, \tool{} stores an unexpanded expression when a recursive definition contains variable references (\autoref{line:rhs}) and expands deferred references in goal definitions after executing the Makefile.
+  \emph{Append assignments} (\texttt{+=}).
+  \autoref{line:append} adds the right-hand words $V$ directly into $\sigma[n]$, conjoining each word's path condition $\phi_w$ with the assignment condition $\psi$: $\sigma[n] \gets \sigma[n] \sqcup \{w \mapsto \psi \land \phi_w\}$.
+
+  \emph{Overwrite assignments} (\texttt{:=} and \texttt{=}).
+  In concrete execution, an overwrite completely replaces the variable.
+  In symbolic execution, the overwrite applies only on configurations satisfying $\psi$.
+  On configurations satisfying $\neg\psi$, the variable retains its pre-existing words.
+  \autoref{line:overwrite} therefore performs a \emph{conditional update}~\cite{sen2015multise,gazzillo2017kmax}:
+  $$\sigma[n] \gets \{w \mapsto \psi \land \phi_w\} \sqcup \{w \mapsto \phi \land \neg\psi : (w \mapsto \phi) \in \sigma[n]\}$$
+  In \autoref{lst:example}, line~2 overwrites \texttt{obj-y} under $\psi = (T = \mathtt{y})$, narrowing the path condition of \texttt{ext4.o} from $E = \mathtt{y}$ to $(E = \mathtt{y}) \land \neg(T = \mathtt{y})$.
+  Conjoining $\neg\psi$ ensures that \texttt{ext4.o} is excluded under $(E = \mathtt{y}) \land (T = \mathtt{y})$, matching concrete Make evaluation where the second assignment discards the earlier value.
+
+  \emph{Variable flavors.}
+  \tool{} distinguishes simply-expanded variables (\texttt{:=}) from recursively-expanded variables (\texttt{=}), following SYMake~\cite{tamrawi2012symmake} and Kmax~\cite{gazzillo2017kmax}.
+  A simply-expanded variable evaluates its right-hand side immediately at assignment time.
+  A recursively-expanded variable stores its right-hand expression verbatim and defers evaluation until the variable is referenced; \tool{} stores an unexpanded expression when a recursive definition contains variable references (\autoref{line:rhs}) and expands deferred references in goal definitions after executing the Makefile.
   Linux's \texttt{drivers/xen/Makefile} illustrates why deferred expansion is needed: it appends \texttt{\$(xen-pad-y)} to \texttt{dom0-y} one line before defining \texttt{xen-pad-y}, so only expansion at reference time resolves \texttt{xen-acpi-pad.o}.
   \autoref{tab:scope} summarizes the Make constructs that \tool{} interprets and their analysis boundaries.
-  \tl{confirm the quoted Linux Makefiles on the release used in the evaluation (7.2.8)}
 
   \begin{table}[t]
   \centering\footnotesize
@@ -304,8 +292,7 @@ On concrete Linux builds ranging from minimal to all-modular configurations, the
   \end{table}
 
   \subsection{Expansion of Names and Words}\label{sec:approach:expand}
-  This subsection describes how \tool{} lifts string concatenation, variable expansion, and file inclusion to sets of words with path conditions.
-  In Make, the right-hand side of an assignment is whitespace-delimited into independent word expressions.
+  In GNU Make, the right-hand side of an assignment is whitespace-delimited into independent words.
   Adjacent subexpressions within a single token, such as \texttt{\$(EXTRA).o} on line~8 of \autoref{lst:example}, are concatenated using a lifted cross-product operation~\cite{gazzillo2017kmax} that pairs each concrete string combination with the conjunction of their path conditions, yielding \texttt{verity.o} under $V = \mathtt{y}$ and \texttt{crypto.o} under $V \ne \mathtt{y}$.
   Treating a whitespace-separated list such as \texttt{\$(a-y) \$(b-y) \$(c-y)} as a set of independent words avoids taking the cross product across the three variables, preserving each word's path condition directly.
   When a variable reference may be undefined along some paths, \tool{} includes the empty string under the negation of the variable's definedness condition, which is essential when the reference appears inside a word or list.
@@ -314,14 +301,16 @@ On concrete Linux builds ranging from minimal to all-modular configurations, the
   Finally, \tool{} inlines \texttt{include} directives whose target paths resolve statically and slices away variable assignments that cannot flow into goal definitions or build rules.
 
   \subsection{State Merging at Conditionals}\label{sec:approach:merge}
-  This subsection presents how \tool{} evaluates conditional blocks and merges branch states at join points.
   For an \texttt{ifeq} or \texttt{ifneq} directive, \tool{} expands both operands and computes the branch condition $\kappa$ as the disjunction of conjunctions over matching (or non-matching) words; for \texttt{ifdef} and \texttt{ifndef}, $\kappa$ is the disjunction of path conditions under which the variable has a non-empty definition~\cite{gazzillo2017kmax}.
   Chains of \texttt{else ifeq} directives are desugared into nested conditionals in the else-arm.
-  To evaluate a conditional under ambient path condition $g$, \tool{} clones the incoming state $\sigma$ into $\sigma_t$ and $\sigma_e$ (\autoref{line:copy}), executes the then-arm under $g \land \kappa$ and the else-arm under $g \land \neg\kappa$, and merges the resulting states at the confluence point (\autoref{line:merge}), following static state merging~\cite{kuznetsov2012efficient,avgerinos2014enhancing}.
+
+  To evaluate a conditional without forking paths, \tool{} clones the incoming state $\sigma$ into $\sigma_t$ and $\sigma_e$ (\autoref{line:copy}), executes the then-arm under $g \land \kappa$ and the else-arm under $g \land \neg\kappa$, and merges the resulting branch states at the confluence point (\autoref{line:merge}), following static state merging~\cite{kuznetsov2012efficient,avgerinos2014enhancing}.
   Only variables modified in either branch are iterated over during the merge (\autoref{line:mergeloop}).
   In \autoref{lst:example}, the then-arm assigns \texttt{verity} under $V = \mathtt{y}$ to \texttt{EXTRA} and the else-arm assigns \texttt{crypto} under $V \ne \mathtt{y}$, so the merged state maps \texttt{EXTRA} to both words and execution proceeds with a single symbolic state.
-  Whenever a word $w$ of a modified variable $n$ carries the identical path condition $\phi$ in both branches, \tool{} simplifies its merged path condition directly to $g \land \phi$ (\autoref{line:same}).
-  This simplification is critical for scalability: in a Makefile with $k$ sequential conditionals that each append a distinct object to \texttt{obj-y}, preserving unchanged path conditions avoids wrapping every previously added word in $k$ nested case splits.
+
+  Whenever a word $w$ of a modified variable $n$ carries the identical path condition $\phi$ in both branches ($\sigma_t[n](w) = \sigma_e[n](w) = \phi$), \tool{} simplifies its merged path condition directly to $g \land \phi$ (\autoref{line:same}).
+  Factoring $(g \land \kappa \lor g \land \neg\kappa) \land \phi \equiv g \land \phi$ avoids wrapping previously added words in case splits.
+  This identity merge is critical for scalability: in a Makefile with $k$ sequential conditionals that each append an object to \texttt{obj-y}, unmodified entries do not accumulate redundant disjunctive branch conditions.
 
   \begin{proposition}\label{prop:merge}
   Let $\sigma'$ be the symbolic state that \autoref{alg:exec} produces after a conditional statement with branch condition $\kappa$ under ambient path condition $g$.
@@ -333,21 +322,44 @@ On concrete Linux builds ranging from minimal to all-modular configurations, the
   The proof follows from \autoref{line:merge} by distributing evaluation under $c$ across the disjunction $(g \land \kappa \land \sigma_t[n](w)) \lor (g \land \neg\kappa \land \sigma_e[n](w))$; when $\sigma_t[n](w) = \sigma_e[n](w) = \phi$, factoring out $\phi$ yields $(g \land \kappa \lor g \land \neg\kappa) \land \phi \equiv g \land \phi$ (\autoref{line:same}).
   \tl{full proof in the supplementary material}
 
-  \subsection{Descending into Subdirectories}\label{sec:approach:dirs}
-  This subsection describes how \tool{} tracks directory path conditions across recursive directory traversal.
-  In Kbuild, listing a directory in a goal definition, \eg, \texttt{obj-\$(CONFIG\_X) += sub/}, instructs Make to descend into \texttt{sub/} and evaluate \texttt{sub/Makefile}, paralleling the hierarchical directory structure of the source tree~\cite{gazzillo2017kmax}.
+  \subsection{Whole-Tree Traversal and Directory Descent}\label{sec:approach:dirs}
+  Having established how individual Makefiles are executed, we now present the whole-tree traversal algorithm that propagates reachability conditions across the directory hierarchy.
+  In Kbuild, listing a directory in a goal definition, \eg, \texttt{obj-\$(CONFIG\_X) += sub/}, instructs Make to descend into \texttt{sub/} and evaluate \texttt{sub/Makefile}, paralleling the directory structure of the source tree~\cite{gazzillo2017kmax}.
   \tool{} propagates the path condition of the directory entry as the incoming path condition $\gamma$ for the child Makefile, so every object and subdirectory in the child inherits its parent's reachability constraint.
+
+  \begin{algorithm}[t]
+  \caption{Build conditions of the objects of a source tree}\label{alg:extract}
+  \KwIn{entry Makefiles $E$ with their path conditions, goal-definition prefixes $\Gamma$}
+  \KwOut{map $\Phi$ from objects to build conditions}
+  $R[m] \gets \bot$ for each Makefile $m$; $Q \gets E$; $\Phi[o] \gets \bot$ for each object $o$\;
+  \While{$Q$ is nonempty}{\label{line:loop}
+    remove $(m,\gamma)$ from $Q$\;
+    $\delta \gets \gamma \land \neg R[m]$\;\label{line:delta}
+    \lIf{$\delta$ is unsatisfiable}{\textbf{continue}}\label{line:skip}
+    $S \gets$ state of $m$ after \textsc{Exec}, restricted to $\delta$\;\label{line:exec}
+    $R[m] \gets R[m] \lor \gamma$\;\label{line:covered}
+    \ForEach{subdirectory $d$ with path condition $\eta$ in $S$}{
+      add (Makefile of $d$, $\eta$) to $Q$\;\label{line:descend}
+    }
+    \ForEach{object $(o,\phi)$ selected by $S$ through $\Gamma$}{
+      $\Phi[o] \gets \Phi[o] \lor \phi$\;\label{line:object}
+    }
+  }
+  \Return $\textsc{Close}(\Phi)$\tcp*{objects that rules need}\label{line:close}
+  \end{algorithm}
+
   A subdirectory Makefile can be reached along multiple directory routes.
   For instance, if a parent Makefile selects \texttt{a/} under path condition $A$ and \texttt{b/} under path condition $B$, and both \texttt{a/Makefile} and \texttt{b/Makefile} select \texttt{shared/}, then an object \texttt{x.o} unconditionally listed in \texttt{shared/Makefile} has the build condition $A \lor B$.
   Marking \texttt{shared/Makefile} as visited after traversing \texttt{a/} would miss the reachability path through \texttt{b/}.
-  To handle multiple routes and cycles, \tool{} records for each Makefile $m$ the cumulative path condition $R[m]$ of configurations already explored (\autoref{line:covered}); when $(m, \gamma)$ is dequeued, it computes the residual path condition $\delta = \gamma \land \neg R[m]$ (\autoref{line:delta}).
-  If $\delta$ is unsatisfiable, no new configurations reach $m$ and the entry is pruned (\autoref{line:skip}); otherwise, \tool{} evaluates $m$ under $\delta$ and disjoins $\gamma$ into $R[m]$.
-  Consequently, any cyclic directory reference terminates as soon as its residual path condition becomes unsatisfiable, and because both the set of Makefiles and the configuration space are finite, $R[m]$ can be weakened only finitely many times before the worklist empties.
+
+  To handle multiple routes and cycles, \autoref{alg:extract} maintains a table $R[m]$ for each Makefile $m$ recording the cumulative path condition of configurations already explored (\autoref{line:covered}).
+  When $(m, \gamma)$ is dequeued from worklist $Q$, the algorithm computes the residual path condition $\delta = \gamma \land \neg R[m]$ of unexplored configurations (\autoref{line:delta}).
+  If $\delta$ is unsatisfiable (checked with Z3), no new configurations reach $m$ and the visit is pruned (\autoref{line:skip}); otherwise, \tool{} evaluates $m$ under $\delta$ via \textsc{Exec} and disjoins $\gamma$ into $R[m]$.
+  Consequently, cyclic directory references terminate as soon as their residual condition becomes unsatisfiable, and because both the set of Makefiles and the configuration space are finite, $R[m]$ can be weakened only finitely many times before the worklist empties.
   Because top-level project Makefiles primarily contain imperative build recipes and environment setup, \tool{} starts traversal from the entry Makefiles specified in the project settings (\autoref{sec:impl}).
 
   \subsection{From Words to Objects}\label{sec:approach:objects}
-  This subsection details how \tool{} resolves the words of goal definitions into compiled object files according to Kbuild's linking and prerequisite rules.
-  While goal definitions specify which compilation units and composites are selected, Kbuild's canned build rules determine which physical \texttt{.o} files are emitted.
+  While goal definitions specify which compilation units and composites are selected, Kbuild's linking rules determine which physical \texttt{.o} files are emitted on disk.
   \tool{} inspects variables whose names match the goal-definition prefixes (\eg, \texttt{obj-}, \texttt{lib-}) configured for the project, suffixed by \texttt{y}, \texttt{m}, or the empty suffix.
   When a goal definition selects a composite object $t$\texttt{.o}, Kbuild resolves its component member objects from the variables $t$\texttt{-y} and $t$\texttt{-objs}, and additionally from $t$\texttt{-m} when $t$ is built as a module.
   Each member object is compiled under the conjunction of its own membership path condition and the build condition of the parent composite $t$, as illustrated by \texttt{inode-test.o} in \autoref{tab:example}.
@@ -366,14 +378,12 @@ On concrete Linux builds ranging from minimal to all-modular configurations, the
   During symbolic execution, \tool{} records explicit rules (mapping expanded targets to prerequisites under their ambient path conditions~\cite{gazzillo2017kmax,tamrawi2012symmake}) as well as sub-make invocations that specify a target directory and goal; after worklist traversal, \textsc{Close} (\autoref{line:close}) computes the transitive closure of prerequisites starting from all selected objects and top-level link targets such as \texttt{vmlinux.o}.
 
   \subsection{Using Build Conditions}\label{sec:approach:use}
-  This subsection describes how \tool{} formulates developer build queries as SMT constraint-solving problems over the extracted build conditions.
   Because each build condition $\Phi_M(o)$ is a quantifier-free first-order formula over symbolic configuration options, reasoning about when an object is built reduces to evaluating or solving $\Phi_M(o)$ with an SMT solver~\cite{nguyen2020kbuild}.
   The \texttt{why} command takes an object file and a concrete \texttt{.config}, evaluates $\Phi_M(o)$ under that configuration's option assignments, and reports both the resulting build status and a condition chain highlighting which option clauses in $\Phi_M(o)$ are violated.
   The \texttt{config-for} command takes a commit or patch, maps the modified C and assembly source files to their corresponding target objects, conjoins their build conditions with the Kconfig feature-model constraints for the relevant options, and queries the SMT solver for a satisfying configuration that minimizes the number of option changes relative to a baseline \texttt{.config}.
   If two modified files require mutually exclusive configuration settings, the conjunction is unsatisfiable and \tool{} partitions the targets into compatible groups so each can be tested in a separate build.
 
   \subsection{Meaning of a Build Condition}\label{sec:approach:meaning}
-  This subsection states the domain encoding of configuration options and the soundness boundaries of the extracted build conditions.
   Each symbolic configuration option ranges over the values declared by its Kconfig type: a Boolean option ranges over $\{\texttt{y}, \text{unset}\}$, while a tristate option ranges over $\{\texttt{y}, \texttt{m}, \text{unset}\}$ and conjoins the global module-support constraint \texttt{CONFIG\_MODULES=y} with every \texttt{=m} predicate.
   An extracted build condition $\Phi_M(o)$ is a static approximation of Kbuild's concrete behavior: \tool{} models the Kbuild subset of GNU Make shown in \autoref{tab:scope} and initiates traversal from the declared entry Makefiles, leaving arbitrary shell recipes and top-level orchestration rules outside the analysis.
   Moreover, $\Phi_M(o)$ captures the constraints encoded in Kbuild Makefiles alone; Kconfig inter-option dependencies (\texttt{depends on}, \texttt{select}, and \texttt{choice} blocks) are conjoined separately during solver queries (\autoref{sec:approach:use}).
@@ -604,7 +614,7 @@ Compared with Kmax, \tool{} achieves higher recall (0.918 vs. 0.835) and perfect
     Their prototype forks execution states at branches and applies path merging and split-merge heuristics to mitigate path explosion.
     However, on Makefiles with numerous sequential conditionals, path forking still incurs exponential scaling.
     To address path explosion in software verification, state merging techniques combine divergent symbolic states at control-flow join points~\cite{kuznetsov2012efficient,avgerinos2014enhancing}.
-    MultiSE~\cite{sen2015multise} introduced value summaries, mapping variables to sets of guarded symbolic expressions without auxiliary variables and updating states incrementally at each assignment.
+    MultiSE~\cite{sen2015multise} introduced value summaries, mapping variables to sets of conditional symbolic expressions without auxiliary variables and updating states incrementally at each assignment.
     Variational execution~\cite{walkingshaw2014variational,liebig2011variability} represents data as variational values that share common subexpressions across configurations.
     \tool{} applies these insights to Kbuild Makefiles: it treats target variables as sets of words, tracks word-level path conditions as Boolean value summaries, and merges branch states at conditional join points in a single pass.
 
