@@ -40,7 +40,8 @@ def _plot_agreement(runs, out):
     ax.set_xlabel('compiled objects')
     ax.set_ylabel('predicted objects')
     # white box, so the diagonal passes behind the text
-    ax.text(0.04, 0.96, f'{len(df) // len(runs)} configurations\n' + '\n'.join(summary),
+    n = len(df) // len(runs)
+    ax.text(0.04, 0.96, f'{n} configuration{"s" * (n > 1)}\n' + '\n'.join(summary),
             transform=ax.transAxes, va='top', zorder=3,
             bbox={'facecolor': 'white', 'edgecolor': 'none', 'pad': 1.5})
     ax.legend(loc='lower right')

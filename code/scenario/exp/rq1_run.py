@@ -3,13 +3,17 @@ import time
 import os
 
 from tool.evaluate import read_config, evaluate
-from scenario.helper import kmax
+from scenario.helper import kmax, target
 from tool.analyze import analyze
 from scenario import helper
 from tool.save import save
 
-# --tool selects the analyzer whose build conditions are evaluated
-ANALYZE = {'tool': analyze, 'kmax': kmax.analyze}
+
+def _analyze(tool, name, path):
+    # --tool selects the analyzer whose build conditions are evaluated
+    if tool == 'kmax':
+        return kmax.analyze(path, target.VARIABLES[name], target.KMAXALL[name])
+    return analyze(path, target.VARIABLES[name])
 
 
 def _observed(tree):
@@ -28,7 +32,7 @@ def main():
     root = os.path.join(args.target_dir, args.target)
 
     start = time.perf_counter()
-    conditions = ANALYZE[args.tool](os.path.join(root, 'src'))
+    conditions = _analyze(args.tool, args.target, os.path.join(root, 'src'))
     analyze_seconds = time.perf_counter() - start
     print(f'[rq1.run] target={args.target} tool={args.tool} analyzed {len(conditions)} objects '
           f'in {analyze_seconds:.2f}s')
@@ -36,15 +40,17 @@ def main():
     save(conditions, smt2_path)
     print(f'[save] {smt2_path}')
 
+    # the build trees prepare made: 0/ ... for random BusyBox configurations, 0/ alone for Linux
+    trees = sorted((d for d in os.listdir(root) if d.isdigit()), key=int)
     csv_path = os.path.join(args.csv_dir, f'rq1_{args.target}_{args.tool}.csv')
     pbar = helper.progress_bar.create(
-        total=args.n_build,
+        total=len(trees),
         unit='config',
         desc=f'rq1.run.{args.target}.{args.tool}',
         csv_path=csv_path,
     )
-    for i in range(args.n_build):
-        tree = os.path.join(root, str(i))
+    for name in trees:
+        tree = os.path.join(root, name)
         on = read_config(os.path.join(tree, '.config'))
         predicted = evaluate(conditions, on)
         observed = _observed(tree)
