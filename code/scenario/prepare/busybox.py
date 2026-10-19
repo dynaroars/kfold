@@ -123,4 +123,4 @@ def prepare(args):
     gen_build_files(src)
 
     build_random_configs(path, root, args.n_build,
-                         os.path.join(args.csv_dir, 'busybox_build.csv'))
+                         os.path.join(args.csv_dir, 'prepare_busybox.csv'))
