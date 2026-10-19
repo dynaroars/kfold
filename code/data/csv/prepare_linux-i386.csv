@@ -1,0 +1,7 @@
+build,base,config,flipped,changed,returncode
+0,tinyconfig,0,0,0,0
+1,tinyconfig,1,40,118,0
+2,defconfig,0,0,0,0
+3,defconfig,1,204,293,0
+4,allnoconfig,0,0,0,0
+5,allnoconfig,1,44,44,0

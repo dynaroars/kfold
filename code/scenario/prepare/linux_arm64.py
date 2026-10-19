@@ -5,7 +5,6 @@ BASES = {
     'tinyconfig': None,
     'defconfig': None,
     'allnoconfig': None,
-    'allyesconfig': None,
     'debian': (linux.DEBIAN.format(arch='arm64'), 'config.arm64_none_arm64.xz'),
     'fedora': (linux.FEDORA.format(arch='aarch64'), None),
 }

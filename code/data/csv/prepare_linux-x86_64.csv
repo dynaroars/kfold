@@ -1,0 +1,13 @@
+build,base,config,flipped,changed,returncode
+0,tinyconfig,0,0,0,0
+1,tinyconfig,1,43,45,2
+2,defconfig,0,0,0,0
+3,defconfig,1,213,409,0
+4,allnoconfig,0,0,0,0
+5,allnoconfig,1,47,48,2
+6,debian,0,0,0,0
+7,debian,1,479,991,0
+8,fedora,0,0,0,0
+9,fedora,1,499,1210,0
+10,arch,0,0,0,0
+11,arch,1,515,1039,0

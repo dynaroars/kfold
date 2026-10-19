@@ -6,7 +6,6 @@ BASES = {
     'tinyconfig': None,
     'defconfig': None,
     'allnoconfig': None,
-    'allyesconfig': None,
 }
 
 

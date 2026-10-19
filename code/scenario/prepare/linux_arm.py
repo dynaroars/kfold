@@ -7,7 +7,6 @@ BASES = {
     'tinyconfig': None,
     'multi_v7_defconfig': None,
     'allnoconfig': None,
-    'allyesconfig': None,
     'debian': (linux.DEBIAN.format(arch='armhf'), 'config.armhf_none_armmp.xz'),
 }
 

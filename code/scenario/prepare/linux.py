@@ -46,7 +46,7 @@ PINNED_OPTIONS = {
     'MODULES': 'n',  # the tool and the Kmax baseline treat options as Boolean
     'WERROR': 'n',   # GCC warnings would become errors, as in the earlier evaluation
     # debug information changes the contents of objects and leaves the set of objects as
-    # is; without it, allyesconfig and distribution builds take several times less disk.
+    # is; without it, distribution builds take several times less disk.
     # The entries form a choice, so the other entries are pinned off
     'DEBUG_INFO_NONE': 'y',
     'DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT': 'n',
