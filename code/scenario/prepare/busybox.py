@@ -17,14 +17,14 @@ Output, under <target_dir>/busybox/:
 Output, under <csv_dir>/:
   busybox_build.csv       make's return code per configuration (nonzero: some file failed)
 '''
-import urllib.request
 import subprocess
-import hashlib
-import tarfile
 import os
 import re
 
+from scenario.prepare.helper import download, extract
 from scenario.helper import progress_bar
+
+TOPDIR = 'busybox-1.38.0'
 
 # options `make randconfig` must not change, each of which made random builds
 # fail for reasons unrelated to Kbuild ('y': set, 'n': not set).
@@ -42,25 +42,6 @@ PINNED_OPTIONS = {
     'DMALLOC': 'n',              # links -ldmalloc, not installed
     'EFENCE': 'n',               # links -lefence, not installed
 }
-
-
-def download(url, path, sha256):
-    if not os.path.exists(path):
-        urllib.request.urlretrieve(url, path)
-    with open(path, 'rb') as f:
-        digest = hashlib.sha256(f.read()).hexdigest()
-    if digest != sha256:
-        raise SystemExit(f'checksum mismatch for {path}: {digest}')
-
-
-def extract(path, root, name):
-    dest = os.path.join(root, name)
-    if os.path.exists(dest):
-        return dest
-    with tarfile.open(path) as tar:
-        tar.extractall(root, filter='data')
-    os.rename(os.path.join(root, 'busybox-1.38.0'), dest)
-    return dest
 
 
 def gen_build_files(src):
@@ -90,7 +71,7 @@ def build_random_configs(path, root, n_build, csv_path):
     pbar = progress_bar.create(total=n_build, unit='config', desc='    - `make` random configs',
                                csv_path=csv_path)
     for i in range(n_build):
-        build = extract(path, root, str(i))
+        build = extract(path, root, str(i), TOPDIR)
         subprocess.run(['make', 'randconfig'], cwd=build, check=True,
                        capture_output=True)
         # pin options that break the build for reasons unrelated to Kbuild,
@@ -117,7 +98,7 @@ def prepare(args):
     download(url, path, sha256)
 
     print('    - extracting src')
-    src = extract(path, root, 'src')
+    src = extract(path, root, 'src', TOPDIR)
 
     print('    - generating kbuild files')
     gen_build_files(src)

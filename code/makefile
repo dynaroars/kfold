@@ -3,7 +3,8 @@ all: prepare rq1
 
 
 prepare:
-	python3 -m scenario.prepare
+	# python3 -m scenario.prepare --target=busybox
+	python3 -m scenario.prepare --target=linux_tinyconfig
 
 
 main:
