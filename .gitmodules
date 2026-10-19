@@ -1,8 +1,0 @@
-[submodule "tutorial/linux"]
-	path = tutorial/linux
-	url = https://github.com/torvalds/linux
-[submodule "linux"]
-	shallow = true
-[submodule "tutorial/busybox"]
-	path = tutorial/busybox
-	url = https://git.busybox.net/busybox

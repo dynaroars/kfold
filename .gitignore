@@ -1,11 +1,11 @@
-# Root .gitignore for kfold umbrella repository
-smartconfig/root-snapshot-*/
-smartconfig/.git_upstream_backup/
+# Linux tarballs, analysis copies, and build trees (scripts/fetch_linux.sh, build_config.sh)
+/work/
 
 # Python caches and virtual environments
 .venv/
 __pycache__/
 *.py[cod]
+*.egg-info/
 
 # Editor and OS
 .DS_Store
