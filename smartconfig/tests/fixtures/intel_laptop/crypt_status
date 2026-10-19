@@ -1,5 +1,0 @@
-/dev/mapper/cryptroot is active and is in use.
-  type:    LUKS2
-  cipher:  aes-xts-plain64
-  keysize: 512 bits
-  device:  /dev/nvme0n1p3
