@@ -29,8 +29,9 @@ def main():
 
     start = time.perf_counter()
     conditions = ANALYZE[args.tool](os.path.join(root, 'src'))
+    analyze_seconds = time.perf_counter() - start
     print(f'[rq1.run] target={args.target} tool={args.tool} analyzed {len(conditions)} objects '
-          f'in {time.perf_counter() - start:.2f}s')
+          f'in {analyze_seconds:.2f}s')
     smt2_path = os.path.join(args.analysis_dir, args.tool, f'{args.target}.smt2')
     save(conditions, smt2_path)
     print(f'[save] {smt2_path}')
@@ -49,8 +50,10 @@ def main():
         observed = _observed(tree)
         tp = len(predicted & observed)
         # metrics of the paper's setup: fn_u are extracted objects the analysis missed,
-        # out are compiled objects outside the extracted universe
+        # out are compiled objects outside the extracted universe; analyze_seconds is
+        # the one whole-tree analysis, repeated on every row
         pbar.step(
+            analyze_seconds=analyze_seconds,
             n_on=len(on),
             predicted=len(predicted),
             observed=len(observed),

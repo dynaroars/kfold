@@ -11,17 +11,15 @@ from scenario import helper
 MARKER = {'tool': 'o', 'kmax': 'x'}
 
 
-def main():
-    args = helper.args.parse_args()
-    runs = {}
-    for tool in helper.plot.SERIES:
-        csv_path = os.path.join(args.csv_dir, f'rq1_{args.target}_{tool}.csv')
-        if os.path.isfile(csv_path):
-            runs[tool] = pd.read_csv(csv_path)
-            print(f'[load] {csv_path}')
-    df = pd.concat(runs.values())
+def _save(fig, out):
+    fig.tight_layout(pad=0.15)
+    fig.savefig(out)
+    plt.close(fig)
+    print(f'[save] {out}')
 
-    helper.plot.apply()
+
+def _plot_agreement(runs, out):
+    df = pd.concat(runs.values())
     fig, ax = plt.subplots(figsize=helper.plot.figsize(0.48 * helper.plot.TEXT_PT, 1.0))
     # one marker per configuration and tool; markers on the dashed diagonal are exact agreement
     low = 0.95 * min(df['observed'].min(), df['predicted'].min())
@@ -41,14 +39,43 @@ def main():
     ax.set_aspect('equal')
     ax.set_xlabel('compiled objects')
     ax.set_ylabel('predicted objects')
+    # white box, so the diagonal passes behind the text
     ax.text(0.04, 0.96, f'{len(df) // len(runs)} configurations\n' + '\n'.join(summary),
-            transform=ax.transAxes, va='top')
+            transform=ax.transAxes, va='top', zorder=3,
+            bbox={'facecolor': 'white', 'edgecolor': 'none', 'pad': 1.5})
     ax.legend(loc='lower right')
-    fig.tight_layout(pad=0.15)
-    out = os.path.join(args.figure_dir, f'rq1_{args.target}.pdf')
-    fig.savefig(out)
-    plt.close(fig)
-    print(f'[save] {out}')
+    _save(fig, out)
+
+
+def _plot_time(runs, out):
+    # one bar per tool: the wall-clock time of its whole-tree analysis
+    tools = list(runs)
+    seconds = [runs[tool]['analyze_seconds'].iloc[0] for tool in tools]
+    fig, ax = plt.subplots(figsize=helper.plot.figsize(0.48 * helper.plot.TEXT_PT, 0.35))
+    ax.barh(range(len(tools)), seconds, height=0.5,
+            color=[helper.plot.SERIES[tool] for tool in tools])
+    for y, s in enumerate(seconds):
+        ax.text(s, y, f' {s:.1f} s', va='center')
+    ax.set_yticks(range(len(tools)), [helper.plot.LABEL[tool] for tool in tools])
+    ax.invert_yaxis()
+    ax.set_xlim(0, 1.25 * max(seconds))
+    ax.set_xlabel('analysis time (s)')
+    ax.grid(axis='y', visible=False)
+    _save(fig, out)
+
+
+def main():
+    args = helper.args.parse_args()
+    runs = {}
+    for tool in helper.plot.SERIES:
+        csv_path = os.path.join(args.csv_dir, f'rq1_{args.target}_{tool}.csv')
+        if os.path.isfile(csv_path):
+            runs[tool] = pd.read_csv(csv_path)
+            print(f'[load] {csv_path}')
+
+    helper.plot.apply()
+    _plot_agreement(runs, os.path.join(args.figure_dir, f'rq1_{args.target}.pdf'))
+    _plot_time(runs, os.path.join(args.figure_dir, f'rq1_time_{args.target}.pdf'))
 
 
 if __name__ == '__main__':
