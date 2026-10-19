@@ -9,6 +9,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--target', type=str, default='busybox')
+    parser.add_argument('--n_build', type=int, default=100)
 
     parser.add_argument('--figure_dir', type=str, default='../paper/figure/result')
     parser.add_argument('--target_dir', type=str, default='data/target')
