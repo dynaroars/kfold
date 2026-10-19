@@ -19,5 +19,4 @@ make clean
 | `paper.bib` | Bibliography |
 | `makefile` | Build targets |
 | `figure/` | Figures (`figure/result/` is written by `../code` experiments) |
-| `table/` | Generated numbers and table bodies |
 | `resource/` | Earlier drafts, outlines, plans, related papers; not used by the build |

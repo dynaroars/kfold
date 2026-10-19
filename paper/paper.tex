@@ -12,18 +12,6 @@
 \renewcommand{\shortauthors}{Anonymous Author(s)}
 
 \begin{abstract}
-  The Linux kernel is one of the most configurable software systems, and its \texttt{kbuild} Makefiles control how thousands of configuration options determine which source files are compiled and linked into the kernel build.
-  To understand why a source file is omitted from a build, or which configuration options enable it, a developer needs its build condition: a logical formula over configuration options that specifies when the file is built.
-  Invoking Make on a single configuration reveals only the files compiled for that configuration, while exhaustively enumerating all configurations is intractable.
-  Standard symbolic execution spawns new execution paths at every conditional branch and suffers from path explosion, whereas prior family-based static analyses of Kbuild Makefiles enumerate complete string definitions for each variable.
-  We present \tool{}, a symbolic execution approach for \texttt{kbuild} Makefiles that maintains a consolidated symbolic state mapping each Make variable to a set of words, where each word is paired with a path condition over configuration options in the style of a value summary.
-  Append statements add words with their path conditions incrementally, overwrites perform conditional updates that exclude the new path condition from existing words, and state merging combines the symbolic states of conditional branches at join points, keeping the symbolic state proportional to the number of distinct words in each variable.
-  We represent the resulting build conditions as quantifier-free first-order formulae and use an SMT solver to check their satisfiability and generate valid configurations.
-
-  % We evaluate \tool{} on Linux 7.2.8 and four other \texttt{kbuild}-based systems by comparing its build conditions under concrete configurations with the source files built by fresh builds.
-  % On four Linux configurations, from \texttt{tinyconfig} to \texttt{allmodconfig}, the predicted files agree with the built files, with no false positive and no miss, from 512 to 29,556 files.
-  % \tool{} analyzes the 2,215 Makefile instances of the Linux x86 tree in 143.1\,s. \tl{abstract time, instance count, and RSS come from numbers.tex, which disagrees with results/timing.json (48.2\,s, 2,225 instances, 214.6\,MB for Linux); confirm which is current}
-  % The build conditions explain the build status of all 400 sampled Linux files and, combined with a Kconfig model, produce configurations for 384 of the 402 commits of a Linux stable update that touch C or assembly files.
 \end{abstract}
 
 \begin{CCSXML}
@@ -395,7 +383,13 @@ From these counts we report precision $TP / (TP + FP)$ and overall build overlap
 Whereas $FN_U$ measures imprecision in the symbolic execution of extracted Makefiles (extracted objects whose build condition evaluated to false despite being built), the overlap metric $TP / |B_c|$ penalizes the analysis for every built object outside the extracted universe $U$, such as arch-specific boot payloads under \texttt{arch/x86/boot/} invoked via top-level \texttt{bzImage} recipes.
 
 \emph{Baselines and Ablations.}
-We compare \tool{} against Kmax~\cite{gazzillo2017kmax} (\texttt{kmaxall} v4.10) on Linux and BusyBox by evaluating Kmax's extracted Boolean conditions under the same concrete configurations and scoring them against $B_c$ using the same metrics.
+We use two baselines from the Kmax suite, one for build conditions and one for configuration generation.
+For build conditions, we compare \tool{} against Kmax~\cite{gazzillo2017kmax} (\texttt{kmaxall} v4.10) on Linux and BusyBox by evaluating Kmax's extracted Boolean conditions under the same concrete configurations and scoring them against $B_c$ using the same metrics.
+For configuration generation in RQ3, we compare \tool{} against \texttt{klocalizer}, the configuration repair tool of the same suite (v4.10)~\cite{yildiran2024krepair}, which modifies a base \texttt{.config} so that a patch is compiled.
+\texttt{klocalizer} combines Kbuild conditions with a Kconfig model and targets changed source lines, including \texttt{\#ifdef} blocks, while \tool{} targets the objects that contain the changed files.
+We therefore run both tools on the same commits and base configurations and score both at object level: a generated configuration succeeds when it survives \texttt{make olddefconfig} and the build compiles every object that the commit touches.
+We also report how many options each tool changes and its running time.
+\tl{Install klocalizer (kmax 4.10) and confirm its version and the flags for repairing a base config (--repair, --include); announce the expected run time before running it on Linux.}
 In RQ2, we evaluate scalability on synthetic Kbuild Makefiles containing $k$ independent conditional blocks, comparing \tool{} against a conventional path-forking symbolic executor (which forks a symbolic state at each conditional branch~\cite{nguyen2020kbuild}) and against Kmax.
 In RQ4, we conduct an ablation study that disables three design components of \tool{} one at a time: static \texttt{include} inlining (\texttt{no\_includes}), transitive prerequisite closure over explicit rules (\texttt{no\_rules}), and the three Kbuild linking and reachability rules of \autoref{sec:approach:objects} (\texttt{no\_link\_semantics}).
 

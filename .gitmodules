@@ -1,0 +1,3 @@
+[submodule "code/baseline/kmax"]
+	path = code/baseline/kmax
+	url = https://github.com/paulgazz/kmax
