@@ -6,7 +6,8 @@ import os
 
 
 def download(url, path, sha256):
-    urllib.request.urlretrieve(url, path)
+    if not os.path.exists(path):
+        urllib.request.urlretrieve(url, path)
     with open(path, 'rb') as f:
         digest = hashlib.sha256(f.read()).hexdigest()
     if digest != sha256:
@@ -14,9 +15,11 @@ def download(url, path, sha256):
 
 
 def extract(path, root, name):
+    dest = os.path.join(root, name)
+    if os.path.exists(dest):
+        return dest
     with tarfile.open(path) as tar:
         tar.extractall(root, filter='data')
-    dest = os.path.join(root, name)
     os.rename(os.path.join(root, 'busybox-1.38.0'), dest)
     return dest
 
@@ -32,3 +35,6 @@ def prepare(args):
     download(url, path, sha256)
 
     src = extract(path, root, 'src')
+
+    # BusyBox ships Kbuild.src templates; generate the real Kbuild files.
+    subprocess.run(['sh', 'scripts/gen_build_files.sh', '.', '.'], cwd=src, check=True)
