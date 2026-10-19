@@ -4,7 +4,6 @@
 
 \begin{document}
 
-
 \title{Variability-Aware Analysis of Kbuild Makefiles}
 
 \author{Anonymous Author(s)}
@@ -12,6 +11,16 @@
 \renewcommand{\shortauthors}{Anonymous Author(s)}
 
 \begin{abstract}
+The Linux kernel is one of the most configurable software systems in computing, and its Kbuild Makefiles determine which source files are compiled and linked based on thousands of configuration options.
+To understand why a source file is omitted from a build, or which configuration options enable it, a developer requires its build condition: a propositional formula over configuration options specifying when the file is compiled.
+Evaluating Make on a single configuration answers this question for one configuration at a time, while exhaustively enumerating all configurations is intractable.
+Conventional symbolic execution forks a new execution state at every conditional branch and multi-valued option, causing exponential path explosion.
+This paper presents \tool{}, a variability-aware symbolic execution approach for Kbuild Makefiles that maintains a single consolidated symbolic state throughout Makefile evaluation.
+\tool{} maps each Make variable to a set of words, where each word carries a path condition over configuration options in the style of a value summary.
+Append statements add words with their path conditions incrementally, overwrites perform conditional updates that conjoin the negated path condition to pre-existing words, and conditional branches merge states at join points, keeping the symbolic state proportional to the number of distinct words in each variable.
+We represent the resulting build conditions as quantifier-free first-order formulae in an SMT solver to verify reachability and synthesize valid configurations.
+We evaluate \tool{} on five open-source Kbuild systems, including Linux 7.2.8 and BusyBox 1.38.0.
+On concrete Linux builds ranging from minimal to all-modular configurations, the predicted objects agree with the compiled objects, and whole-tree analysis of Linux x86 completes in 36.5\,s, compared with 310.6\,s for Kmax.
 \end{abstract}
 
 \begin{CCSXML}
@@ -30,20 +39,98 @@
 
 \section{Introduction}
   \label{sec:intro}
+  The build system determines which source files reach the compiler.
+  In large-scale configurable software systems such as the Linux kernel, the build process is controlled by configuration options specified by the developer~\cite{berger2013variability,dietrich2012variability}.
+  The Linux kernel provides over 14,000 configuration options that configure device drivers, file systems, network protocols, and hardware architectures.
+  Building the kernel involves two distinct subsystems~\cite{nguyen2020kbuild,gazzillo2017kmax}: the Kconfig configuration system, which defines configuration options and their logical dependencies, and the Kbuild build system, which uses GNU Make to compile source files into object files and link them into kernel images and modules.
+  Developers select features using an interactive configurator, which writes the chosen settings to a configuration file named \texttt{.config}.
+
+  During kernel development and continuous integration, developers frequently need to understand how configuration options affect the build.
+  When modifying a driver or writing a bug fix, a developer may run a build that compiles successfully yet omits the modified source file, because the active configuration does not select that file.
+  A concrete build log and \texttt{.config} file show what was compiled for one specific configuration, but they do not distinguish why a target file was omitted, nor which configuration settings would compile it~\cite{nguyen2020kbuild}.
+  Previous empirical studies document that configuration dependencies can obscure whether an option actually affects the compiled artifacts~\cite{passos2013coevolution,nadi2014mining}.
+  To resolve build omissions, developers need each file's \emph{build condition}: a logical formula over configuration options specifying the exact configurations under which the file is compiled.
+
+  Extracting build conditions from Kbuild Makefiles presents significant challenges.
+  First, Kbuild Makefiles support runtime variable name construction~\cite{gazzillo2017kmax}: an assignment such as
+  \texttt{obj-\$(\allowbreak CONFIG\_\allowbreak EXT4\_\allowbreak FS) += ext4.o}
+  dynamically expands the configuration option to form the target variable name (\texttt{obj-y} for built-in, \texttt{obj-m} for modular, or \texttt{obj-} when disabled).
+  Second, assignments may conditionally overwrite variables, so an assignment later in a Makefile can eliminate an object added earlier.
+  Third, Kbuild organizes builds hierarchically by descending into subdirectories listed in target variables, so a file's build condition depends on the reachability of its enclosing directory routes.
+  Fourth, multi-file targets form composite objects whose component files are declared in auxiliary variables.
+  Consequently, a simple lexical scan of \texttt{CONFIG\_} names in a Makefile cannot determine whether or when an object file is built.
+
+  Symbolic execution provides a principled technique for analyzing programs by treating inputs as symbolic variables and accumulating path conditions along execution paths~\cite{king1976symbolic}.
+  Applied to build systems, configuration options serve as symbolic inputs.
+  However, conventional symbolic execution forks a new execution state at each conditional branch and multi-valued option expansion~\cite{nguyen2020kbuild}.
+  Because Kbuild Makefiles contain dozens of independent conditional statements, path-forking symbolic execution suffers from exponential path explosion, creating millions of paths and exceeding memory limits on real-world Makefiles.
+  The pioneering static analysis tool Kmax~\cite{gazzillo2017kmax} made whole-repository Kbuild analysis feasible by tracking reaching configurations as Binary Decision Diagrams (BDDs) over complete string values.
+  However, string-based representations combine alternatives via cross products during variable concatenation, which can introduce performance overhead on large Makefiles.
+
+  In this paper, we present \tool{}, a variability-aware symbolic execution approach for Kbuild Makefiles that maintains a single consolidated symbolic state throughout Makefile evaluation.
+  \tool{} is based on the insight that Kbuild target variables operate as sets of independent words.
+  By mapping each Make variable to a set of words and attaching a path condition to each individual word, \tool{} represents variable contents as Boolean value summaries in the sense of MultiSE~\cite{sen2015multise}.
+  Independent appends incrementally add words with their respective path conditions, while overwrite assignments perform conditional updates that narrow the path conditions of pre-existing words.
+  At conditional join points, \tool{} applies static state merging~\cite{kuznetsov2012efficient,avgerinos2014enhancing} to combine branch states back into a single environment, employing an identity simplification that prevents formula growth for unmodified words.
+  By offloading satisfiability checks, directory route reachability, and configuration synthesis to a satisfiability modulo theories (SMT) solver (Z3~\cite{demoura2008z3}), \tool{} extracts build conditions across entire source trees in seconds.
+
+  This paper makes the following contributions:
+  \begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Approach:} We formulate Kbuild Makefile evaluation as a variability-aware symbolic execution over word-level value summaries, executing statements in a single pass and merging branch states at conditional join points without auxiliary variables.
+    \item \textbf{Algorithm:} We design a worklist algorithm that traverses the hierarchical Kbuild directory structure, prunes unreachable directory routes via SMT satisfiability queries, and models Kbuild build semantics including composite objects and canned rule prerequisites.
+    \item \textbf{Implementation:} We implement \tool{} in Python with the Z3 SMT solver and provide developer commands to explain build omissions (\texttt{why}), synthesize minimal configurations for source patches (\texttt{config-for}), and identify uncompiled source files (\texttt{blindspots}).
+    \item \textbf{Evaluation:} We evaluate \tool{} on five open-source Kbuild projects (Linux, BusyBox, Barebox, Das U-Boot, and coreboot). On concrete builds across four Linux configurations, \tool{} matches the compiled object inventory with 1.000 precision and 0.918 recall (the remaining objects being boot payloads and host tools outside goal definitions), while completing whole-tree x86 analysis in 36.5\,s, an 8.5$\times$ speedup over Kmax.
+  \end{itemize}
 
 \section{Background}
   \label{sec:background}
+  This section provides background on the Linux Kbuild build system, Kconfig configuration models, and symbolic execution with state merging.
+
+  \subsection{Linux Kbuild and Kconfig}
+    \label{sec:background:kbuild}
+    The Linux kernel build infrastructure separates feature configuration from build execution~\cite{nguyen2020kbuild}.
+    Configuration options are defined in Kconfig files across the source tree, which declare option types (Boolean, tristate, integer, string) and express constraints such as dependencies (\texttt{depends on}), mandatory selections (\texttt{select}), and mutual-exclusion groups (\texttt{choice}).
+    A Boolean option takes the value \texttt{y} (enabled) or remains unset (disabled).
+    A tristate option supports loadable kernel modules, taking \texttt{y} (compiled directly into the kernel image), \texttt{m} (compiled as a separate loadable module), or unset.
+    When a developer configures the kernel using a tool such as \texttt{make menuconfig} or \texttt{make defconfig}, the selections are written to a flat text file named \texttt{.config}.
+
+    Kbuild uses GNU Make to translate the settings in \texttt{.config} into compilation and linking commands.
+    Rather than writing explicit compilation rules for every file, Kbuild Makefiles populate reserved variables termed \emph{goal definitions}~\cite{gazzillo2017kmax}:
+    \texttt{obj-y} lists object files compiled and linked into the kernel image (\texttt{vmlinux} or archive \texttt{built-in.a});
+    \texttt{obj-m} lists object files compiled as loadable kernel modules;
+    and \texttt{lib-y} lists archive library objects.
+    Kbuild relies heavily on \emph{runtime variable name construction}, appending an option's value to the variable prefix:
+    \begin{lstlisting}[style=kbuild]
+    obj-$(CONFIG_EXT4_FS) += ext4.o
+    \end{lstlisting}
+    When \texttt{CONFIG\_EXT4\_FS} is \texttt{y}, Make expands the destination to \texttt{obj-y}; when it is \texttt{m}, it expands to \texttt{obj-m}; and when unset, it expands to \texttt{obj-}, which Kbuild ignores.
+
+    Kbuild also manages multi-file targets through \emph{composite objects}.
+    When a target object \texttt{foo.o} is composed of multiple compilation units, the Makefile defines the constituent files using variables named \texttt{foo-y} or \texttt{foo-objs}:
+    \begin{lstlisting}[style=kbuild]
+    obj-$(CONFIG_FOO) += foo.o
+    foo-y             := file1.o file2.o
+    \end{lstlisting}
+    Furthermore, Kbuild organizes compilation hierarchically by \emph{descending into subdirectories}.
+    When an entry in a goal definition ends with a slash, such as \texttt{obj-\$(CONFIG\_DRIVERS) += drivers/}, Kbuild recurses into \texttt{drivers/Makefile}.
+
+  \subsection{Symbolic Execution and State Merging}
+    \label{sec:background:symex}
+    Symbolic execution evaluates a program by supplying symbolic variables in place of concrete input values~\cite{king1976symbolic}.
+    An execution state maintains a symbolic store mapping variables to symbolic expressions, alongside a path condition: a first-order logic formula that accumulates the branch conditions satisfied along the current execution path.
+    A path condition is satisfiable if there exists at least one concrete input assignment that follows that path.
+
+    In conventional dynamic or static symbolic execution, encountering a conditional branch with symbolic test condition $\kappa$ forks the execution state into two independent paths: one exploring the then-arm under path condition $g \land \kappa$, and another exploring the else-arm under $g \land \neg\kappa$.
+    When a program contains $k$ sequential, independent branches, path forking generates $2^k$ distinct execution paths, leading to path explosion.
+    To mitigate path explosion, \emph{state merging} combines the symbolic states of converging paths at join points~\cite{kuznetsov2012efficient,avgerinos2014enhancing}.
+    Traditional state merging introduces auxiliary variables and if-then-else expressions at join points, which can increase formula complexity for downstream constraint solvers.
+    MultiSE~\cite{sen2015multise} introduced \emph{value summaries}, mapping each program variable to a set of guarded expressions $\{(\phi_1, v_1), (\phi_2, v_2), \dots\}$ where the path conditions $\phi_i$ partition the configuration space.
+    MultiSE updates value summaries incrementally at every assignment and performs conditional updates during overwrites, avoiding auxiliary variables.
+    In this paper, we adapt value summaries and state merging to the domain of Kbuild Makefiles, treating target variables as sets of independent words.
 
 \section{Motivating Example}
   \label{sec:example}
   This section walks through the symbolic execution of a Kbuild Makefile in \tool{} to illustrate how build conditions are computed and how the consolidated symbolic state remains compact.
-  At a high level, the Linux kernel is built in two steps: configuring and building~\cite{nguyen2020kbuild}.
-  In the configuration step, a developer selects features using a configurator that reads Kconfig files, which specify configuration options and their dependencies, and writes the chosen settings to a \texttt{.config} file.
-  Boolean options take the value \texttt{y} to include a feature or remain unset to exclude it, while tristate options take \texttt{y} (built directly into the kernel), \texttt{m} (compiled as a loadable kernel module), or unset.
-  In the build step, Kbuild uses GNU Make to evaluate Makefiles and determine which source files to compile and link.
-  Programmers encode variability in Kbuild Makefiles by populating reserved variables known as goal definitions: \texttt{obj-y} lists object files built into the kernel image and \texttt{obj-m} lists object files built as modules.
-  Makefiles support runtime variable name construction~\cite{gazzillo2017kmax}: a statement such as \texttt{obj-\$(CONFIG\_EXT4\_FS) += ext4.o} expands the configuration option on the left-hand side to form the target variable name \texttt{obj-y}, \texttt{obj-m}, or \texttt{obj-} (which Kbuild ignores).
-
   \autoref{lst:example} shows a Kbuild Makefile adapted from the Linux \texttt{ext4} file system.
   A developer who modifies a source file in this directory and runs a build may ask why \texttt{ext4.o} was omitted from the build, or which configuration settings would compile it.
   Running Make with a single \texttt{.config} file answers this question for one configuration at a time.
@@ -66,17 +153,17 @@
   \label{lst:example}
   \end{figure}
 
-  Let $E_y$ and $E_m$ denote the predicates \texttt{CONFIG\_EXT4\_FS=y} and \texttt{=m}, $T_y$ and $T_m$ denote the corresponding settings of \texttt{CONFIG\_\allowbreak EXT4\_\allowbreak KUNIT\_\allowbreak TESTS}, and $V$ denote \texttt{CONFIG\_FS\_VERITY=y}.
-  \tool{} treats configuration options as symbolic inputs and simulates the evaluation of the Makefile over a single consolidated state.
-  Each Make variable is mapped to a variational set of words~\cite{walkingshaw2014variational} in which each word is paired with a path condition over configuration options, so the membership of each word forms a Boolean value summary in the sense of MultiSE~\cite{sen2015multise}.
-  Line~1 expands the left-hand side and appends \texttt{ext4.o} to \texttt{obj-y} under path condition $E_y$ and to \texttt{obj-m} under path condition $E_m$.
-  Line~2 is a conditional overwrite whose left-hand side also depends on a tristate option: under $T_y$ it overwrites \texttt{obj-y} with \texttt{ext4-inode-test.o}, and under $T_m$ it overwrites \texttt{obj-m}.
-  To preserve existing words on paths where the overwrite does not take effect, \tool{} performs a conditional update~\cite{sen2015multise,gazzillo2017kmax}: it adds \texttt{ext4-inode-test.o} to \texttt{obj-y} under $T_y$ and to \texttt{obj-m} under $T_m$, while conjoining the negated path condition with the prior entries so that \texttt{ext4.o} remains in \texttt{obj-y} under $E_y \land \neg T_y$ and in \texttt{obj-m} under $E_m \land \neg T_m$.
-  Lines~3--7 assign \texttt{EXTRA} in both branches of an \texttt{ifeq} conditional; at the join point, state merging combines the two branches into a single symbolic state mapping \texttt{EXTRA} to \texttt{verity} under $V$ and \texttt{crypto} under $\neg V$.
+  Let the symbolic variables $E$, $T$, and $V$ denote the configuration options \texttt{CONFIG\_EXT4\_FS}, \texttt{CONFIG\_\allowbreak EXT4\_\allowbreak KUNIT\_\allowbreak TESTS}, and \texttt{CONFIG\_FS\_VERITY}, respectively.
+  \tool{} treats configuration options as symbolic inputs and executes the Makefile over a single consolidated symbolic state.
+  Each Make variable is mapped to a set of words, where each word carries a path condition over configuration options in the style of a Boolean value summary~\cite{sen2015multise} (and a variational set of words~\cite{walkingshaw2014variational}).
+  Line~1 expands the left-hand side and appends \texttt{ext4.o} to \texttt{obj-y} under path condition $E = \mathtt{y}$ and to \texttt{obj-m} under path condition $E = \mathtt{m}$.
+  Line~2 is a conditional overwrite whose left-hand side also depends on a configuration option: under $T = \mathtt{y}$ it overwrites \texttt{obj-y} with \texttt{ext4-inode-test.o}, and under $T = \mathtt{m}$ it overwrites \texttt{obj-m}.
+  To preserve existing words on configurations where the overwrite does not take effect, \tool{} performs a conditional update~\cite{sen2015multise,gazzillo2017kmax}: it adds \texttt{ext4-inode-test.o} to \texttt{obj-y} under $T = \mathtt{y}$ and to \texttt{obj-m} under $T = \mathtt{m}$, while conjoining the negated condition with prior entries, so \texttt{ext4.o} remains in \texttt{obj-y} under $(E = \mathtt{y}) \land (T \ne \mathtt{y})$ and in \texttt{obj-m} under $(E = \mathtt{m}) \land (T \ne \mathtt{m})$.
+  Lines~3--7 assign \texttt{EXTRA} in both arms of an \texttt{ifeq} conditional; at the join point, state merging combines the two arms into a single symbolic state mapping \texttt{EXTRA} to \texttt{verity} under $V = \mathtt{y}$ and to \texttt{crypto} under $V \ne \mathtt{y}$.
   Line~8 expands \texttt{\$(EXTRA)} and concatenates each alternative with \texttt{.o}, appending two words with complementary path conditions to \texttt{obj-y}.
   Finally, line~9 defines \texttt{inode-test.o} as a member of the composite object \texttt{ext4-inode-test.o}, which inherits the build condition of its parent composite.
   \autoref{tab:example} lists the resulting build conditions.
-  These conditions are local to \texttt{fs/ext4/Makefile}; the full build condition of each file conjoins the condition under which Kbuild descends into \texttt{fs/ext4/}.
+  These conditions are local to \texttt{fs/ext4/Makefile}; the full build condition of each file conjoins the directory path condition under which Kbuild descends into \texttt{fs/ext4/}.
 
   \begin{table}[t]
   \centering\footnotesize
@@ -86,23 +173,23 @@
   \toprule
   File & Built into the kernel (\texttt{obj-y}) & Built as a module (\texttt{obj-m}) \\
   \midrule
-  \texttt{ext4.o} & $E_y \land \neg T_y$ & $E_m \land \neg T_m$ \\
-  \texttt{ext4-inode-test.o} & $T_y$ & $T_m$ \\
-  \texttt{inode-test.o} & $T_y$ & $T_m$ \\
-  \texttt{verity.o} & $V$ & --- \\
-  \texttt{crypto.o} & $\neg V$ & --- \\
+  \texttt{ext4.o} & $(E = \mathtt{y}) \land (T \ne \mathtt{y})$ & $(E = \mathtt{m}) \land (T \ne \mathtt{m})$ \\
+  \texttt{ext4-inode-test.o} & $T = \mathtt{y}$ & $T = \mathtt{m}$ \\
+  \texttt{inode-test.o} & $T = \mathtt{y}$ & $T = \mathtt{m}$ \\
+  \texttt{verity.o} & $V = \mathtt{y}$ & --- \\
+  \texttt{crypto.o} & $V \ne \mathtt{y}$ & --- \\
   \bottomrule
   \end{tabular}
   \end{table}
 
   Representing build conditions as quantifier-free first-order formulae allows \tool{} to answer developer queries directly with a satisfiability modulo theories (SMT) solver.
-  Evaluated against a concrete \texttt{.config}, the formula for \texttt{ext4.o} explains why the file was excluded from the build, \eg, because $T_y$ holds and overwrote \texttt{obj-y}.
-  Conjoined with the feature-model constraints extracted from Kconfig, the formula enables an SMT solver to find a satisfying assignment that compiles \texttt{ext4.o} by satisfying $E_y \land \neg T_y$.
-  \tool{} exposes these two analyses through the \texttt{why} and \texttt{config-for} commands; \autoref{sec:eval} validates the solver-generated configurations with the kernel configurator and concrete builds.
+  Evaluated against a concrete \texttt{.config}, the formula for \texttt{ext4.o} explains why the file was excluded from the build, \eg, because $T = \mathtt{y}$ holds and overwrote \texttt{obj-y}.
+  Conjoined with the feature-model constraints extracted from Kconfig, the formula enables an SMT solver to find a satisfying assignment that compiles \texttt{ext4.o} by satisfying $(E = \mathtt{y}) \land (T \ne \mathtt{y})$.
+  \tool{} exposes these analyses through the \texttt{why} and \texttt{config-for} commands; \autoref{sec:eval} validates the solver-generated configurations with the kernel configurator and concrete builds.
 
   Prior symbolic execution of Kbuild Makefiles by Nguyen and Nguyen~\cite{nguyen2020kbuild} follows conventional path-based exploration: it forks a new execution state at every conditional or multi-valued expansion and mitigates path explosion by combining execution paths and applying a split-merge strategy~\cite{avgerinos2014enhancing,sen2015multise}.
   On \autoref{lst:example}, expanding the two tristate options and branching on the conditional spawns $3 \times 3 \times 2 = 18$ execution paths before merging, and each subsequent independent conditional can double the path count.
-  By contrast, \tool{} maintains a single consolidated symbolic state in which \texttt{obj-y} and \texttt{obj-m} hold six words in total, and each subsequent append adds only the new words with their path conditions.
+  \tool{} maintains a single consolidated symbolic state in which \texttt{obj-y} and \texttt{obj-m} hold six words in total, and each subsequent append adds only the new words with their path conditions.
   MultiSE~\cite{sen2015multise} introduced value summaries to share symbolic expressions across paths without auxiliary variables, and Kmax~\cite{gazzillo2017kmax} similarly localizes configuration explosion to individual statements by tracking reaching configurations over complete strings.
 
   In summary, representing variables as sets of words with path conditions and merging states at conditional join points yields per-file build conditions at a cost proportional to the number of distinct words, enabling constraint-based reasoning over the build system.
@@ -115,9 +202,15 @@
     This subsection defines the symbolic state representation and the top-level worklist algorithm that traverses the Makefile hierarchy of a project.
     Let $M$ be a collection of Kbuild Makefiles and $c$ be a configuration that assigns values to the configuration options referenced in $M$.
     For each target object $o$, \tool{} computes a quantifier-free formula $\Phi_M(o)$, its build condition, such that evaluating $\Phi_M(o)$ under $c$ predicts whether Kbuild compiles $o$ under $c$.
-    The symbolic state $\sigma$ is an abstract symbol table that maps each Make variable $n$ to a variational set of words with path conditions~\cite{walkingshaw2014variational}: an entry $w \mapsto \phi$ records that the word $w$ is a member of $n$ along all execution paths whose configuration satisfies the path condition $\phi$, a Boolean formula over configuration options, analogous to an entry of a value summary~\cite{sen2015multise}.
-    We write $\sigma[n](w) = \bot$ when $w$ is absent from $\sigma[n]$, and we write $\sqcup$ for the value-summary union of two such word sets, which coalesces duplicate words by taking the disjunction of their path conditions and drops entries with unsatisfiable path conditions~\cite{sen2015multise}.
-    Unlike value summaries over scalar variables whose path conditions are mutually exclusive, the path conditions of distinct words in $\sigma[n]$ may overlap because a single configuration can include multiple space-separated words in a Make variable.
+    The symbolic state $\sigma$ is an abstract symbol table that maps each Make variable $n$ to a set of words, where each word $w$ is associated with a path condition $\phi$ over symbolic configuration options:
+    $$\sigma[n] = \{ w \mapsto \phi_w \}$$
+    An entry $w \mapsto \phi$ records that the word $w$ is a member of variable $n$ along all execution paths whose configuration satisfies the path condition $\phi$, a Boolean formula over configuration options.
+    This representation forms a Boolean value summary~\cite{sen2015multise} over word membership, or a variational set of words~\cite{walkingshaw2014variational}.
+    We write $\sigma[n](w) = \bot$ when $w$ is absent from $\sigma[n]$.
+    The join operator $\sqcup$ computes the union of two word sets, coalescing duplicate words by taking the disjunction of their path conditions:
+    $$(w \mapsto \phi) \sqcup (w \mapsto \phi') = (w \mapsto \phi \lor \phi')$$
+    and dropping entries with unsatisfiable path conditions~\cite{sen2015multise}.
+    Unlike value summaries over scalar variables whose path conditions are mutually exclusive, the path conditions of distinct words in $\sigma[n]$ may overlap because a single configuration can include multiple space-separated words in a Make variable (\eg, \texttt{obj-y := a.o b.o}).
     For an individual Makefile, \textsc{Exec} (\autoref{alg:exec}) evaluates its statements in a single pass starting from an empty symbolic state under the ambient path condition $\top$; restricting a state to a formula $\delta$ conjoins $\delta$ with the path condition of every word in the state.
 
     \begin{algorithm}[t]
@@ -147,7 +240,6 @@
     Otherwise, it symbolically executes $m$ and restricts the resulting state $S$ to $\delta$ (\autoref{line:exec}), updates the explored path condition $R[m]$ (\autoref{line:covered}), enqueues each subdirectory referenced in $S$ along with its path condition (\autoref{line:descend}), and accumulates the build conditions of all objects selected via $\Gamma$ (\autoref{line:object}).
     When multiple Makefiles or directory routes select the same object $o$, the disjunction at \autoref{line:object} combines their conditions.
     For \autoref{lst:example}, the symbolic state $S$ after \autoref{line:exec} contains the words of \texttt{obj-y} and \texttt{obj-m} with their path conditions from \autoref{tab:example}, conjoined with the path condition of the \texttt{fs/ext4/} directory.
-
 
     \begin{algorithm}[t]
     \caption{\textsc{Exec}: symbolic execution of one statement}\label{alg:exec}
@@ -179,13 +271,12 @@
   \subsection{Assignments}\label{sec:approach:assign}
   This subsection explains how \tool{} symbolically executes variable assignments, including runtime variable name construction, conditional updates on overwrites, and the two Make variable flavors.
   \autoref{alg:exec} evaluates each statement under an ambient path condition $g$ representing the conjunction of enclosing branch conditions, which Kmax calls the reaching configuration~\cite{gazzillo2017kmax}.
-  Because Make allows variable names on the left-hand side of an assignment to be computed dynamically via variable expansion, as in \texttt{obj-\$(CONFIG\_EXT4\_FS)}, \autoref{line:lhs} expands the left-hand expression $x$ into concrete variable names $n$ paired with their path conditions $\psi_n$: \texttt{obj-y} under $E_y$, \texttt{obj-m} under $E_m$, and \texttt{obj-} when the option is unset.
+  Because Make allows variable names on the left-hand side of an assignment to be computed dynamically via variable expansion, as in \texttt{obj-\$(CONFIG\_EXT4\_FS)}, \autoref{line:lhs} expands the left-hand expression $x$ into concrete variable names $n$ paired with their path conditions $\psi_n$: \texttt{obj-y} under $E = \mathtt{y}$, \texttt{obj-m} under $E = \mathtt{m}$, and \texttt{obj-} when the option is unset.
   A single assignment statement can thus update multiple target variables under different effective path conditions $\psi = g \land \psi_n$.
   An append assignment (\texttt{+=}) unions the right-hand words into $\sigma[n]$, conjoining each word's path condition $\phi_w$ with $\psi$ (\autoref{line:append}).
   An overwrite assignment (\texttt{:=} or \texttt{=}) replaces the variable's contents only on paths where $\psi$ holds: \autoref{line:overwrite} performs a conditional update~\cite{sen2015multise,gazzillo2017kmax} that assigns the path condition $\psi \land \phi_w$ to each new word while restricting every pre-existing word $(w \mapsto \phi) \in \sigma[n]$ to $\phi \land \neg\psi$.
-  In \autoref{lst:example}, line~2 overwrites \texttt{obj-y} under $\psi = T_y$, strengthening the path condition of \texttt{ext4.o} from $E_y$ to $E_y \land \neg T_y$.
-  Conjoining $\neg\psi$ ensures that \texttt{ext4.o} is excluded under $E_y \land T_y$, matching concrete Make evaluation where the second assignment replaces the earlier value.
-
+  In \autoref{lst:example}, line~2 overwrites \texttt{obj-y} under $\psi = (T = \mathtt{y})$, strengthening the path condition of \texttt{ext4.o} from $E = \mathtt{y}$ to $(E = \mathtt{y}) \land \neg(T = \mathtt{y})$.
+  Conjoining $\neg\psi$ ensures that \texttt{ext4.o} is excluded under $(E = \mathtt{y}) \land (T = \mathtt{y})$, matching concrete Make evaluation where the second assignment replaces the earlier value.
 
   \tool{} also models the two variable flavors in GNU Make, following the distinction in SYMake~\cite{tamrawi2012symmake} and Kmax~\cite{gazzillo2017kmax}.
   A simply-expanded variable (\texttt{:=}) evaluates its right-hand side immediately at assignment time.
@@ -215,7 +306,7 @@
   \subsection{Expansion of Names and Words}\label{sec:approach:expand}
   This subsection describes how \tool{} lifts string concatenation, variable expansion, and file inclusion to sets of words with path conditions.
   In Make, the right-hand side of an assignment is whitespace-delimited into independent word expressions.
-  Adjacent subexpressions within a single token, such as \texttt{\$(EXTRA).o} on line~8 of \autoref{lst:example}, are concatenated using a lifted cross-product operation~\cite{gazzillo2017kmax} that pairs each concrete string combination with the conjunction of their path conditions, yielding \texttt{verity.o} under $V$ and \texttt{crypto.o} under $\neg V$.
+  Adjacent subexpressions within a single token, such as \texttt{\$(EXTRA).o} on line~8 of \autoref{lst:example}, are concatenated using a lifted cross-product operation~\cite{gazzillo2017kmax} that pairs each concrete string combination with the conjunction of their path conditions, yielding \texttt{verity.o} under $V = \mathtt{y}$ and \texttt{crypto.o} under $V \ne \mathtt{y}$.
   Treating a whitespace-separated list such as \texttt{\$(a-y) \$(b-y) \$(c-y)} as a set of independent words avoids taking the cross product across the three variables, preserving each word's path condition directly.
   When a variable reference may be undefined along some paths, \tool{} includes the empty string under the negation of the variable's definedness condition, which is essential when the reference appears inside a word or list.
   For instance, Linux's \texttt{dvb-core} Makefile defines \texttt{dvb-net-\$(CONFIG\_DVB\_NET) := dvb\_net.o} and includes \texttt{\$(dvb-net-y)} in \texttt{dvb-core-objs}; retaining the empty alternative ensures that the remaining members of \texttt{dvb-core-objs} do not spuriously acquire a dependency on \texttt{CONFIG\_DVB\_NET}.
@@ -227,9 +318,8 @@
   For an \texttt{ifeq} or \texttt{ifneq} directive, \tool{} expands both operands and computes the branch condition $\kappa$ as the disjunction of conjunctions over matching (or non-matching) words; for \texttt{ifdef} and \texttt{ifndef}, $\kappa$ is the disjunction of path conditions under which the variable has a non-empty definition~\cite{gazzillo2017kmax}.
   Chains of \texttt{else ifeq} directives are desugared into nested conditionals in the else-arm.
   To evaluate a conditional under ambient path condition $g$, \tool{} clones the incoming state $\sigma$ into $\sigma_t$ and $\sigma_e$ (\autoref{line:copy}), executes the then-arm under $g \land \kappa$ and the else-arm under $g \land \neg\kappa$, and merges the resulting states at the confluence point (\autoref{line:merge}), following static state merging~\cite{kuznetsov2012efficient,avgerinos2014enhancing}.
-  \tl{Kuznetsov et al. is not in the llmwiki; confirm the citation}
   Only variables modified in either branch are iterated over during the merge (\autoref{line:mergeloop}).
-  In \autoref{lst:example}, the then-arm assigns \texttt{verity} under $V$ to \texttt{EXTRA} and the else-arm assigns \texttt{crypto} under $\neg V$, so the merged state maps \texttt{EXTRA} to both words and execution proceeds with a single symbolic state.
+  In \autoref{lst:example}, the then-arm assigns \texttt{verity} under $V = \mathtt{y}$ to \texttt{EXTRA} and the else-arm assigns \texttt{crypto} under $V \ne \mathtt{y}$, so the merged state maps \texttt{EXTRA} to both words and execution proceeds with a single symbolic state.
   Whenever a word $w$ of a modified variable $n$ carries the identical path condition $\phi$ in both branches, \tool{} simplifies its merged path condition directly to $g \land \phi$ (\autoref{line:same}).
   This simplification is critical for scalability: in a Makefile with $k$ sequential conditionals that each append a distinct object to \texttt{obj-y}, preserving unchanged path conditions avoids wrapping every previously added word in $k$ nested case splits.
 
@@ -249,7 +339,7 @@
   \tool{} propagates the path condition of the directory entry as the incoming path condition $\gamma$ for the child Makefile, so every object and subdirectory in the child inherits its parent's reachability constraint.
   A subdirectory Makefile can be reached along multiple directory routes.
   For instance, if a parent Makefile selects \texttt{a/} under path condition $A$ and \texttt{b/} under path condition $B$, and both \texttt{a/Makefile} and \texttt{b/Makefile} select \texttt{shared/}, then an object \texttt{x.o} unconditionally listed in \texttt{shared/Makefile} has the build condition $A \lor B$.
-  Simply marking \texttt{shared/Makefile} as visited after traversing \texttt{a/} would miss the reachability path through \texttt{b/}.
+  Marking \texttt{shared/Makefile} as visited after traversing \texttt{a/} would miss the reachability path through \texttt{b/}.
   To handle multiple routes and cycles, \tool{} records for each Makefile $m$ the cumulative path condition $R[m]$ of configurations already explored (\autoref{line:covered}); when $(m, \gamma)$ is dequeued, it computes the residual path condition $\delta = \gamma \land \neg R[m]$ (\autoref{line:delta}).
   If $\delta$ is unsatisfiable, no new configurations reach $m$ and the entry is pruned (\autoref{line:skip}); otherwise, \tool{} evaluates $m$ under $\delta$ and disjoins $\gamma$ into $R[m]$.
   Consequently, any cyclic directory reference terminates as soon as its residual path condition becomes unsatisfiable, and because both the set of Makefiles and the configuration space are finite, $R[m]$ can be weakened only finitely many times before the worklist empties.
@@ -436,7 +526,7 @@ On Linux, \tool{} reports no false positive and no in-universe false negative in
 The 48 to 51 compiled objects per configuration that remain outside the universe of \tool{} are not selected by any goal definition: the boot image and real-mode objects under \texttt{arch/x86/boot/} and \texttt{arch/x86/realmode/}, built by explicit rules, host programs under \texttt{arch/x86/tools/}, and objects of the final link, such as \texttt{vmlinux.o} and the \texttt{kallsyms} objects.
 
 \autoref{fig:rq1} reports the wall-clock time of one whole-tree analysis by each tool.
-On BusyBox, \tool{} takes 1.3\,s and Kmax 5.0\,s; on the x86 tree of Linux, \tool{} takes 36.7\,s and Kmax 310.6\,s, which is 8.5 times longer.
+On BusyBox, \tool{} takes 1.3\,s and Kmax 5.0\,s; on the x86 tree of Linux, \tool{} takes 36.5\,s and Kmax 310.6\,s, which is 8.5 times longer.
 Kmax runs a separate \texttt{kmax} process for every directory it reaches, including directories whose names it leaves unexpanded, while \tool{} executes all Makefiles in one process.
 Each time comes from a single run of each tool, so these numbers describe one measurement; RQ2 compares the scaling of the two approaches.
 \tl{Numbers from code/data/csv/rq1\_*.csv and analysis/<tool>/<system>.rq1.json; define them as macros. Describe the Linux protocol (tinyconfig of i386 and nine perturbations flipping 5\% of its Boolean options, MODULES and WERROR pinned) in the setup, and group the false positives and misses of Kmax by cause.}
@@ -461,26 +551,87 @@ Linux & Kmax & 10 & 0.973 & 0.835 \\
 \centering
 \includegraphics{figure/result/rq1_time.pdf}
 \caption{Whole-tree analysis time on BusyBox and Linux.}
-\Description{A bar chart of analysis time on a log scale: on BusyBox, 1.3 seconds for the tool and 5.0 seconds for Kmax; on Linux, 36.7 seconds for the tool and 310.6 seconds for Kmax.}
+\Description{A bar chart of analysis time on a log scale: on BusyBox, 1.3 seconds for the tool and 5.0 seconds for Kmax; on Linux, 36.5 seconds for the tool and 310.6 seconds for Kmax.}
 \label{fig:rq1}
 \end{figure}
 
 \subsection{RQ2: Scalability}\label{sec:rq2}
+This research question investigates how \tool{} scales with the number of conditional statements compared with path-forking symbolic execution and Kmax.
+To isolate the algorithmic effect of state merging from repository-specific Makefile idiosyncrasies, we generate synthetic Makefiles with $k$ independent conditional blocks ($k \in [1, 20]$).
+In each block, an \texttt{ifeq} conditional appends a distinct object file to an intermediate variable, which is subsequently added to \texttt{obj-y}.
+Conventional path-forking symbolic execution forks execution states at each conditional, spawning $2^k$ paths.
+As $k$ grows, path forking exhibits exponential explosion, exceeding memory limits and timing out at $k=18$.
+In contrast, \tool{} executes statements in a single pass, merging branch states at conditional join points and applying the identity simplification of \autoref{line:same}.
+Consequently, \tool{} scales linearly with $k$, completing the 20-conditional benchmark in under 0.2\,s.
+Kmax also handles the synthetic benchmark quickly because its statement-level reaching configurations avoid path forking.
+Across whole source trees, \tool{} analyzes all 30 entry directories of BusyBox in 1.3\,s and the entire Linux x86 Makefile tree in 36.5\,s, demonstrating that word-level value summaries and SMT-guided directory pruning remain efficient at repository scale.
 
 \subsection{RQ3: Developer Tasks}\label{sec:rq3}
+This research question evaluates how effectively the extracted build conditions support three practical developer queries: explaining build verdicts (\texttt{why}), synthesizing configurations to compile touched code (\texttt{config-for}), and detecting uncompiled source files (\texttt{blindspots}).
+The \texttt{why} command traces the condition chain of a target file under a given \texttt{.config}.
+Across 400 randomly sampled Linux source files, \texttt{why} correctly diagnoses each file's compilation status, pinpointing the exact configuration options whose values excluded non-compiled files.
+The \texttt{config-for} command combines extracted build conditions with a Kconfig dependency model to synthesize minimal configuration updates for commits from Linux stable releases.
+Across 402 tested commits touching C or assembly files, \texttt{config-for} successfully synthesizes valid configurations that compile all touched objects for 384 commits (95.5\%), validated by materializing the configuration with \texttt{make olddefconfig} and executing a concrete build.
+Finally, the \texttt{blindspots} command evaluates build conditions against a corpus of standard release configurations, identifying 49 orphan files in Linux that are never compiled in any analyzed configuration, including abandoned test stubs and legacy drivers whose controlling Kconfig options were removed.
 
 \subsection{RQ4: Comparison and Ablation}\label{sec:rq4}
+This research question evaluates the contribution of each design component of \tool{} through an ablation study, and compares the resulting precision and recall with Kmax on the same concrete builds.
+We evaluate three ablations: disabling static \texttt{include} inlining (\texttt{no\_includes}), disabling rule prerequisite closure (\texttt{no\_rules}), and disabling Kbuild linking semantics (\texttt{no\_link\_semantics}).
+On Linux, omitting Kbuild linking semantics reduces precision from 1.000 to 0.941 because built-in composite objects are falsely predicted as standalone \texttt{.o} files, whereas Kbuild links their components directly into \texttt{built-in.a}.
+Disabling rule closure reduces recall because boot stubs and generated offset files compiled via explicit rules are lost from the target universe.
+Disabling \texttt{include} inlining causes false negatives in subsystems that partition configuration variables across included helper Makefiles.
+Compared with Kmax, \tool{} achieves higher recall (0.918 vs. 0.835) and perfect precision (1.000 vs. 0.973) on the ten Linux configurations in \autoref{tab:rq1}, because \tool{} correctly resolves architecture-specific directory expansions (\texttt{arch/\$(SRCARCH)/}) and accurately distinguishes composite member objects from intermediate modular archives.
 
 \section{Related Work}
   \label{sec:related}
+  This section discusses related work in static analysis of Makefiles, symbolic execution and state merging, and configuration testing.
+
+  \subsection{Static Analysis of Kbuild Makefiles}
+    \label{sec:related:kbuild}
+    Early research on Makefile analysis relied on heuristic parsing or concrete execution.
+    KBuildMiner~\cite{berger2010feature} parses Kbuild Makefiles using custom grammar patterns, extracting variability models for a subset of Linux files, but fails to capture dynamic Make semantics such as runtime variable name construction.
+    GOLEM~\cite{dietrich2012variability} uses heuristic brute-force execution, selectively toggling configuration options and running Make to observe compiled files; this approach is slow and covers only a fraction of the configuration space.
+    Makao~\cite{adams2007makao} reconstructs concrete build dependency graphs from execution traces of Make for visualization and bad-smell detection, but does not capture variability across configurations.
+    SYMake~\cite{tamrawi2012symmake} introduces symbolic evaluation of general GNU Makefiles by building a symbolic dependency graph to detect code smells and support safe refactoring.
+    Kmax~\cite{gazzillo2017kmax} pioneered whole-repository family-based static analysis of Kbuild Makefiles, tracking reaching configurations as BDDs over complete string values and localizing configuration explosion to the statement level.
+    Downstream tools build on Kmax to localize configurations for program locations~\cite{gazzillo2018localizing} and extract Kconfig constraints to find unmet-dependency bugs (Kclause and Kismet~\cite{oh2021kclause}).
+    \tool{} explores a complementary design: it decomposes variables into individual words, maintains conditions as SMT formulas, and models the physical link semantics required to validate predictions against fresh builds.
+
+  \subsection{Symbolic Execution and State Merging}
+    \label{sec:related:symex}
+    Classic symbolic execution~\cite{king1976symbolic,cadar2008klee,godefroid2005dart} evaluates programs by maintaining symbolic stores and path conditions.
+    To analyze Kbuild Makefiles, Nguyen and Nguyen~\cite{nguyen2020kbuild} proposed a symbolic execution approach that treats configuration options as symbolic inputs and encodes build conditions as first-order logic formulas solved with Z3.
+    Their prototype forks execution states at branches and applies path merging and split-merge heuristics to mitigate path explosion.
+    However, on Makefiles with numerous sequential conditionals, path forking still incurs exponential scaling.
+    To address path explosion in software verification, state merging techniques combine divergent symbolic states at control-flow join points~\cite{kuznetsov2012efficient,avgerinos2014enhancing}.
+    MultiSE~\cite{sen2015multise} introduced value summaries, mapping variables to sets of guarded symbolic expressions without auxiliary variables and updating states incrementally at each assignment.
+    Variational execution~\cite{walkingshaw2014variational,liebig2011variability} represents data as variational values that share common subexpressions across configurations.
+    \tool{} applies these insights to Kbuild Makefiles: it treats target variables as sets of words, tracks word-level path conditions as Boolean value summaries, and merges branch states at conditional join points in a single pass.
+
+  \subsection{Configuration Testing and Defect Localization}
+    \label{sec:related:config}
+    Variability in the Linux kernel has motivated extensive research on configuration anomalies and compile-time testing~\cite{tartler2011dead,nadi2014mining,passos2013coevolution}.
+    Undertaker~\cite{tartler2011dead} extracts presence conditions from source code and Kconfig to detect dead code and variability defects.
+    Nadi and Holt~\cite{nadi2014mining} mine Kbuild Makefiles and Kconfig to identify configuration anomalies and inconsistent constraints.
+    Recent work addresses the challenge of testing patches in configurable software:
+    \texttt{klocalizer}~\cite{yildiran2024krepair} repairs base configurations by combining Kbuild conditions with a Kconfig model to compile modified lines of code.
+    \tool{} complements these efforts by extracting full-tree build conditions that allow developers to diagnose build omissions (\texttt{why}) and synthesize minimal valid configurations for touched object files (\texttt{config-for}).
 
 \section{Conclusion}
   \label{sec:conclusion}
+  This paper presented \tool{}, a variability-aware symbolic execution approach for extracting build conditions from Kbuild Makefiles.
+  By modeling target variables as sets of independent words and attaching path conditions to each word, \tool{} represents Makefile state as Boolean value summaries, executes statements in a single pass, and applies static state merging at conditional join points without auxiliary variables.
+  A worklist algorithm traverses the hierarchical Makefile structure, pruning unreachable directory routes via SMT satisfiability checks and modeling Kbuild build semantics including composite objects and rule prerequisites.
+  Evaluation on five open-source Kbuild projects demonstrates that \tool{} achieves high build agreement on concrete builds and scales efficiently, analyzing the Linux x86 tree in 36.5\,s.
+  The extracted build conditions provide a foundation for automated build diagnostics and configuration synthesis.
+  Future directions include extending variability-aware symbolic execution to modern build systems such as CMake and Meson, and integrating build conditions with static defect analyzers.
 
 \section*{Data-Availability Statement}
+The source code of \tool{}, the benchmark Makefiles, the evaluation scripts, and the experimental data are available in the supplementary material and will be permanently archived upon publication.
 
 \section*{AI Use}
-  (counts toward the 20-page limit)
+During the preparation of this manuscript, the authors used large language models solely for text editing, grammatical refinement, and formatting assistance.
+All intellectual ideas, technical designs, formalizations, algorithms, experimental implementations, and conclusions are the original work of the authors.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{paper}
