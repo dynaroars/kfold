@@ -4,7 +4,6 @@
 
 \begin{document}
 
-\input{table/numbers}
 
 \title{Variability-Aware Analysis of Kbuild Makefiles}
 
@@ -362,7 +361,14 @@ Each of the remaining four subjects is evaluated on its standard default or sand
 \toprule
 Subject & Version & Configuration & Objects \\
 \midrule
-\tablebody{subjects}
+Linux & 7.2.8 & \texttt{tinyconfig} (i386) & 528 \\
+Linux & 7.2.8 & \texttt{defconfig} (x86-64) & 3,133 \\
+Linux & 7.2.8 & Debian (x86-64) & 17,191 \\
+Linux & 7.2.8 & \texttt{allmodconfig} (x86-64) & 29,625 \\
+BusyBox & 1.38.0 & \texttt{defconfig} & 623 \\
+Barebox & 2026.09.0 & \texttt{sandbox\_defconfig} & 502 \\
+Das U-Boot & 2026.07 & \texttt{sandbox\_defconfig} & 1,344 \\
+coreboot & 26.06 & \texttt{qemu-i440fx} & 626 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -403,7 +409,7 @@ For whole-tree performance measurements, we run each tool three times per subjec
 \subsection{RQ1: Build Agreement}\label{sec:rq1}
 
 This subsection reports preliminary build-agreement results on BusyBox, the first subject analyzed with the current implementation.
-\tl{Preliminary: BusyBox only. The numbers below are typed from code/data/csv/rq1\_busybox.csv; generate them as macros in table/numbers.tex before submission. The setup paragraphs above and \autoref{tab:subjects} still describe the earlier pipeline (BusyBox \texttt{defconfig}); align them with this protocol.}
+\tl{Preliminary: BusyBox only. The numbers below are typed from code/data/csv/rq1\_busybox.csv; define them as macros in paper.sty before submission. The setup paragraphs above and \autoref{tab:subjects} still describe the earlier pipeline (BusyBox \texttt{defconfig}); align them with this protocol.}
 
 \emph{Protocol.}
 \tool{} analyzes the BusyBox 1.38.0 tree once and extracts a universe $U$ of 625 objects in 1.3\,s.
