@@ -4,15 +4,23 @@ import z3
 
 from tool import parse, execute
 
-# the Kbuild recipe that enters a directory: $(MAKE) $(build)=<directory>
+# The canned Kbuild recipe pattern that descends into a subdirectory:
+# $(MAKE) $(build)=<directory>
 DESCENT = '$(build)=$@'
 
 
 def top_dirs(path, variables):
-    '''Return ([(directory, path condition)], top-level state) of the Makefile at `path`.
+    '''Extract entry subdirectories and initial symbolic state from the top-level Makefile.
 
-    variables  Make variables the build passes on the command line, {name: string}
-    The directories are the targets of the rules whose recipe runs $(MAKE) $(build)=$@.
+    Parameters:
+        path:      root directory of the source repository
+        variables: command-line variable overrides passed to Make (e.g., {'ARCH': 'x86'})
+
+    Returns:
+        ([(directory, path condition)], state):
+            directory:      relative path of entry subdirectory
+            path condition: Boolean condition under which Kbuild descends into directory
+            state:          initial top-level symbol table exported to sub-makes
     '''
     state, rules = execute.execute(parse.parse(os.path.join(path, 'Makefile')), path,
                                    execute.from_strings(variables))

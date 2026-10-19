@@ -8,17 +8,27 @@ from tool import parse
 TRUE = z3.BoolVal(True)
 FALSE = z3.BoolVal(False)
 
-# an expansion is a list of tokens separated by whitespace; a token is a list of
-# (string, path condition) alternatives, so `lib-$(CONFIG_TAR)` is one token
-# [('lib-y', CONFIG_TAR), ('lib-', Not(CONFIG_TAR))]
+# Representation of expressions in the symbolic interpreter:
+# - An expansion is a sequence of whitespace-separated tokens.
+# - Each token is a list of alternative (string, path condition) pairs.
+# For example, `lib-$(CONFIG_TAR)` forms a single token:
+#   [('lib-y', CONFIG_TAR), ('lib-', Not(CONFIG_TAR))]
+# indicating that the token evaluates to 'lib-y' when CONFIG_TAR is enabled (y),
+# and 'lib-' when CONFIG_TAR is disabled/unset.
 
 
 def execute(statements, root, variables):
-    '''Return ({variable: {word: path condition}},
-               [(target tokens, path condition, recipe lines)]).
+    '''Execute a list of Makefile statements symbolically starting from an initial state.
 
-    root       the source tree root, which included paths are relative to
-    variables  the state to start from, {variable: {word: path condition}}
+    Parameters:
+        statements: parsed AST statement objects from pymake3
+        root:       source tree root path, used to resolve static include directives
+        variables:  initial symbolic state, formatted as {variable: {word: path condition}}
+
+    Returns:
+        (variables, rules):
+            variables: updated symbolic state {variable: {word: path condition}}
+            rules:     recorded Make rules [(target tokens, path condition, recipe lines)]
     '''
     executor = Executor(root, variables)
     executor.run(statements, TRUE)
@@ -26,12 +36,22 @@ def execute(statements, root, variables):
 
 
 def from_strings(values):
-    '''Return the state for variables given as strings, such as ARCH=i386 on the command line.'''
+    '''Convert concrete string variables into the symbolic state representation.
+
+    Each space-separated word in `value` is initialized under the constant True condition.
+    Used for command-line variables such as ARCH=i386 passed into the build.
+    '''
     return {name: {word: TRUE for word in value.split()} for name, value in values.items()}
 
 
 def cross(left, right):
-    # glue two tokens: every pair of alternatives that can hold together
+    '''Compute the lifted cross-product of two adjacent token fragments.
+
+    Concatenates string alternatives from `left` and `right` while conjoining
+    their path conditions, keeping only pairs whose combined condition is satisfiable.
+    For example, gluing `[('verity', V), ('crypto', Not(V))]` with `[('.o', True)]`
+    yields `[('verity.o', V), ('crypto.o', Not(V))]`.
+    '''
     token = []
     for s1, g1 in left:
         for s2, g2 in right:
@@ -41,13 +61,18 @@ def cross(left, right):
     return token
 
 
-# the number of strings alternatives() builds before giving up: each word that depends
-# on options doubles them, so a long option-dependent list would never finish
+# Maximum number of string alternatives built by alternatives() before aborting.
+# Because Cartesian products over option-dependent tokens grow exponentially,
+# this threshold guards against path explosion on degenerate expressions.
 MAX_ALTERNATIVES = 4096
 
 
 def alternatives(tokens):
-    '''Return [(string, path condition)] for every way the tokens can expand.'''
+    '''Return [(string, path condition)] for every concrete expansion of `tokens`.
+
+    Computes the Cartesian product across whitespace-separated tokens, conjoining
+    path conditions and pruning combinations with unsatisfiable path conditions.
+    '''
     result = [('', TRUE)]
     for token in tokens:
         result = [((s1 + ' ' + s2).strip(), path_condition)
@@ -61,7 +86,12 @@ def alternatives(tokens):
 
 
 def to_words(tokens):
-    '''Return {word: path condition} for the words the tokens can contain.'''
+    '''Extract individual whitespace-separated words and their path conditions.
+
+    Returns a mapping {word: path condition} representing a Boolean value summary
+    over word membership. If a word appears across multiple alternatives, its
+    effective path condition is the disjunction of their individual conditions.
+    '''
     words = {}
     for token in tokens:
         for s, path_condition in token:
@@ -70,13 +100,17 @@ def to_words(tokens):
     return words
 
 
-# the most words from_words() checks for mutual exclusion, one solver call per pair
+# Maximum number of words checked for pairwise mutual exclusion in from_words().
 MAX_EXCLUSIVE = 16
 
 
 def exclusive(words):
-    # whether no configuration has two of the words, such as BITS = 32 under
-    # CONFIG_X86_32 and 64 otherwise
+    '''Check whether the path conditions of all words are pairwise mutually exclusive.
+
+    For example, architecture word size definitions such as `BITS := 32` under
+    CONFIG_X86_32 and `64` otherwise have disjoint conditions (satisfying at most
+    one word in any configuration).
+    '''
     conditions = list(words.values())
     for i, c1 in enumerate(conditions):
         for c2 in conditions[i + 1:]:
@@ -88,10 +122,13 @@ def exclusive(words):
 
 
 def from_words(words):
-    # one token per word, with the empty alternative for the configurations without
-    # it. Words that never occur together form a single token, so text glued around
-    # the reference joins whichever word is present: `usercopy_$(BITS).o` gives
-    # usercopy_32.o or usercopy_64.o, with no word for the absent one
+    '''Convert a word-condition map into token alternatives for variable references.
+
+    If the words are mutually exclusive (e.g., BITS=32 vs 64), they form a single
+    token with an empty fallback for configurations where none is selected.
+    Otherwise, each word forms an independent token paired with an empty-string
+    alternative under its negated condition, so adjacent text binds correctly.
+    '''
     if 1 < len(words) <= MAX_EXCLUSIVE and exclusive(words):
         token = list(words.items())
         rest = z3.simplify(z3.Not(z3.Or(list(words.values()))))
@@ -113,7 +150,10 @@ def is_empty(tokens):
 
 
 def match(pattern, word):
-    # Make pattern with at most one %; return the stem, or None when it does not match
+    '''Match a Make pattern containing at most one '%'.
+
+    Returns the extracted stem if `word` matches `pattern`, or None otherwise.
+    '''
     if '%' not in pattern:
         return '' if pattern == word else None
     prefix, suffix = pattern.split('%', 1)
@@ -123,7 +163,11 @@ def match(pattern, word):
 
 
 def concrete(tokens):
-    # the single string a function argument expands to
+    '''Extract the single constant string for an argument that must be deterministic.
+
+    Raises NotImplementedError if the argument expands to multiple configuration-
+    dependent alternatives.
+    '''
     strings = alternatives(tokens)
     if len(strings) != 1:
         raise NotImplementedError(f'function argument with several values: {strings}')
@@ -131,16 +175,18 @@ def concrete(tokens):
 
 
 def substitute(pattern, replacement, word):
-    # one word of $(patsubst pattern,replacement,...)
+    '''Apply Make pattern substitution ($(patsubst pattern,replacement,word)) to a word.'''
     stem = match(pattern, word)
     return word if stem is None else replacement.replace('%', stem, 1)
 
 
 def filter_words(patterns, tokens, keep):
-    # $(filter) when keep, $(filter-out) otherwise. A word matches when some pattern
-    # word matches it, and each pattern word can depend on options, so a word matches
-    # under the disjunction of the path conditions of the pattern words that match it;
-    # this is linear in the patterns, where listing whole pattern lists is exponential
+    '''Implement GNU Make's $(filter) and $(filter-out) functions.
+
+    A word is kept if it matches any pattern word (for filter) or none (for filter-out).
+    Because pattern words can themselves carry path conditions, a word matches under
+    the disjunction of conditions of all matching patterns.
+    '''
     pattern_words = [(s.split(), g) for token in patterns for s, g in token]
     result = []
     for token in tokens:
@@ -162,12 +208,21 @@ def filter_words(patterns, tokens, keep):
 
 
 def map_words(tokens, fn):
-    # apply fn to every word of every alternative; fn returns the new word, or None to drop it
+    '''Apply a transformation function `fn` to every word of every token alternative.
+
+    `fn` takes a word string and returns the transformed word, or None to drop it.
+    '''
     return [[(' '.join(w for w in map(fn, s.split()) if w is not None), g) for s, g in token]
             for token in tokens]
 
 
 class Executor:
+    '''Symbolic execution engine for evaluating a Kbuild Makefile.
+
+    Maintains a single consolidated symbolic state mapping variable names to
+    word-level value summaries ({variable: {word: path condition}}), executing
+    statements in a single pass without path forking.
+    '''
 
     def __init__(self, root, variables):
         self.root = root
@@ -176,6 +231,7 @@ class Executor:
         self.ignored = set()
 
     def run(self, statements, path_condition):
+        '''Execute AST statements sequentially under the ambient path condition.'''
         rule = None
         for statement in statements:
             if isinstance(statement, parserdata.Command):
@@ -194,16 +250,24 @@ class Executor:
                 self.include(statement, path_condition)
 
     def include(self, statement, path_condition):
-        # Kbuild runs make from the tree root, so included paths are relative to it;
-        # files the build generates, such as include/config/auto.conf with the
-        # option values, do not exist in the unconfigured tree and are skipped
+        '''Execute an included Makefile under the current path condition.
+
+        Kbuild invokes Make from the source tree root, so include paths are
+        relative to `self.root`. Generated build artifacts (e.g., include/config/auto.conf)
+        do not exist statically and are skipped.
+        '''
         for name, word_condition in to_words(self.expand(statement.exp)).items():
             path = os.path.join(self.root, name)
             if os.path.isfile(path):
                 self.run(parse.parse(path), z3.simplify(z3.And(path_condition, word_condition)))
 
     def branch(self, block, path_condition):
-        # each branch runs under its condition and the negation of the earlier ones
+        '''Evaluate a conditional block (ifeq, ifneq, ifdef, ifndef) without path forking.
+
+        Evaluates each branch under the conjunction of the ambient path condition,
+        the branch's condition, and the negation of all preceding branch conditions
+        in the chain.
+        '''
         taken = FALSE
         for condition, statements in block._groups:
             holds = self.condition(condition)
@@ -213,6 +277,7 @@ class Executor:
             taken = z3.simplify(z3.Or(taken, holds))
 
     def condition(self, condition):
+        '''Compute the Boolean path condition under which a Make conditional test holds.'''
         if isinstance(condition, parserdata.ElseCondition):
             return TRUE
         if isinstance(condition, parserdata.EqCondition):
@@ -230,6 +295,14 @@ class Executor:
         return z3.simplify(holds if condition.expected else z3.Not(holds))
 
     def assign(self, statement, path_condition):
+        '''Symbolically execute a variable assignment statement.
+
+        Supports runtime variable name construction by expanding the left-hand side.
+        For append assignments (+=), new words are unioned into the variable.
+        For overwrite assignments (:= or =), a conditional update narrows pre-existing
+        words with the negation of the assignment condition (Not(when)), preserving
+        earlier definitions on configurations where the overwrite does not take effect.
+        '''
         if statement.targetexp is not None:
             return
         value = parser.parsemakesyntax(parser.Data.fromstring(statement.value, None),
@@ -245,13 +318,18 @@ class Executor:
             if statement.token == '+=':
                 new = dict(old)
             else:
-                # an overwrite removes the old words only where it applies
+                # Conditional update: overwrite removes old words only where 'when' holds
                 new = {w: z3.simplify(z3.And(g, z3.Not(when))) for w, g in old.items()}
             for word, word_condition in words.items():
                 new[word] = z3.simplify(z3.Or(new.get(word, FALSE), z3.And(when, word_condition)))
             self.variables[name] = {w: g for w, g in new.items() if not z3.is_false(g)}
 
     def reference(self, name):
+        '''Look up a variable reference $(NAME) in the symbolic state.
+
+        If the variable is undefined in the state and begins with 'CONFIG_', it is
+        treated as an unbound symbolic configuration option ranging over Boolean values.
+        '''
         if name in self.variables:
             return from_words(self.variables[name])
         if name.startswith('CONFIG_'):
@@ -260,7 +338,7 @@ class Executor:
         return []
 
     def expand(self, expansion):
-        '''Return the tokens of a pymake3 expansion.'''
+        '''Expand a pymake3 AST expression into whitespace-separated token alternatives.'''
         if isinstance(expansion, data.StringExpansion):
             return [[(word, TRUE)] for word in expansion.s.split()]
         tokens = []
@@ -287,6 +365,7 @@ class Executor:
         return tokens
 
     def call(self, function):
+        '''Symbolically evaluate a Make function call or variable reference.'''
         if isinstance(function, functions.VariableRef):
             tokens = []
             for name, path_condition in alternatives(self.expand(function.vname)):
@@ -294,7 +373,7 @@ class Executor:
                                for token in self.reference(name)])
             return tokens
         if isinstance(function, functions.SubstitutionRef):
-            # $(VAR:a=b) is $(patsubst %a,%b,$(VAR)) when a has no %
+            # $(VAR:a=b) is equivalent to $(patsubst %a,%b,$(VAR)) when pattern has no '%'
             source, target = concrete(self.expand(function.substfrom)), concrete(self.expand(function.substto))
             if '%' not in source:
                 source, target = '%' + source, '%' + target
@@ -305,7 +384,7 @@ class Executor:
             pattern, replacement = concrete(args[0]), concrete(args[1])
             return map_words(args[2], lambda word: substitute(pattern, replacement, word))
         if isinstance(function, functions.IfFunction):
-            # $(if c,then,else): then where c expands to a non-empty string, else elsewhere
+            # $(if c,then,else): 'then' when c is non-empty, 'else' when c is empty
             empty = is_empty(args[0])
             branches = [(args[1], z3.Not(empty))] + ([(args[2], empty)] if len(args) > 2 else [])
             return [[(s, z3.simplify(z3.And(g, when))) for s, g in token
@@ -313,6 +392,6 @@ class Executor:
                     for tokens, when in branches for token in tokens]
         if isinstance(function, (functions.FilterFunction, functions.FilteroutFunction)):
             return filter_words(args[0], args[1], isinstance(function, functions.FilterFunction))
-        # other functions expand to nothing for now; their names are recorded
+        # Unsupported functions expand to the empty string; record for provenance tracking
         self.ignored.add(getattr(function, 'name', type(function).__name__))
         return []
