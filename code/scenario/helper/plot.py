@@ -7,8 +7,10 @@ import matplotlib.pyplot as plt
 TEXT_PT = 395.82
 FONT_PT = 8
 
-# one series, its reference line, and the recessive grid and axes
-SERIES = '#2a78d6'
+# one color per tool (categorical slots 1 and 2, validated for color-vision deficiency),
+# the reference line, and the recessive grid and axes
+SERIES = {'tool': '#2a78d6', 'kmax': '#eb6834'}
+LABEL = {'tool': 'Tool', 'kmax': 'Kmax'}
 MUTED = '#898781'
 GRID = '#e1e0d9'
 AXIS = '#c3c2b7'

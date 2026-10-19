@@ -3,6 +3,8 @@
 
 ```bash
 pip3 install -r requirements.txt
+git submodule update --init code/baseline/kmax
+pip install code/baseline/kmax
 ```
 
 # Idea

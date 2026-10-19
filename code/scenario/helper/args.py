@@ -2,13 +2,14 @@ import argparse
 import os
 
 def maybe_mkdir(args):
-    for d in [args.figure_dir, args.analysis_dir, args.target_dir, args.csv_dir]:
+    for d in [args.figure_dir, os.path.join(args.analysis_dir, args.tool), args.target_dir, args.csv_dir]:
         os.makedirs(d, exist_ok=True)
 
 def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--target', type=str, default='busybox')
+    parser.add_argument('--tool', type=str, default='tool', choices=['tool', 'kmax'])
     parser.add_argument('--n_build', type=int, default=10)
 
     parser.add_argument('--figure_dir', type=str, default='../paper/figure/result')

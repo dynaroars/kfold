@@ -3,9 +3,13 @@ import time
 import os
 
 from tool.evaluate import read_config, evaluate
+from scenario.helper import kmax
 from tool.analyze import analyze
 from scenario import helper
 from tool.save import save
+
+# --tool selects the analyzer whose build conditions are evaluated
+ANALYZE = {'tool': analyze, 'kmax': kmax.analyze}
 
 
 def _observed(tree):
@@ -24,18 +28,18 @@ def main():
     root = os.path.join(args.target_dir, args.target)
 
     start = time.perf_counter()
-    conditions = analyze(os.path.join(root, 'src'))
-    print(f'[rq1.run] target={args.target} analyzed {len(conditions)} objects '
+    conditions = ANALYZE[args.tool](os.path.join(root, 'src'))
+    print(f'[rq1.run] target={args.target} tool={args.tool} analyzed {len(conditions)} objects '
           f'in {time.perf_counter() - start:.2f}s')
-    smt2_path = os.path.join(args.analysis_dir, f'{args.target}.smt2')
+    smt2_path = os.path.join(args.analysis_dir, args.tool, f'{args.target}.smt2')
     save(conditions, smt2_path)
     print(f'[save] {smt2_path}')
 
-    csv_path = os.path.join(args.csv_dir, f'rq1_{args.target}.csv')
+    csv_path = os.path.join(args.csv_dir, f'rq1_{args.target}_{args.tool}.csv')
     pbar = helper.progress_bar.create(
         total=args.n_build,
         unit='config',
-        desc=f'rq1.run.{args.target}',
+        desc=f'rq1.run.{args.target}.{args.tool}',
         csv_path=csv_path,
     )
     for i in range(args.n_build):

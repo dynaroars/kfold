@@ -9,7 +9,7 @@ def main():
     args = parse_args()
     path = os.path.join(args.target_dir, args.target, 'src')
     conditions = analyze(path)
-    save(conditions, os.path.join(args.analysis_dir, f'{args.target}.smt2'))
+    save(conditions, os.path.join(args.analysis_dir, args.tool, f'{args.target}.smt2'))
 
 
 if __name__ == '__main__':

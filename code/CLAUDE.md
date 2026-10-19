@@ -7,3 +7,8 @@
 - Do not write a long comment or docstring at the top of a file unless asked.
 - Comments outside function docstrings use `# ...` and start with a lowercase letter (proper nouns and identifiers keep their case).
 - Say "path condition" (identifier `path_condition`), never "guard", for the formula under which a word, branch, or directory is present. The same rule holds in the paper.
+
+# Environment and experiments
+
+- The user runs every experiment by hand (`make prepare`, `make rq1`, ...), in their own venv (`~/.local/share/venv`). Do not run experiments, builds, or baselines yourself unless asked.
+- Never create a virtual environment (`.venv`, `python -m venv`, `uv venv`) and never install or uninstall packages. When code needs a new dependency or tool (a pip package, a baseline such as Kmax, a system library), tell the user the exact install command and add it to `requirements.txt` or the README setup.

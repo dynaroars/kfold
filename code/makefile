@@ -11,5 +11,6 @@ main:
 
 
 rq1:
-	python3 -m scenario.exp.rq1_run
+	python3 -m scenario.exp.rq1_run --tool=tool
+	python3 -m scenario.exp.rq1_run --tool=kmax
 	python3 -m scenario.exp.rq1_plot
