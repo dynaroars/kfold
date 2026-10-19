@@ -1,5 +1,5 @@
 
-all:
+all: prepare rq1
 
 
 prepare:
@@ -8,3 +8,8 @@ prepare:
 
 main:
 	python3 -m scenario.main
+
+
+rq1:
+	python3 -m scenario.exp.rq1_run
+	python3 -m scenario.exp.rq1_plot

@@ -1,3 +1,5 @@
 z3-solver
 pandas
 tqdm
+matplotlib
+seaborn
