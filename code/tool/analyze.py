@@ -2,23 +2,21 @@ import os
 
 import z3
 
-from tool import parse, execute, collect, descend
+from tool import parse, execute, collect, descend, top
 
 
-def analyze(src, top_dirs):
-    '''Return {object path relative to src: build condition}.
+def analyze(path):
+    '''Return {object path relative to path: build condition}.
 
-    src       root of the source tree
-    top_dirs  directories the top-level Makefile enters unconditionally
+    path  root of the source tree; its top-level Makefile names the first directories
     '''
     conditions = {}
-    work = [(directory, z3.BoolVal(True)) for directory in top_dirs]
+    work = top.top_dirs(path)
     while work:
         directory, guard = work.pop()
-        statements = parse.parse(os.path.join(src, directory, 'Kbuild'))
-        variables = execute.execute(statements)
-        for path, condition in collect.collect(directory, variables, guard).items():
-            conditions[path] = z3.simplify(z3.Or(conditions.get(path, z3.BoolVal(False)),
-                                                 condition))
+        variables, _ = execute.execute(parse.parse(os.path.join(path, directory, 'Kbuild')))
+        for obj, condition in collect.collect(directory, variables, guard).items():
+            conditions[obj] = z3.simplify(z3.Or(conditions.get(obj, z3.BoolVal(False)),
+                                                condition))
         work.extend(descend.descend(directory, variables, guard))
     return conditions

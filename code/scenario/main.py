@@ -1,10 +1,16 @@
-import tool
-from .helper.args import parse_args
+import os
 
-def main(args):
+from scenario.helper.args import parse_args
+from tool.analyze import analyze
+from tool.save import save
+
+
+def main():
     args = parse_args()
-    path = os.path.join()
-    tool.analyze(path)
+    path = os.path.join(args.target_dir, args.target, 'src')
+    conditions = analyze(path)
+    save(conditions, os.path.join(args.analysis_dir, f'{args.target}.smt2'))
+
 
 if __name__ == '__main__':
     main()
