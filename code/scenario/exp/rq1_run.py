@@ -79,9 +79,11 @@ def main():
     conditions = {obj: condition for obj, condition in conditions.items() if _in_scope(obj)}
 
     # the build trees prepare made, each with its .config: <i>/, or <base>-<i>/ for a
-    # target with several base configurations; sorted by base, then i
+    # target with several base configurations; the first --n_build of each base, sorted
+    # by base, then i
     trees = sorted((d for d in os.listdir(root)
-                    if os.path.isfile(os.path.join(root, d, subdir, '.config'))),
+                    if os.path.isfile(os.path.join(root, d, subdir, '.config'))
+                    and int(d.rpartition('-')[2]) < args.n_build),
                    key=lambda d: (d.rpartition('-')[0], int(d.rpartition('-')[2])))
     csv_path = os.path.join(args.csv_dir, f'rq1_{args.target}_{args.tool}.csv')
     pbar = helper.progress_bar.create(

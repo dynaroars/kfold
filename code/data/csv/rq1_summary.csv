@@ -1,5 +1,0 @@
-system,tool,configs,precision,recall
-BusyBox,Tool,10,1.0,1.0
-BusyBox,Kmax,10,1.0,1.0
-Linux,Tool,10,1.0,0.918206247900571
-Linux,Kmax,10,0.9731898238747554,0.8352368155861606
