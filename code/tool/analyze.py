@@ -13,10 +13,10 @@ def analyze(path):
     conditions = {}
     work = top.top_dirs(path)
     while work:
-        directory, guard = work.pop()
+        directory, path_condition = work.pop()
         variables, _ = execute.execute(parse.parse(os.path.join(path, directory, 'Kbuild')))
-        for obj, condition in collect.collect(directory, variables, guard).items():
+        for obj, condition in collect.collect(directory, variables, path_condition).items():
             conditions[obj] = z3.simplify(z3.Or(conditions.get(obj, z3.BoolVal(False)),
                                                 condition))
-        work.extend(descend.descend(directory, variables, guard))
+        work.extend(descend.descend(directory, variables, path_condition))
     return conditions

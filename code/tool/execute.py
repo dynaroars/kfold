@@ -6,12 +6,13 @@ TRUE = z3.BoolVal(True)
 FALSE = z3.BoolVal(False)
 
 # an expansion is a list of tokens separated by whitespace; a token is a list of
-# (string, guard) alternatives, so `lib-$(CONFIG_TAR)` is one token
+# (string, path condition) alternatives, so `lib-$(CONFIG_TAR)` is one token
 # [('lib-y', CONFIG_TAR), ('lib-', Not(CONFIG_TAR))]
 
 
 def execute(statements):
-    '''Return ({variable: {word: guard}}, [(target tokens, guard, recipe lines)]).'''
+    '''Return ({variable: {word: path condition}},
+               [(target tokens, path condition, recipe lines)]).'''
     executor = Executor()
     executor.run(statements, TRUE)
     return executor.variables, executor.rules
@@ -22,45 +23,46 @@ def cross(left, right):
     token = []
     for s1, g1 in left:
         for s2, g2 in right:
-            guard = z3.simplify(z3.And(g1, g2))
-            if not z3.is_false(guard):
-                token.append((s1 + s2, guard))
+            path_condition = z3.simplify(z3.And(g1, g2))
+            if not z3.is_false(path_condition):
+                token.append((s1 + s2, path_condition))
     return token
 
 
 def alternatives(tokens):
-    '''Return [(string, guard)] for every way the tokens can expand.'''
+    '''Return [(string, path condition)] for every way the tokens can expand.'''
     result = [('', TRUE)]
     for token in tokens:
-        result = [((s1 + ' ' + s2).strip(), guard)
+        result = [((s1 + ' ' + s2).strip(), path_condition)
                   for s1, g1 in result for s2, g2 in token
-                  for guard in [z3.simplify(z3.And(g1, g2))] if not z3.is_false(guard)]
+                  for path_condition in [z3.simplify(z3.And(g1, g2))]
+                  if not z3.is_false(path_condition)]
     return result
 
 
 def to_words(tokens):
-    '''Return {word: guard} for the words the tokens can contain.'''
+    '''Return {word: path condition} for the words the tokens can contain.'''
     words = {}
     for token in tokens:
-        for s, guard in token:
+        for s, path_condition in token:
             for word in s.split():
-                words[word] = z3.simplify(z3.Or(words.get(word, FALSE), guard))
+                words[word] = z3.simplify(z3.Or(words.get(word, FALSE), path_condition))
     return words
 
 
 def from_words(words):
     # one token per word; the empty alternative covers the configurations without it
     tokens = []
-    for word, guard in words.items():
-        token = [(word, guard)]
-        if not z3.is_true(guard):
-            token.append(('', z3.simplify(z3.Not(guard))))
+    for word, path_condition in words.items():
+        token = [(word, path_condition)]
+        if not z3.is_true(path_condition):
+            token.append(('', z3.simplify(z3.Not(path_condition))))
         tokens.append(token)
     return tokens
 
 
 def is_empty(tokens):
-    '''Return the guard under which the tokens expand to the empty string.'''
+    '''Return the path condition under which the tokens expand to the empty string.'''
     return z3.simplify(z3.And([z3.Or([g for s, g in token if not s.strip()]) for token in tokens]))
 
 
@@ -95,7 +97,7 @@ class Executor:
         self.rules = []
         self.ignored = set()
 
-    def run(self, statements, guard):
+    def run(self, statements, path_condition):
         rule = None
         for statement in statements:
             if isinstance(statement, parserdata.Command):
@@ -104,21 +106,21 @@ class Executor:
                 continue
             rule = None
             if isinstance(statement, parserdata.SetVariable):
-                self.assign(statement, guard)
+                self.assign(statement, path_condition)
             elif isinstance(statement, parserdata.ConditionBlock):
-                self.branch(statement, guard)
+                self.branch(statement, path_condition)
             elif isinstance(statement, parserdata.Rule):
-                rule = (self.expand(statement.targetexp), guard, [])
+                rule = (self.expand(statement.targetexp), path_condition, [])
                 self.rules.append(rule)
 
-    def branch(self, block, guard):
+    def branch(self, block, path_condition):
         # each branch runs under its condition and the negation of the earlier ones
         taken = FALSE
         for condition, statements in block._groups:
             holds = self.condition(condition)
-            branch_guard = z3.simplify(z3.And(guard, holds, z3.Not(taken)))
-            if not z3.is_false(branch_guard):
-                self.run(statements, branch_guard)
+            branch_condition = z3.simplify(z3.And(path_condition, holds, z3.Not(taken)))
+            if not z3.is_false(branch_condition):
+                self.run(statements, branch_condition)
             taken = z3.simplify(z3.Or(taken, holds))
 
     def condition(self, condition):
@@ -138,14 +140,14 @@ class Executor:
             holds = z3.Not(is_empty(self.reference(name)))
         return z3.simplify(holds if condition.expected else z3.Not(holds))
 
-    def assign(self, statement, guard):
+    def assign(self, statement, path_condition):
         if statement.targetexp is not None:
             return
         value = parser.parsemakesyntax(parser.Data.fromstring(statement.value, None),
                                        0, (), parser.iterdata)[0]
         words = to_words(self.expand(value))
-        for name, name_guard in alternatives(self.expand(statement.vnameexp)):
-            when = z3.simplify(z3.And(guard, name_guard))
+        for name, name_condition in alternatives(self.expand(statement.vnameexp)):
+            when = z3.simplify(z3.And(path_condition, name_condition))
             if z3.is_false(when):
                 continue
             if statement.token == '?=' and name in self.variables:
@@ -156,8 +158,8 @@ class Executor:
             else:
                 # an overwrite removes the old words only where it applies
                 new = {w: z3.simplify(z3.And(g, z3.Not(when))) for w, g in old.items()}
-            for word, word_guard in words.items():
-                new[word] = z3.simplify(z3.Or(new.get(word, FALSE), z3.And(when, word_guard)))
+            for word, word_condition in words.items():
+                new[word] = z3.simplify(z3.Or(new.get(word, FALSE), z3.And(when, word_condition)))
             self.variables[name] = {w: g for w, g in new.items() if not z3.is_false(g)}
 
     def reference(self, name):
@@ -198,8 +200,8 @@ class Executor:
     def call(self, function):
         if isinstance(function, functions.VariableRef):
             tokens = []
-            for name, guard in alternatives(self.expand(function.vname)):
-                tokens.extend([[(s, z3.simplify(z3.And(g, guard))) for s, g in token]
+            for name, path_condition in alternatives(self.expand(function.vname)):
+                tokens.extend([[(s, z3.simplify(z3.And(g, path_condition))) for s, g in token]
                                for token in self.reference(name)])
             return tokens
         args = [self.expand(arg) for arg in function._arguments]

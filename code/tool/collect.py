@@ -6,10 +6,10 @@ import z3
 TARGET_LISTS = ('obj-y', 'lib-y')
 
 
-def collect(directory, variables, guard):
+def collect(directory, variables, path_condition):
     '''Return {object path relative to the source root: condition}.
 
-    Each condition is conjoined with `guard`, the condition under which the
+    Each condition is conjoined with `path_condition`, the path condition under which the
     build enters `directory`.
     '''
     objects = {}
@@ -18,5 +18,5 @@ def collect(directory, variables, guard):
             if word.endswith('.o'):
                 obj = os.path.normpath(os.path.join(directory, word))
                 objects[obj] = z3.simplify(z3.Or(objects.get(obj, z3.BoolVal(False)),
-                                                 z3.And(guard, condition)))
+                                                 z3.And(path_condition, condition)))
     return objects
