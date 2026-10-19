@@ -1,4 +1,4 @@
-"""Prepare BusyBox 1.38.0 for analysis and build --n_build random configurations.
+'''Prepare BusyBox 1.38.0 for analysis and build --n_build random configurations.
 
 Input:
   https://busybox.net/downloads/busybox-1.38.0.tar.bz2 (checked against its SHA256)
@@ -16,7 +16,7 @@ Output, under <target_dir>/busybox/:
 
 Output, under <csv_dir>/:
   busybox_build.csv       make's return code per configuration (nonzero: some file failed)
-"""
+'''
 import urllib.request
 import subprocess
 import hashlib

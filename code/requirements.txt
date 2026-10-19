@@ -1,1 +1,3 @@
-pymake3
+z3-solver
+pandas
+tqdm
