@@ -1,7 +1,7 @@
 import os
 
-from scenario.helper.args import parse_args
 from scenario.helper import progress_bar, kmax, target
+from scenario.helper.args import parse_args
 from tool.save import save
 
 

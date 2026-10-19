@@ -1,12 +1,6 @@
 import os
 
-import z3
-
-from tool import parse, execute
-
-# The canned Kbuild recipe pattern that descends into a subdirectory:
-# $(MAKE) $(build)=<directory>
-DESCENT = '$(build)=$@'
+from tool import parse, execute, descend
 
 
 def top_dirs(path, variables):
@@ -17,17 +11,12 @@ def top_dirs(path, variables):
         variables: command-line variable overrides passed to Make (e.g., {'ARCH': 'x86'})
 
     Returns:
-        ([(directory, path condition)], state):
-            directory:      relative path of entry subdirectory
-            path condition: Boolean condition under which Kbuild descends into directory
+        ([(directory, makefile, goals, path condition)], state):
+            entries:        the sub-makes that the top-level recipes run for the default
+                            goal, as descend.submakes() returns them
             state:          initial top-level symbol table exported to sub-makes
     '''
     state, rules = execute.execute(parse.parse(os.path.join(path, 'Makefile')), path,
                                    execute.from_strings(variables))
-    dirs = {}
-    for targets, path_condition, recipe in rules:
-        if any(DESCENT in line for line in recipe):
-            for directory, condition in execute.to_words(targets).items():
-                dirs[directory] = z3.simplify(z3.Or(dirs.get(directory, z3.BoolVal(False)),
-                                                    z3.And(path_condition, condition)))
-    return list(dirs.items()), state
+    reach = descend.reachable(rules, {descend.default_goal(rules): execute.TRUE})
+    return descend.submakes(path, state, rules, reach, execute.TRUE), state

@@ -41,7 +41,9 @@ def analyze(path, variables, arguments, progress=None, log=None):
     log        file that receives kmaxall's messages, one per line
     '''
     if arguments is None:
-        arguments = [directory + '/' for directory, _ in top_dirs(path, variables)[0]]
+        # the directories the tool enters first; a directory reached twice is listed once
+        arguments = list(dict.fromkeys(directory + '/' for directory, makefile, _, _
+                                       in top_dirs(path, variables)[0] if makefile is None))
     with tempfile.NamedTemporaryFile('w', suffix='_kmaxall.py') as script, \
             tempfile.TemporaryFile() as out:
         script.write(_patched_kmaxall())

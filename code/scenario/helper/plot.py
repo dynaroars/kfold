@@ -14,7 +14,9 @@ LABEL = {'tool': 'Tool', 'kmax': 'Kmax'}
 # marker per tool, so overlapping points of the two tools stay visible
 MARKER = {'tool': 'o', 'kmax': 'x'}
 # display name per target system
-SYSTEM = {'busybox': 'BusyBox', 'linux': 'Linux', 'coreboot': 'coreboot'}
+SYSTEM = {'busybox': 'BusyBox', 'linux-i386': 'Linux i386', 'linux-x86_64': 'Linux x86-64',
+          'linux-arm64': 'Linux arm64', 'linux-arm': 'Linux arm', 'uboot': 'U-Boot',
+          'barebox': 'Barebox', 'xen': 'Xen', 'coreboot': 'coreboot'}
 MUTED = '#898781'
 GRID = '#e1e0d9'
 AXIS = '#c3c2b7'

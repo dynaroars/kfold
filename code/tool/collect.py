@@ -5,9 +5,12 @@ import z3
 # Kbuild goal definition variables that specify target compilation objects
 TARGET_LISTS = ('obj-y', 'lib-y')
 
-# Variable suffixes that declare component member objects for a composite target.
+# variable suffixes that declare component member objects for a composite target.
 # For example, a composite object `foo.o` looks up members in `foo-objs` and `foo-y`.
 MEMBER_SUFFIXES = ('-objs', '-y')
+
+# hostprogs lists host programs; a program `foo` with members in `foo-objs` is linked
+# from them, and a program without them is compiled from foo.c in one step
 
 
 def collect(directory, variables, path_condition):
@@ -24,6 +27,7 @@ def collect(directory, variables, path_condition):
             For composite objects (e.g., `foo.o` composed of `member1.o` and `member2.o`),
             the composite is replaced by its constituent members, each inheriting the
             conjunction of the composite's selection condition and its own membership condition.
+            The members of a composite host program in `foo-objs` are objects too.
     '''
     objects = {}
     for name in TARGET_LISTS:
@@ -36,9 +40,32 @@ def collect(directory, variables, path_condition):
                     members[member] = z3.Or(members.get(member, z3.BoolVal(False)), member_condition)
             parts = {member: z3.And(condition, member_condition)
                      for member, member_condition in members.items() if member.endswith('.o')}
-            # If composite members exist, emit members; otherwise emit the standalone object
+            # if composite members exist, emit members; otherwise emit the standalone object
             for part, part_condition in (parts or {word: condition}).items():
                 obj = os.path.normpath(os.path.join(directory, part))
                 objects[obj] = z3.simplify(z3.Or(objects.get(obj, z3.BoolVal(False)),
                                                  z3.And(path_condition, part_condition)))
+    for program, condition in variables.get('hostprogs', {}).items():
+        for member, member_condition in variables.get(program + '-objs', {}).items():
+            obj = os.path.normpath(os.path.join(directory, member))
+            objects[obj] = z3.simplify(z3.Or(objects.get(obj, z3.BoolVal(False)),
+                                             z3.And(path_condition, condition, member_condition)))
     return objects
+
+
+def goals(directory, variables):
+    '''List the files Makefile.build builds for a directory when given no goal.
+
+    Parameters:
+        directory: path of the current directory relative to the repository root
+        variables: symbolic variable table produced after executing the directory Makefile
+
+    Returns:
+        {file_path: condition}:
+            the objects of collect() and the files in always-y.
+    '''
+    files = collect(directory, variables, z3.BoolVal(True))
+    for word, condition in variables.get('always-y', {}).items():
+        path = os.path.normpath(os.path.join(directory, word))
+        files[path] = z3.simplify(z3.Or(files.get(path, z3.BoolVal(False)), condition))
+    return files

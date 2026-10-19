@@ -10,7 +10,10 @@ def download(url, path, sha256):
         urllib.request.urlretrieve(url, path)
     with open(path, 'rb') as f:
         digest = hashlib.sha256(f.read()).hexdigest()
-    if digest != sha256:
+    # a release without a published checksum is pinned to the digest of its first download
+    if sha256 is None:
+        print(f'      sha256 {digest}: record it in the prepare script')
+    elif digest != sha256:
         raise SystemExit(f'checksum mismatch for {path}: {digest}')
 
 

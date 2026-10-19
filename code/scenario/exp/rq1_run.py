@@ -27,15 +27,20 @@ def _analyze(args, path):
     return analyze(path, target.VARIABLES[name], progress)
 
 
+def _in_scope(obj):
+    # the objects compared: built-in.o files are link products, and scripts/ holds
+    # the host tools that run kconfig, built before any configuration exists
+    return obj.endswith('.o') and not obj.endswith('built-in.o') and not obj.startswith('scripts/')
+
+
 def _observed(tree):
-    # objects the build compiled; built-in.o files are link products and
-    # scripts/ holds the host tools that run kconfig. os.walk leaves symlinks
-    # alone, so the `source` link of a Linux O= build tree is not followed
+    # objects the build compiled; os.walk leaves symlinks alone, so the `source`
+    # link of a Linux O= build tree is not followed
     objects = set()
     for directory, _, files in os.walk(tree):
         for name in files:
             obj = os.path.relpath(os.path.join(directory, name), tree)
-            if obj.endswith('.o') and not obj.endswith('built-in.o') and not obj.startswith('scripts/'):
+            if _in_scope(obj):
                 objects.add(obj)
     return objects
 
@@ -43,6 +48,8 @@ def _observed(tree):
 def main():
     args = helper.args.parse_args()
     root = os.path.join(args.target_dir, args.target)
+    # the directory of each tree that holds the Kbuild tree, such as xen/ in a Xen release
+    subdir = target.SUBDIR.get(args.target, '')
 
     # the analysis is saved as <target>.smt2 with its time in <target>.json, and reused
     # unless --clear asks for a new one; a saved analysis without its .json (written
@@ -59,7 +66,7 @@ def main():
               f'--clear reruns the analysis')
     else:
         start = time.perf_counter()
-        conditions = _analyze(args, os.path.join(root, 'src'))
+        conditions = _analyze(args, os.path.join(root, 'src', subdir))
         analyze_seconds = time.perf_counter() - start
         print(f'[rq1.run] target={args.target} tool={args.tool} analyzed {len(conditions)} objects '
               f'in {analyze_seconds:.2f}s')
@@ -69,7 +76,9 @@ def main():
         print(f'[save] {smt2_path}')
         print(f'[save] {json_path}')
 
-    # the build trees prepare made: 0/ ... for random BusyBox configurations, 0/ alone for Linux
+    conditions = {obj: condition for obj, condition in conditions.items() if _in_scope(obj)}
+
+    # the build trees prepare made: 0/ ... <n_build-1>/
     trees = sorted((d for d in os.listdir(root) if d.isdigit()), key=int)
     csv_path = os.path.join(args.csv_dir, f'rq1_{args.target}_{args.tool}.csv')
     pbar = helper.progress_bar.create(
@@ -82,7 +91,7 @@ def main():
     # objects across configurations and to group the errors by cause
     errors = {}
     for name in trees:
-        tree = os.path.join(root, name)
+        tree = os.path.join(root, name, subdir)
         on = read_config(os.path.join(tree, '.config'))
         predicted = evaluate(conditions, on)
         observed = _observed(tree)

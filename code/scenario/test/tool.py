@@ -1,7 +1,7 @@
 import os
 
-from scenario.helper.args import parse_args
 from scenario.helper import progress_bar, target
+from scenario.helper.args import parse_args
 from tool.analyze import analyze
 from tool.save import save
 

@@ -15,7 +15,7 @@ def analyze(path, variables, progress=None):
     '''Extract build conditions for all compiled objects across a Kbuild repository.
 
     Performs a whole-tree worklist traversal over the source directory hierarchy,
-    starting from the entry directories declared in the top-level Makefile.
+    starting from the sub-makes that the top-level Makefile runs for its default goal.
 
     Parameters:
         path:      root directory of the source tree
@@ -28,22 +28,47 @@ def analyze(path, variables, progress=None):
     '''
     conditions = {}
     work, state = top.top_dirs(path, variables)
+    # (directory, makefile, goals) -> path condition it was analyzed under; one reached
+    # again is analyzed again when its new path condition holds in other configurations.
+    # top_dirs has analyzed the top-level Makefile
+    analyzed = {('.', 'Makefile', ()): execute.TRUE}
     done = 0
     while work:
-        directory, path_condition = work.pop()
+        directory, makefile, goals, path_condition = work.pop()
         if progress:
             progress(done=done, left=len(work) + 1, objects=len(conditions), dir=directory)
-        # Each subdirectory starts from the top-level environment exported by Make,
-        # with automatic variables $(obj) and $(src) set to the directory path
-        start = dict(state, **execute.from_strings({'obj': directory, 'src': directory}))
-        statements = parse.parse(kbuild_file(path, directory))
-        local, _ = execute.execute(statements, path, start)
-        # Collect target objects and expand composites within the directory
-        for obj, condition in collect.collect(directory, local, path_condition).items():
-            conditions[obj] = z3.simplify(z3.Or(conditions.get(obj, z3.BoolVal(False)),
-                                                condition))
-        # Recurse into subdirectories referenced in obj-y
-        work.extend(descend.descend(directory, local, path_condition))
+        key = (directory, makefile, goals)
+        file = os.path.join(path, makefile) if makefile else kbuild_file(path, directory)
+        # directories without a Makefile, such as $(dtstree) on x86, have nothing to build
+        if os.path.isfile(file) and not (key in analyzed and execute.implied(path_condition, analyzed[key])):
+            analyzed[key] = z3.simplify(z3.Or(analyzed.get(key, execute.FALSE), path_condition))
+            # each subdirectory starts from the top-level environment exported by Make,
+            # with automatic variables $(obj) and $(src) set to the directory path
+            start = dict(state)
+            if makefile is None:
+                start.update(execute.from_strings({'obj': directory, 'src': directory}))
+            local, rules = execute.execute(parse.parse(file), path, start)
+            # Make builds the goals, or else the default goal: for a directory, the files
+            # Kbuild lists; for a standalone Makefile, its first target
+            if goals:
+                sub_goals = dict.fromkeys(goals, execute.TRUE)
+            elif makefile is None:
+                sub_goals = collect.goals(directory, local)
+            else:
+                sub_goals = {descend.default_goal(rules): execute.TRUE}
+            reach = descend.reachable(rules, sub_goals)
+            # collect target objects and expand composites within the directory, plus the
+            # other objects its rules build for the goals
+            objects = collect.collect(directory, local, path_condition)
+            for target, condition in reach.items():
+                if target.endswith('.o'):
+                    objects[target] = z3.Or(objects.get(target, execute.FALSE),
+                                            z3.And(path_condition, condition))
+            for obj, condition in objects.items():
+                conditions[obj] = z3.simplify(z3.Or(conditions.get(obj, execute.FALSE), condition))
+            # recurse into subdirectories referenced in obj-y and the sub-makes of the recipes
+            work.extend(descend.descend(directory, local, path_condition))
+            work.extend(descend.submakes(path, local, rules, reach, path_condition))
         done += 1
         if progress:
             progress(done=done, left=len(work), objects=len(conditions), dir=directory)
