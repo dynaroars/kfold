@@ -12,6 +12,9 @@ prepare:
 	# python3 -m scenario.prepare --target=xen --n_build=2
 	# for k in $$(seq 1 20); do python3 -m scenario.prepare --target=synthetic --n_ifeq=$$k; done
 	for k in $$(seq 0 100 2000); do python3 -m scenario.prepare --target=synthetic --n_ifeq=$$k; done
+	for k in $$(seq 1 20); do python3 -m scenario.prepare --target=nested --n_ifeq=$$k; done
+	for k in $$(seq 0 100 2000); do python3 -m scenario.prepare --target=value --n_ifeq=$$k; done
+	for k in $$(seq 0 100 2000); do python3 -m scenario.prepare --target=directory --n_ifeq=$$k; done
 
 
 main:
@@ -44,3 +47,13 @@ rq2:
 	python3 -m scenario.exp.rq2_run --tool=kmax --n_ifeq=2000
 	python3 -m scenario.exp.rq2_plot
 	python3 -m scenario.exp.rq2_plot_2
+
+
+rq4:
+	python3 -m scenario.exp.rq4_run --target=nested --tool=tool --n_ifeq=20
+	python3 -m scenario.exp.rq4_run --target=nested --tool=kmax --n_ifeq=20
+	python3 -m scenario.exp.rq4_run --target=value --tool=tool --n_ifeq=2000
+	python3 -m scenario.exp.rq4_run --target=value --tool=kmax --n_ifeq=2000
+	python3 -m scenario.exp.rq4_run --target=directory --tool=tool --n_ifeq=2000
+	python3 -m scenario.exp.rq4_run --target=directory --tool=kmax --n_ifeq=2000
+	python3 -m scenario.exp.rq4_plot

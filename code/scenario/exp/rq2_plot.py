@@ -31,7 +31,7 @@ def load(args, sizes, tools):
     return runs
 
 
-def _plot(runs, column, ylabel, scale, out):
+def plot(runs, column, ylabel, scale, out, xlabel='conditional blocks'):
     # one line per tool over the runs that finished; a run that timed out or ran out of
     # memory gets a marker at the top of the axes above its n_ifeq
     fig, ax = plt.subplots(figsize=helper.plot.figsize(0.48 * helper.plot.TEXT_PT, 0.7))
@@ -50,7 +50,7 @@ def _plot(runs, column, ylabel, scale, out):
         ax.scatter(failed['n_ifeq'], [top] * len(failed), color=helper.plot.SERIES[tool],
                    marker=helper.plot.MARKER[tool], s=18, clip_on=False, zorder=3)
     ax.set_ylim(bottom, top)
-    ax.set_xlabel('conditional blocks')
+    ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(axis='x', visible=False)
     _save(fig, out)
@@ -68,14 +68,18 @@ def draw(args, runs, prefix):
     # <prefix>_time.pdf, <prefix>_memory.pdf, and the legend they share, <prefix>_legend.pdf
     helper.plot.apply()
     for column, ylabel, scale, suffix in MEASURES:
-        handles, labels = _plot(runs, column, ylabel, scale,
-                                os.path.join(args.figure_dir, f'{prefix}_{suffix}.pdf'))
+        handles, labels = plot(runs, column, ylabel, scale,
+                               os.path.join(args.figure_dir, f'{prefix}_{suffix}.pdf'))
+    legend(handles, labels, os.path.join(args.figure_dir, f'{prefix}_legend.pdf'))
+
+
+def legend(handles, labels, out):
     # one row as wide as the text
     fig, ax = plt.subplots(figsize=(helper.plot.TEXT_PT / 72.27, 0.2))
     ax.axis('off')
     ax.legend(handles, labels, loc='center', ncol=len(labels), frameon=False,
               handlelength=1.8, columnspacing=2.0)
-    _save(fig, os.path.join(args.figure_dir, f'{prefix}_legend.pdf'))
+    _save(fig, out)
 
 
 def main():

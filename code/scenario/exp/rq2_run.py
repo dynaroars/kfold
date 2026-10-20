@@ -37,20 +37,20 @@ def _measure(tool, path, memory_gb, results):
                  'objects': len(conditions), 'paths': paths})
 
 
-def main():
-    args = helper.args.parse_args()
-    csv_path = os.path.join(args.csv_dir, f'rq2_{args.tool}.csv')
-    # the synthetic trees prepare wrote, up to --n_ifeq blocks, such as 1 to 20 and
-    # 0, 100, ..., 2000
-    sizes = sorted(int(d[len('synthetic_'):]) for d in os.listdir(args.target_dir)
-                   if d.startswith('synthetic_') and int(d[len('synthetic_'):]) <= args.n_ifeq
+def run(args, prefix, csv_path, expected):
+    # measure --tool on every tree <target_dir>/<prefix><n> that prepare wrote, with n up
+    # to --n_ifeq, such as synthetic_1 to synthetic_20 and synthetic_0, _100, ..., _2000;
+    # expected(n) is the number of objects the tree of n has
+    sizes = sorted(int(d[len(prefix):]) for d in os.listdir(args.target_dir)
+                   if d.startswith(prefix) and d[len(prefix):].isdigit()
+                   and int(d[len(prefix):]) <= args.n_ifeq
                    and os.path.isdir(os.path.join(args.target_dir, d, 'src')))
     pbar = helper.progress_bar.create(total=len(sizes), unit='run',
-                                      desc=f'rq2.run.{args.tool}', csv_path=csv_path)
+                                      desc=f'run.{prefix}{args.tool}', csv_path=csv_path)
     # spawn starts each analysis from a fresh interpreter, without this process's memory
     context = multiprocessing.get_context('spawn')
     for n_ifeq in sizes:
-        path = os.path.join(args.target_dir, f'synthetic_{n_ifeq}', 'src')
+        path = os.path.join(args.target_dir, f'{prefix}{n_ifeq}', 'src')
         results = context.Queue()
         process = context.Process(target=_measure, args=(args.tool, path, args.memory_gb, results))
         process.start()
@@ -64,15 +64,20 @@ def main():
                 result = results.get(timeout=1)
             except queue.Empty:
                 result = {'status': f'exit {process.exitcode}'}
-        # every row has every column; the expected objects are bench/file_1.o ... file_<n>.o
+        # every row has every column
         row = {'seconds': None, 'memory_mb': None, 'objects': None, 'paths': None, **result}
-        pbar.step(n_ifeq=n_ifeq, expected=n_ifeq, **row)
+        pbar.step(n_ifeq=n_ifeq, expected=expected(n_ifeq), **row)
         # a larger n_ifeq runs at least as long and takes at least as much memory
         if row['status'] != 'ok':
             break
     pbar.to_csv()
     print(f'[save] {csv_path}')
 
+
+def main():
+    args = helper.args.parse_args()
+    # the expected objects are bench/file_1.o ... file_<n>.o
+    run(args, 'synthetic_', os.path.join(args.csv_dir, f'rq2_{args.tool}.csv'), lambda n: n)
 
 if __name__ == '__main__':
     main()
