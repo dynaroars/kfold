@@ -9,17 +9,14 @@
 # root, from the first; it derives SRCARCH with $(shell), which the analysis does not run,
 # so SRCARCH is set as on the command line. BusyBox derives the source root from CURDIR, Make's working
 # directory, which is the tree root.
-# U-Boot derives ARCH, CPU, VENDOR, and BOARD from string options, and coreboot MAINBOARDDIR
-# from CONFIG_MAINBOARD_DIR; the analysis takes them as fixed to the board the
-# configurations share, as the earlier evaluation did for coreboot
+# coreboot derives MAINBOARDDIR from CONFIG_MAINBOARD_DIR; the analysis takes it as fixed
+# to the board the configurations share, as the earlier evaluation did
 VARIABLES = {
     'busybox': {'CURDIR': '.'},
     'linux-i386': {'ARCH': 'i386', 'sub_make_done': '1', 'MAKEFLAGS': '--no-print-directory'},
     'linux-x86_64': {'ARCH': 'x86_64', 'sub_make_done': '1', 'MAKEFLAGS': '--no-print-directory'},
     'linux-arm64': {'ARCH': 'arm64', 'sub_make_done': '1', 'MAKEFLAGS': '--no-print-directory'},
     'linux-arm': {'ARCH': 'arm', 'sub_make_done': '1', 'MAKEFLAGS': '--no-print-directory'},
-    'uboot': {'CONFIG_SYS_ARCH': '"arm"', 'CONFIG_SYS_CPU': '"armv8"',
-              'CONFIG_SYS_VENDOR': '"emulation"', 'CONFIG_SYS_BOARD': '"qemu-arm"'},
     'barebox': {'ARCH': 'arm', 'sub_make_done': '1', 'MAKEFLAGS': '--no-print-directory'},
     'xen': {'XEN_TARGET_ARCH': 'x86_64', 'SRCARCH': 'x86', 'root-make-done': 'y',
             'abs_srctree': '.', 'abs_objtree': '.', 'MAKEFLAGS': '--no-print-directory'},
@@ -42,7 +39,6 @@ KMAXALL = {
     'linux-x86_64': ['-DSRCARCH=x86', 'Kbuild', 'lib'],
     'linux-arm64': ['-DSRCARCH=arm64', 'Kbuild', 'lib'],
     'linux-arm': ['-DSRCARCH=arm', 'Kbuild', 'lib'],
-    'uboot': None,
     'barebox': None,
     'xen': None,
 }

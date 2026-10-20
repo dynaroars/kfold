@@ -7,15 +7,15 @@ import matplotlib.pyplot as plt
 TEXT_PT = 395.82
 FONT_PT = 8
 
-# one color per tool (categorical slots 1 and 2, validated for color-vision deficiency),
+# one color per tool (categorical slots 1 to 3, validated for color-vision deficiency),
 # the reference line, and the recessive grid and axes
-SERIES = {'tool': '#2a78d6', 'kmax': '#eb6834'}
-LABEL = {'tool': 'Tool', 'kmax': 'Kmax'}
-# marker per tool, so overlapping points of the two tools stay visible
-MARKER = {'tool': 'o', 'kmax': 'x'}
+SERIES = {'tool': '#2a78d6', 'kmax': '#eb6834', 'icsme': '#1baf7a'}
+LABEL = {'tool': 'Tool', 'kmax': 'Kmax', 'icsme': 'Path forking'}
+# marker per tool, so overlapping points of the tools stay visible
+MARKER = {'tool': 'o', 'kmax': 'x', 'icsme': 's'}
 # display name per target system
 SYSTEM = {'busybox': 'BusyBox', 'linux-i386': 'Linux i386', 'linux-x86_64': 'Linux x86-64',
-          'linux-arm64': 'Linux arm64', 'linux-arm': 'Linux arm', 'uboot': 'U-Boot',
+          'linux-arm64': 'Linux arm64', 'linux-arm': 'Linux arm',
           'barebox': 'Barebox', 'xen': 'Xen', 'coreboot': 'coreboot'}
 MUTED = '#898781'
 GRID = '#e1e0d9'

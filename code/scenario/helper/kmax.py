@@ -71,8 +71,11 @@ def analyze(path, variables, arguments, progress=None, log=None):
             elif line.startswith('ERROR(kmax)'):
                 messages['error'] += 1
         process.wait()
-        print(f'[kmax] directories skipped: {messages["unexpanded"]} unexpanded names, '
-              f'{messages["missing"]} missing; {messages["error"]} directories kmax could not analyze')
+        # the counts close the log
+        if log:
+            log.write(f'[kmax] directories skipped: {messages["unexpanded"]} unexpanded names, '
+                      f'{messages["missing"]} missing; {messages["error"]} directories kmax '
+                      f'could not analyze\n')
         out.seek(0)
         raw = {name: z3.And(*z3.parse_smt2_string(smt)) for name, smt in pickle.load(out).items()}
     # kmaxall conditions are local to each Makefile; an object also needs the
@@ -83,5 +86,9 @@ def analyze(path, variables, arguments, progress=None, log=None):
             continue
         parts = name.split('/')[:-1]
         ancestors = ['/'.join(parts[:i]) + '/' for i in range(1, len(parts) + 1)]
-        conditions[name] = z3.simplify(z3.And(condition, *[raw[d] for d in ancestors if d in raw]))
+        condition = z3.And(condition, *[raw[d] for d in ancestors if d in raw])
+        # the entry directory . names its objects ./<path>, and another entry directory
+        # can reach the same object as <path>
+        obj = os.path.normpath(name)
+        conditions[obj] = z3.simplify(z3.Or(conditions.get(obj, z3.BoolVal(False)), condition))
     return conditions

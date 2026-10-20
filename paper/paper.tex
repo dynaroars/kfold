@@ -19,8 +19,8 @@
   \tool{} maps each Make variable to a set of words, where each word carries a path condition over configuration options in the style of a value summary.
   Append statements add words with their path conditions incrementally, overwrites perform conditional updates that conjoin the negated path condition to pre-existing words, and conditional branches merge states at join points, keeping the symbolic state proportional to the number of distinct words in each variable.
   We represent the resulting build conditions as quantifier-free first-order formulae in an SMT solver to verify reachability and synthesize valid configurations.
-  We evaluate \tool{} on five open-source Kbuild systems, including Linux 7.2.8 and BusyBox 1.38.0.
-  On 28 concrete Linux builds across three architectures, \tool{} achieves 1.000 precision and 0.953 to 0.990 recall (compared with 0.857 to 0.913 and 0.918 to 0.962 for Kmax), while whole-tree analysis of one architecture completes in 53 to 54\,s, 5.4 to 5.5 times faster than Kmax.
+  We evaluate \tool{} on four open-source Kbuild systems, including Linux 7.2.8 and BusyBox 1.38.0.
+  On 36 concrete Linux builds across four architectures, \tool{} achieves 1.000 precision and 0.953 to 0.990 recall (compared with 0.857 to 0.913 and 0.918 to 0.962 for Kmax), while whole-tree analysis of one architecture completes in 53 to 55\,s, 5.3 to 5.5 times faster than Kmax.
 \end{abstract}
 
 \begin{CCSXML}
@@ -79,7 +79,7 @@
     \item \textbf{Approach:} We formulate Kbuild Makefile evaluation as a variability-aware symbolic execution over word-level value summaries, executing statements in a single pass and merging branch states at conditional join points without auxiliary variables.
     \item \textbf{Algorithm:} We design a worklist algorithm that traverses the hierarchical Kbuild directory structure, prunes unreachable directory routes via SMT satisfiability queries, and models Kbuild build semantics including composite objects and canned rule prerequisites.
     \item \textbf{Implementation:} We implement \tool{} in Python with the Z3 SMT solver and provide developer commands to explain build omissions (\texttt{why}), synthesize minimal configurations for source patches (\texttt{config-for}), and identify uncompiled source files (\texttt{blindspots}).
-    \item \textbf{Evaluation:} We evaluate \tool{} on five open-source Kbuild projects (Linux, BusyBox, Barebox, Das U-Boot, and Xen). On concrete builds of 28 Linux configurations for i386, x86-64, and arm64, \tool{} matches the compiled object inventory with 1.000 precision and 0.953 to 0.990 recall, while completing the whole-tree analysis of one architecture in 53 to 54\,s, 5.4 to 5.5 times faster than Kmax.
+    \item \textbf{Evaluation:} We evaluate \tool{} on four open-source Kbuild projects (Linux, BusyBox, Barebox, and Xen). On concrete builds of 36 Linux configurations for i386, x86-64, arm64, and arm, \tool{} matches the compiled object inventory with 1.000 precision and 0.953 to 0.990 recall, while completing the whole-tree analysis of one architecture in 53 to 55\,s, 5.3 to 5.5 times faster than Kmax.
   \end{itemize}
 
 \section{Background}
@@ -448,14 +448,12 @@ Specifically, we investigate four research questions:
 \subsection{Experimental Setup}\label{sec:setup}
 
 \emph{Subjects.}
-\autoref{tab:subjects} lists the eight Kbuild target configurations across five open-source systems in our evaluation: BusyBox 1.38.0, the Linux kernel 7.2.8 across four architectures (i386, x86-64, arm64, and 32-bit arm), the Das U-Boot bootloader 2026.07, the Barebox bootloader 2026.09.0, and the Xen hypervisor 4.22.0.
+\autoref{tab:subjects} lists the seven Kbuild target configurations across four open-source systems in our evaluation: BusyBox 1.38.0, the Linux kernel 7.2.8 across four architectures (i386, x86-64, arm64, and 32-bit arm), the Barebox bootloader 2026.09.0, and the Xen hypervisor 4.22.0.
 All subjects configure their build targets using Kconfig and declare compilation artifacts through Linux Kbuild Makefiles with goal definitions (\eg, \texttt{obj-y}, \texttt{obj-m}, \texttt{lib-y}) and hierarchical subdirectory descent.
-Linux and BusyBox are the canonical subjects of prior static Kbuild analyses~\cite{gazzillo2017kmax,nguyen2020kbuild}; U-Boot and Barebox adapt Kbuild for embedded firmware initialization; and the Xen hypervisor relies on a standalone Kbuild port for microkernel compilation.
+Linux and BusyBox are the canonical subjects of prior static Kbuild analyses~\cite{gazzillo2017kmax,nguyen2020kbuild}; Barebox adapts Kbuild for embedded firmware initialization; and the Xen hypervisor relies on a standalone Kbuild port for microkernel compilation.
 Because Kbuild selects architecture-specific Makefiles and Kconfig options based on the target architecture specified at invocation (\texttt{ARCH}), we analyze each architecture as an independent configuration space; for Linux, i386 and x86-64 share the \texttt{arch/x86/} subtree while configuring distinct sub-architectures.
 Each subject is analyzed once per target architecture from its official source release, and the extracted build conditions serve all downstream configurations.
 For BusyBox, we execute \texttt{make gen\_build\_files} prior to analysis to instantiate template-generated Kbuild files.
-For U-Boot, architecture and board variables (\texttt{CONFIG\_SYS\_ARCH}, \texttt{CONFIG\_SYS\_BOARD}) are bound to their target platform values as defined by its base configuration.
-\tl{Fill in the object counts of Linux arm, uboot, barebox, and xen from code/data/csv/rq1\_<target>\_tool.csv after their builds; the BusyBox range is from the earlier ten builds and is rechecked after the BusyBox rebuild.}
 
 \begin{table}[t]
 \centering\footnotesize
@@ -465,14 +463,13 @@ For U-Boot, architecture and board variables (\texttt{CONFIG\_SYS\_ARCH}, \textt
 \toprule
 Subject & Version & Architecture & Base configuration & Objects \\
 \midrule
-BusyBox & 1.38.0 & x86-64 & \texttt{randconfig} & 388--425 \\
+BusyBox & 1.38.0 & x86-64 & \texttt{randconfig} & 414--418 \\
 Linux & 7.2.8 & i386 & 3 bases & 512--3,296 \\
 Linux & 7.2.8 & x86-64 & 6 bases & 586--18,917 \\
 Linux & 7.2.8 & arm64 & 5 bases & 480--17,981 \\
-Linux & 7.2.8 & arm & 4 bases & -- \\
-Das U-Boot & 2026.07 & arm64 & \texttt{qemu\_arm64\_defconfig} & -- \\
-Barebox & 2026.09.0 & arm64 & \texttt{multi\_v8\_defconfig} & -- \\
-Xen & 4.22.0 & x86-64 & \texttt{defconfig} & -- \\
+Linux & 7.2.8 & arm & 4 bases & 420--13,185 \\
+Barebox & 2026.09.0 & arm64 & \texttt{multi\_v8\_defconfig} & 752--1,106 \\
+Xen & 4.22.0 & x86-64 & \texttt{defconfig} & 490--492 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -482,11 +479,11 @@ To evaluate build agreement across diverse operating points, we evaluate both st
 Base configurations represent realistic deployment baselines: for Linux, they span minimal setups (\texttt{tinyconfig}), architecture defaults (\texttt{defconfig}, and \texttt{multi\_\allowbreak v7\_\allowbreak defconfig} on arm), \texttt{allnoconfig}, and distribution configurations from Debian, Fedora, and Arch Linux.
 To stress-test build condition extraction beyond predefined defaults, we generate perturbed configurations following established variability testing protocols~\cite{nguyen2020kbuild,yildiran2024krepair}: each perturbation randomly toggles 5\% of the Boolean configuration options (using a deterministic pseudorandom seed) and resolves inter-option dependencies using the official Kconfig configurator (\texttt{make olddefconfig}).
 For BusyBox, we sample random configurations using \texttt{make randconfig}, fixing eleven options whose builds fail due to missing host libraries or deprecated glibc interfaces (\autoref{sec:rq1}).
-In our empirical build agreement evaluation (\autoref{sec:rq1}), we evaluate two concrete configurations per base configuration, the base itself and one perturbation of it, which gives 6 configurations for Linux i386, 12 for x86-64, and 10 for arm64; for BusyBox, we evaluate two random configurations.
+In our empirical build agreement evaluation (\autoref{sec:rq1}), we evaluate two concrete configurations per base configuration, the base itself and one perturbation of it, which gives 6 configurations for Linux i386, 12 for x86-64, 10 for arm64, and 8 for arm; for BusyBox, we evaluate two random configurations.
 \tl{Preliminary: two configurations per base; rerun with ten.}
 To focus on compilation targets and avoid build failures from unrelated toolchain warnings, we disable \texttt{CONFIG\_WERROR} and build without debug information (which alters object file contents but not the set of compiled files).
 In the primary build agreement experiment, modular compilation is disabled (\texttt{CONFIG\_MODULES=n}) so that all enabled drivers compile into the kernel binary, matching the evaluation setting of Kmax~\cite{gazzillo2017kmax} and Nguyen and Nguyen~\cite{nguyen2020kbuild}.
-A perturbation flips between 40 and 579 options, depending on the size of its base, and after \texttt{make olddefconfig} differs from its base in 44 to 1,711 options.
+A perturbation flips between 30 and 579 options, depending on the size of its base, and after \texttt{make olddefconfig} differs from its base in 43 to 1,765 options.
 
 \emph{Ground-Truth Builds.}
 To establish empirical ground truth for each configuration $c$, we execute a clean concrete build from scratch in an isolated directory tree using \texttt{make -k -j24}, where \texttt{-k} directs Make to compile all independent targets even if an individual target fails~\cite{nguyen2020kbuild}.
@@ -512,14 +509,14 @@ We evaluate \tool{} against established baselines and across design ablations:
 \end{itemize}
 
 \emph{Experimental Environment.}
-All static analyses and concrete builds were executed on a dedicated workstation equipped with an AMD Ryzen 9 5900X CPU (12 cores, 24 logical threads) and 125\,GiB of RAM running Arch Linux, with Python 3.10.19, Z3 5.3.1, GNU Make 4.4.1, GCC 16.2.1, and cross compilers (\texttt{aarch64-linux-gnu} GCC 16.2.0 and \texttt{arm-none-eabi} GCC).
+All static analyses and concrete builds were executed on a dedicated workstation equipped with an AMD Ryzen 9 5900X CPU (12 cores, 24 logical threads) and 125\,GiB of RAM running Arch Linux, with Python 3.10.19, Z3 5.3.1, GNU Make 4.4.1, GCC 16.2.1, and cross compilers (\texttt{aarch64-linux-gnu} GCC 16.2.0 and \texttt{arm-none-eabi} GCC 16.2.0).
 Each static analysis run executes as a single-threaded process, and we report the wall-clock time of one run per subject and tool.
 \tl{Pin the commit of the code before submission.}
 
 \subsection{RQ1: Build Agreement}\label{sec:rq1}
 
-This subsection reports build-agreement results on BusyBox and on Linux for i386, x86-64, and arm64.
-\tl{Preliminary: Linux arm, U-Boot, Barebox, and Xen are not built yet, and the BusyBox builds are redone because their trees kept the objects of an earlier configuration. Numbers typed from code/data/csv/rq1\_*.csv; define them as macros in paper.sty before submission.}
+This subsection reports build-agreement results on BusyBox, on Linux for i386, x86-64, arm64, and arm, and on Barebox and Xen.
+\tl{Preliminary. The Linux i386, x86-64, and arm64 and the Barebox analyses of \tool{} predate the support for static pattern rules and sub-make variables; rerun them with --clear. Rerun Kmax on Barebox and Xen, whose object names carried a ./ prefix that the scoring did not match. Numbers typed from code/data/csv/rq1\_*.csv; define them as macros in paper.sty before submission.}
 
 \emph{Protocol.}
 \tool{} analyzes the BusyBox 1.38.0 tree once and extracts a universe $U$ of 625 objects in 4.0\,s.
@@ -535,74 +532,99 @@ The ground truth $B_c$ of a configuration $c$ consists of the \texttt{.o} files 
 We run Kmax (\texttt{kmaxall} v4.10, Boolean options) from the same 30 entry directories, conjoin the condition of each object with the conditions of the directory entries above it, and score its conditions with the same evaluation and metrics.
 
 For Linux, each tool analyzes the source tree once per architecture with \texttt{ARCH} bound, and the conditions serve every configuration of that architecture.
-\tool{} extracts 28,648 objects for i386 and x86-64, which share \texttt{arch/x86/}, and 28,271 for arm64; Kmax extracts 33,091 and 32,778.
+\tool{} extracts 28,648 objects for i386 and x86-64, which share \texttt{arch/x86/}, 28,271 for arm64, and 28,788 for arm; Kmax extracts 33,091, 32,778, and 32,791.
 For each tool, we record the wall-clock time of one whole-tree analysis.
 
 \emph{Results.}
-On BusyBox, \tool{} and Kmax extract the same 625 objects.
-Their conditions are logically equivalent: for each of the 625 objects, Z3 finds no configuration under which the two conditions differ.
-BusyBox therefore does not separate the two tools on accuracy; its Kbuild files consist mostly of goal definitions such as \texttt{lib-\$(CONFIG\_TAR) += tar.o}, with a few conditionals and no composite objects, explicit object rules, or included Makefiles.
-The build conditions are mostly small: 149 of the 625 conditions are constant true, 351 consist of a single option, and the remaining 125 combine several options, such as the condition of \texttt{modutils/modutils.o}, a disjunction over seven options.
-\tl{Recheck the BusyBox counts above with the current implementation, and report precision and recall after the BusyBox rebuild.}
-
-\autoref{tab:rq1} summarizes the agreement of both tools over all configurations of each system.
-Precision is the share of predicted objects that the builds compile, and recall is the share of compiled objects that the tool predicts, the overlap $TP / |B_c|$ of the setup, both over all configurations of a system.
-On Linux, \tool{} reports no in-universe false negative in any of the 28 configurations.
-It reports false positives in two configurations, the x86-64 perturbations of \texttt{tinyconfig} and \texttt{allnoconfig}: their builds stop with errors, and \texttt{arch/x86/boot/header.o} and \texttt{arch/x86/boot/compressed/piggy.o} remain uncompiled.
-Kmax reports 7 to 3,090 false positives and 0 to 91 in-universe false negatives per configuration, and its false positives grow with the size of the configuration, to between 1,520 and 3,090 on the distribution configurations.
-Of its 29,699 false positives, 29,602 are names outside the universe of \tool{}, mostly composite objects such as \texttt{arch/x86/crypto/aesni-intel.o}, which Kbuild links from member objects that \tool{} predicts in its place.
-On x86, the in-universe false negatives of Kmax include objects under \texttt{arch/x86/entry/}, \texttt{arch/x86/kernel/}, and \texttt{arch/x86/mm/}, such as \texttt{arch/x86/entry/entry\_64.o}, in every configuration.
-
-Recall of \tool{} ranges from 0.953 on x86-64 to 0.990 on i386; the compiled objects it misses lie outside its universe, between 1 and 811 per configuration.
-The largest group is 634 to 641 objects of the AMD GPU display driver under \texttt{drivers/\allowbreak gpu/\allowbreak drm/\allowbreak amd/}, compiled in every distribution configuration that enables it.
-The other groups are the EFI stub objects under \texttt{drivers/\allowbreak firmware/\allowbreak efi/\allowbreak libstub/}, each compiled together with a renamed \texttt{.stub.o} copy (up to 70 objects), the 38 objects of the host tool \texttt{objtool} under \texttt{tools/} on x86-64, objects of the final link, such as the \texttt{kallsyms} objects and \texttt{init/version-timestamp.o}, and smaller groups such as MMC host controllers.
-\tl{Find why the amdgpu display objects and drivers/mmc/host lie outside U.}
-
-\autoref{fig:rq1} reports the wall-clock time of one whole-tree analysis by each tool.
-On BusyBox, \tool{} takes 4.0\,s and Kmax 6.7\,s.
-On Linux, \tool{} takes 53.9\,s for i386, 54.2\,s for x86-64, and 52.7\,s for arm64, and Kmax takes 292.1\,s, 299.8\,s, and 289.6\,s, which is 5.4 to 5.5 times longer.
-Kmax runs a separate \texttt{kmax} process for every directory it reaches, including directories whose names it leaves unexpanded, while \tool{} executes all Makefiles in one process.
-Each time comes from a single run of each tool, so these numbers describe one measurement; RQ2 compares the scaling of the two approaches.
-These results hold for the evaluated configurations; agreement on them does not establish the conditions for configurations outside the sample.
-
-\begin{table}[t]
-\centering\footnotesize
-\caption{Precision and recall of the build conditions of each tool over all evaluated configurations.}
-\label{tab:rq1}
-\begin{tabular}{llrrr}
-\toprule
-System & Tool & Configurations & Precision & Recall \\
-\midrule
-BusyBox & \tool{} & 2 & -- & -- \\
-BusyBox & Kmax & 2 & -- & -- \\
-Linux i386 & \tool{} & 6 & 1.000 & 0.990 \\
-Linux i386 & Kmax & 6 & 0.913 & 0.918 \\
-Linux x86-64 & \tool{} & 12 & 1.000 & 0.953 \\
-Linux x86-64 & Kmax & 12 & 0.857 & 0.933 \\
-Linux arm64 & \tool{} & 10 & 1.000 & 0.966 \\
-Linux arm64 & Kmax & 10 & 0.861 & 0.962 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\tl{To be written: discuss \autoref{fig:rq1}.}
 
 \begin{figure}[t]
 \centering
-\includegraphics{figure/result/rq1_time.pdf}
-\caption{Whole-tree analysis time on BusyBox and Linux.}
-\Description{A bar chart of analysis time on a log scale: on BusyBox, 4.0 seconds for the tool and 6.7 seconds for Kmax; on Linux i386, x86-64, and arm64, 53.9, 54.2, and 52.7 seconds for the tool and 292.1, 299.8, and 289.6 seconds for Kmax.}
+\begin{subfigure}[b]{0.32\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figure/result/rq1_radar_precision.pdf}
+\caption{Precision}
+\label{fig:rq1-precision}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.32\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figure/result/rq1_radar_recall.pdf}
+\caption{Recall}
+\label{fig:rq1-recall}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.32\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figure/result/rq1_radar_time.pdf}
+\caption{Analysis time}
+\label{fig:rq1-time}
+\end{subfigure}
+\\[0.2em]
+\includegraphics{figure/result/rq1_radar_legend.pdf}
+\caption{Precision, recall, and whole-tree analysis time of each tool per subject.}
+\Description{Three radar charts with one spoke per subject (BusyBox, Linux i386, x86-64, arm64, and arm, Barebox, and Xen) and one polygon per tool. Precision and recall run from 0 to 1, and analysis time from 0 to 300 seconds. On BusyBox, 4.0 seconds for the tool and 6.7 seconds for Kmax; on Linux i386, x86-64, arm64, and arm, 53.9, 54.2, 52.7, and 55.4 seconds for the tool and 292.1, 299.8, 289.6, and 292.2 seconds for Kmax; on Barebox, 16.5 and 55.3 seconds; on Xen, 8.5 and 4.0 seconds.}
 \label{fig:rq1}
 \end{figure}
 
 \subsection{RQ2: Scalability}\label{sec:rq2}
-This research question investigates how \tool{} scales with the number of conditional statements compared with path-forking symbolic execution and Kmax.
-To isolate the algorithmic effect of state merging from repository-specific Makefile idiosyncrasies, we generate synthetic Makefiles with $k$ independent conditional blocks ($k \in [1, 20]$).
-In each block, an \texttt{ifeq} conditional appends a distinct object file to an intermediate variable, which is subsequently added to \texttt{obj-y}.
-Conventional path-forking symbolic execution forks execution states at each conditional, spawning $2^k$ paths.
-As $k$ grows, path forking exhibits exponential explosion, exceeding memory limits and timing out at $k=18$.
-In contrast, \tool{} executes statements in a single pass, merging branch states at conditional join points and applying the identity simplification of \autoref{line:same}.
-Consequently, \tool{} scales linearly with $k$, completing the 20-conditional benchmark in under 0.2\,s.
-Kmax also handles the synthetic benchmark quickly because its statement-level reaching configurations avoid path forking.
-Across whole source trees, \tool{} analyzes all 30 entry directories of BusyBox in 4.0\,s and the entire Linux Makefile tree of one architecture in 53 to 54\,s, demonstrating that word-level value summaries and SMT-guided directory pruning remain efficient at repository scale.
+This research question measures how the running time and memory of \tool{} grow with the number of conditional statements, compared with path-forking symbolic execution and Kmax.
+\tl{Planned; not run yet. The paragraph below summarizes the plan.}
+
+We generate synthetic Kbuild Makefiles with $k$ independent conditional blocks, for $k$ from 1 to 20.
+In each block, an \texttt{ifeq} conditional appends a distinct object file to an intermediate variable that is added to \texttt{obj-y}, so a Makefile has $2^k$ execution paths.
+We run \tool{}, Kmax, and a path-forking baseline on each tree, and record the wall-clock time and peak memory of each run under a fixed timeout and memory limit.
+The baseline reimplements the path-forking symbolic execution of Nguyen and Nguyen~\cite{nguyen2020kbuild} on the statement semantics of \tool{}: at each conditional, it continues every feasible branch with its own copy of the state, so the two differ only in forking and merging.
+The number of states of path forking grows with $2^k$.
+\tool{} merges the two branch states at each join point (\autoref{line:merge}), and Kmax tracks the configurations that reach each statement, so we expect both to grow slowly with $k$; the benchmark therefore separates per-word path conditions from path forking.
+The whole-tree times of \tool{} and Kmax on the subjects come from RQ1 (\autoref{fig:rq1-time}).
+\tl{Defaults: 600\,s timeout and 16\,GB of address space per run (code/scenario/exp/rq2\_run.py); a tool stops at the first run that exceeds either. Trees from code/scenario/prepare/synthetic.py, baseline in code/baseline/icsme/.}
+
+\tl{To be written: discuss \autoref{fig:rq2} and \autoref{fig:rq2-large}. Path forking ran up to 12 blocks (code/makefile, --n\_ifeq=12), and \tool{} and Kmax up to 2,000; numbers in code/data/csv/rq2\_*.csv.}
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}[b]{0.48\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figure/result/rq2_time.pdf}
+\caption{Analysis time}
+\label{fig:rq2-time}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.48\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figure/result/rq2_memory.pdf}
+\caption{Peak memory}
+\label{fig:rq2-memory}
+\end{subfigure}
+\\[0.2em]
+\includegraphics{figure/result/rq2_legend.pdf}
+\caption{Analysis time and peak memory on the synthetic Makefiles by the number of conditional blocks.}
+\Description{Two line charts over 1 to 20 conditional blocks. Analysis time: the tool stays below 0.04 seconds and Kmax between 0.19 and 0.23 seconds, while path forking grows from 0.007 seconds at one block to 24.1 seconds at 12 blocks, roughly doubling per block. Peak memory: the tool and Kmax stay between 160 and 166 megabytes, while path forking grows from 164 to 182 megabytes at 12 blocks.}
+\label{fig:rq2}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}[b]{0.48\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figure/result/rq2_2_time.pdf}
+\caption{Analysis time}
+\label{fig:rq2-large-time}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.48\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figure/result/rq2_2_memory.pdf}
+\caption{Peak memory}
+\label{fig:rq2-large-memory}
+\end{subfigure}
+\\[0.2em]
+\includegraphics{figure/result/rq2_2_legend.pdf}
+\caption{Analysis time and peak memory of \tool{} and Kmax on synthetic Makefiles with up to 2,000 conditional blocks.}
+\Description{Two line charts over 0 to 2,000 conditional blocks in steps of 100. Analysis time on a log scale: the tool grows from 0.004 seconds at no block and 0.21 seconds at 100 blocks to 13.5 seconds at 2,000 blocks, and Kmax from 0.19 seconds to 7.7 seconds; the tool is faster up to about 400 blocks and slower above. Peak memory: the tool grows from 162 to 170 megabytes, and Kmax stays between 163 and 165 megabytes.}
+\label{fig:rq2-large}
+\end{figure}
 
 \subsection{RQ3: Developer Tasks}\label{sec:rq3}
 This research question evaluates how effectively the extracted build conditions support three practical developer queries: explaining build verdicts (\texttt{why}), synthesizing configurations to compile touched code (\texttt{config-for}), and detecting uncompiled source files (\texttt{blindspots}).
@@ -618,7 +640,7 @@ We evaluate three ablations: disabling static \texttt{include} inlining (\texttt
 On Linux, omitting Kbuild linking semantics reduces precision from 1.000 to 0.941 because built-in composite objects are falsely predicted as standalone \texttt{.o} files, whereas Kbuild links their components directly into \texttt{built-in.a}.
 Disabling rule closure reduces recall because boot stubs and generated offset files compiled via explicit rules are lost from the target universe.
 Disabling \texttt{include} inlining causes false negatives in subsystems that partition configuration variables across included helper Makefiles.
-Compared with Kmax, \tool{} achieves higher recall (0.953 to 0.990 vs. 0.918 to 0.962) and higher precision (1.000 vs. 0.857 to 0.913) on the 28 Linux configurations in \autoref{tab:rq1}, because \tool{} correctly resolves architecture-specific directory expansions (\texttt{arch/\$(SRCARCH)/}) and accurately distinguishes composite member objects from intermediate modular archives.
+Compared with Kmax, \tool{} achieves higher recall (0.953 to 0.990 vs. 0.918 to 0.962) and higher precision (1.000 vs. 0.857 to 0.913) on the 36 Linux configurations in \autoref{fig:rq1}, because \tool{} correctly resolves architecture-specific directory expansions (\texttt{arch/\$(SRCARCH)/}) and accurately distinguishes composite member objects from intermediate modular archives.
 
 \section{Related Work}
   \label{sec:related}
@@ -660,7 +682,7 @@ Compared with Kmax, \tool{} achieves higher recall (0.953 to 0.990 vs. 0.918 to 
   This paper presented \tool{}, a variability-aware symbolic execution approach for extracting build conditions from Kbuild Makefiles.
   By modeling target variables as sets of independent words and attaching path conditions to each word, \tool{} represents Makefile state as Boolean value summaries, executes statements in a single pass, and applies static state merging at conditional join points without auxiliary variables.
   A worklist algorithm traverses the hierarchical Makefile structure, pruning unreachable directory routes via SMT satisfiability checks and modeling Kbuild build semantics including composite objects and rule prerequisites.
-  Evaluation on five open-source Kbuild projects demonstrates that \tool{} achieves high build agreement on concrete builds and scales efficiently, analyzing the Linux tree of one architecture in under a minute.
+  Evaluation on four open-source Kbuild projects demonstrates that \tool{} achieves high build agreement on concrete builds and scales efficiently, analyzing the Linux tree of one architecture in under a minute.
   The extracted build conditions provide a foundation for automated build diagnostics and configuration synthesis.
   Future directions include extending variability-aware symbolic execution to modern build systems such as CMake and Meson, and integrating build conditions with static defect analyzers.
 
