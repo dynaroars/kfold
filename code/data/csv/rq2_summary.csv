@@ -1,0 +1,17 @@
+structure,tool,n_ifeq,objects,expected,missing,extra,equivalent,different,precision,recall,constant
+length,Tool,200,200,200,0,0,200,0,1.0,1.0,True
+length,Kmax,200,200,200,0,0,200,0,1.0,1.0,True
+nested,Tool,20,2000,2000,0,0,2000,0,1.0,1.0,True
+nested,Kmax,20,2000,2000,0,0,2000,0,1.0,1.0,True
+value,Tool,200,400,400,0,0,400,0,1.0,1.0,True
+value,Kmax,200,400,400,0,0,400,0,1.0,1.0,True
+directory,Tool,200,200,200,0,0,200,0,1.0,1.0,True
+directory,Kmax,200,200,200,0,0,200,0,1.0,1.0,True
+depth,Tool,200,200,200,0,0,200,0,1.0,1.0,True
+depth,Kmax,200,200,200,0,0,200,0,1.0,1.0,True
+composite,Tool,200,600,600,0,0,600,0,1.0,1.0,True
+composite,Kmax,200,800,600,0,200,600,0,0.75,1.0,True
+exported,Tool,200,600,600,0,0,600,0,1.0,1.0,True
+exported,Kmax,200,600,600,0,0,0,600,0.0,0.0,True
+computed,Tool,200,400,400,0,0,400,0,1.0,1.0,True
+computed,Kmax,200,400,400,0,0,200,200,0.5,0.5,True
