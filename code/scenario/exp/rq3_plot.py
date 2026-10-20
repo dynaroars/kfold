@@ -6,13 +6,12 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from scenario.exp.rq3_run import OBJECTS
 from scenario import helper
 
 # the Linux targets of RQ3
 TARGETS = ['linux-i386', 'linux-x86_64', 'linux-arm64', 'linux-arm']
 TOOLS = ['tool', 'kmax']
-# the repairs drawn per build, as in rq3_run
-OBJECTS = 10
 
 
 def _load(args):

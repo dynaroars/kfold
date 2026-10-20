@@ -1,61 +1,7 @@
-repair,proposed,changed,tool_holds,kmax_holds,compile,compile_seconds,build,object,status,seconds
-0,3,0,False,False,compiled,3.1322644050233066,allnoconfig-0,sound/soc/ux500/ux500_msp_dai.o,ok,0.011170117
-1,2,6,False,False,compiled,3.2742932559922338,allnoconfig-0,drivers/mtd/nand/raw/sh_flctl.o,ok,0.001570094
-2,2,15,False,False,compile error,3.7927497590426356,allnoconfig-0,net/ipv6/sysctl_net_ipv6.o,ok,0.001728523
-3,4,0,False,False,compiled,4.454512551019434,allnoconfig-0,drivers/net/ethernet/mellanox/mlx4/en_netdev.o,ok,0.002234591
-4,1,0,False,False,compiled,2.9910928629687987,allnoconfig-0,drivers/bus/fsl-mc/obj-api.o,ok,0.001260835
-5,2,1,False,False,compile error,3.1559518550056964,allnoconfig-0,drivers/iio/dac/mcp47feb02.o,ok,0.001513774
-6,2,3,False,False,compile error,3.057868081028573,allnoconfig-0,drivers/pcmcia/pd6729.o,ok,0.001493555
-7,4,0,False,False,compiled,3.3295255769626237,allnoconfig-0,drivers/net/wireless/realtek/rtlwifi/rtl8192cu/trx.o,ok,0.002066742
-8,3,0,False,False,compile error,3.214594902994577,allnoconfig-0,drivers/net/ethernet/dlink/sundance.o,ok,0.001805683
-9,3,15,False,False,compile error,3.778899817960337,allnoconfig-0,net/xfrm/xfrm_proc.o,ok,0.001779973
-10,2,0,False,False,compiled,3.1082407280337065,allnoconfig-1,sound/usb/qcom/mixer_usb_offload.o,ok,0.001688474
-11,2,6,False,False,compiled,3.191396526992321,allnoconfig-1,drivers/mtd/nand/spi/otp.o,ok,0.001512874
-12,3,15,False,False,compile error,3.9660534899448976,allnoconfig-1,net/mac80211/mesh.o,ok,0.002026132
-13,3,0,False,False,compiled,3.9082827200181782,allnoconfig-1,drivers/net/ethernet/mellanox/mlx4/srq.o,ok,0.001778934
-14,1,0,False,False,compiled,3.1948807750013657,allnoconfig-1,drivers/bus/hisi_lpc.o,ok,0.001217956
-15,2,1,False,False,compiled,3.176152873027604,allnoconfig-1,drivers/iio/dac/mcp4922.o,ok,0.001424545
-16,1,0,False,False,compile error,3.0883141810190864,allnoconfig-1,drivers/perf/apple_m1_cpu_pmu.o,ok,0.001721443
-17,4,0,False,False,compiled,3.6845354810357094,allnoconfig-1,drivers/net/wireless/realtek/rtlwifi/rtl8192du/phy.o,ok,0.002049602
-18,4,0,False,False,compile error,3.2106849980191328,allnoconfig-1,drivers/net/ethernet/freescale/dpaa2/dpaa2-eth-dcb.o,ok,0.002025432
-19,3,1,False,False,compile error,2.8188498779782094,allnoconfig-1,samples/rust/rust_misc_device.o,ok,0.001757553
-20,1,1,True,True,,,defconfig-0,drivers/net/ethernet/intel/igbvf/vf.o,ok,0.002696899
-21,2,18,False,False,,,defconfig-0,sound/soc/codecs/wm8994.o,ok,0.002517651
-22,1,0,False,False,,,defconfig-0,drivers/net/mdio/mdio-bcm-iproc.o,ok,0.001858823
-23,1,0,False,False,,,defconfig-0,drivers/clk/imx/clk-imx31.o,ok,0.001966192
-24,2,3,True,True,,,defconfig-0,drivers/input/rmi4/rmi_f03.o,ok,0.0025019
-25,2,0,False,False,,,defconfig-0,drivers/pmdomain/actions/owl-sps-helper.o,ok,0.002427281
-26,3,1,False,False,,,defconfig-0,drivers/phy/samsung/phy-exynos4210-usb2.o,ok,0.00256901
-27,1,2,True,True,,,defconfig-0,drivers/net/ethernet/netronome/nfp/nfp_app.o,ok,0.002426241
-28,1,0,False,False,,,defconfig-0,drivers/media/pci/ttpci/budget.o,ok,0.001816653
-29,2,3,True,True,,,defconfig-0,drivers/pci/endpoint/pci-ep-cfs.o,ok,0.002269132
-30,1,1,True,True,,,defconfig-1,drivers/net/ethernet/mellanox/mlx5/core/diag/crdump.o,ok,0.002749459
-31,2,15,False,False,,,defconfig-1,sound/soc/qcom/lpass-cpu.o,ok,0.002435461
-32,2,0,False,False,,,defconfig-1,drivers/net/usb/kalmia.o,ok,0.002216002
-33,2,0,False,False,,,defconfig-1,drivers/clk/imx/clk-imx8qxp-lpcg.o,ok,0.002197932
-34,1,1,True,True,,,defconfig-1,drivers/interconnect/debugfs-client.o,ok,0.001811563
-35,1,0,False,False,,,defconfig-1,drivers/ptp/ptp_ines.o,ok,0.001971282
-36,2,1,False,False,,,defconfig-1,drivers/pinctrl/pinctrl-mcp23s08_spi.o,ok,0.002257411
-37,2,4,True,True,,,defconfig-1,drivers/net/ethernet/sfc/nic.o,ok,0.00249504
-38,1,0,False,False,,,defconfig-1,drivers/media/platform/nxp/imx8-isi/imx8-isi-pipe.o,ok,0.0018941819
-39,2,1,False,False,,,defconfig-1,drivers/phy/qualcomm/phy-qcom-usb-hs.o,ok,0.002257411
-40,2,0,False,False,,,tinyconfig-0,sound/soc/soc-ops.o,ok,0.001331125
-41,2,6,False,False,,,tinyconfig-0,drivers/mtd/nand/raw/davinci_nand.o,ok,0.001653643
-42,2,26,True,True,,,tinyconfig-0,net/ipv4/fib_semantics.o,ok,0.001358875
-43,3,0,False,False,,,tinyconfig-0,drivers/net/ethernet/marvell/octeontx2/nic/otx2_common.o,ok,0.001697914
-44,2,0,False,False,,,tinyconfig-0,drivers/bluetooth/btintel_pcie.o,ok,0.001406914
-45,2,1,False,False,,,tinyconfig-0,drivers/iio/dac/ad3552r-common.o,ok,0.001394975
-46,1,17,True,True,,,tinyconfig-0,drivers/pci/pci-driver.o,ok,0.001067016
-47,3,0,False,False,,,tinyconfig-0,drivers/net/wireless/realtek/rtl8xxxu/8188e.o,ok,0.001797113
-48,3,0,False,False,,,tinyconfig-0,drivers/net/ethernet/chelsio/cxgb4/cxgb4_ptp.o,ok,0.001666844
-49,2,12,False,False,,,tinyconfig-0,net/sctp/stream_sched.o,ok,0.001367874
-50,2,0,False,False,,,tinyconfig-1,drivers/net/can/usb/etas_es58x/es58x_fd.o,ok,0.001521485
-51,2,13,True,True,,,tinyconfig-1,net/mctp/neigh.o,ok,0.001479064
-52,3,0,False,False,,,tinyconfig-1,drivers/net/ethernet/mellanox/mlx5/core/mcg.o,ok,0.001820083
-53,3,2,False,False,,,tinyconfig-1,drivers/char/tpm/st33zp24/spi.o,ok,0.002241122
-54,2,1,False,False,,,tinyconfig-1,drivers/iio/light/st_uvis25_i2c.o,ok,0.001485864
-55,1,0,False,False,,,tinyconfig-1,drivers/phy/qualcomm/phy-qcom-snps-femto-v2.o,ok,0.001545434
-56,3,0,False,False,,,tinyconfig-1,drivers/net/wireless/rsi/rsi_91x_main.o,ok,0.001794143
-57,3,0,False,False,,,tinyconfig-1,drivers/net/ethernet/ibm/ibmvnic.o,ok,0.001807634
-58,2,0,False,False,,,tinyconfig-1,security/integrity/ima/ima_fs.o,ok,0.001552574
-59,3,0,False,False,,,tinyconfig-1,sound/soc/meson/axg-toddr.o,ok,0.001766483
+repair,build,object,status,seconds,proposed,changed,tool_holds,kmax_holds,compile,compile_seconds
+0,allnoconfig-0,sound/soc/ux500/ux500_msp_dai.o,ok,0.011657881957944483,3,0,False,False,not selected,3.085148385958746
+1,allnoconfig-1,sound/usb/qcom/mixer_usb_offload.o,ok,0.001357266039121896,2,0,False,False,not selected,3.138191742997151
+2,defconfig-0,drivers/net/ethernet/intel/igbvf/vf.o,ok,0.001707335002720356,1,1,True,True,compiled,17.48578817996895
+3,defconfig-1,drivers/net/ethernet/mellanox/mlx5/core/diag/crdump.o,ok,0.001630295009817928,1,1,True,True,compiled,25.501447410031687
+4,tinyconfig-0,sound/soc/soc-ops.o,ok,0.00169654400087893,2,0,False,False,not selected,3.1152705780114047
+5,tinyconfig-1,drivers/net/can/usb/etas_es58x/es58x_fd.o,ok,0.0013744559837505221,2,0,False,False,not selected,9.354985743993893

@@ -441,7 +441,7 @@ Specifically, we investigate three research questions:
 \begin{description}
 \item[RQ1 (Build Agreement)] When the extracted build conditions are evaluated under concrete configurations, how accurately do the predicted object sets match the ground-truth object files compiled by full builds?
 \item[RQ2 (Source Characteristics)] How do the running time, memory, and accuracy of \tool{} and Kmax depend on the length of a Makefile, nested conditionals, values chosen by conditionals, the number and depth of directories, and composite objects?
-\item[RQ3 (Developer Tasks)] Can the extracted build conditions explain why source files are included or excluded in a build, synthesize valid configurations to compile files modified by real-world commits, and identify uncompiled blind spots across standard configurations?
+\item[RQ3 (Configuration Repair)] Given a configuration and an object it does not build, how few option changes do the build conditions of \tool{} and of Kmax need to build the object, and how fast are they found?
 \end{description}
 
 \subsection{Experimental Setup}\label{sec:setup}
@@ -502,7 +502,7 @@ Here, $FN_U$ measures formula imprecision in the symbolic execution of extracted
 We evaluate \tool{} against established baselines:
 \begin{itemize}[leftmargin=1.5em]
   \item \emph{Static Kbuild Analysis:} For build condition extraction, we compare \tool{} against Kmax~\cite{gazzillo2017kmax} (\texttt{kmaxall} v4.10). We evaluate Kmax's extracted Boolean conditions under the same concrete configurations and score them against the ground-truth build inventory $B_c$ using identical metrics. On Linux, \texttt{kmaxall} is invoked on the root \texttt{Kbuild} file and \texttt{lib/} with \texttt{SRCARCH} bound to the target architecture; on the remaining subjects, it initiates analysis from top-level entry directories, matching \tool{}'s entry points.
-  \item \emph{Configuration Synthesis:} In RQ3, we compare \tool{}'s \texttt{config-for} against the configuration repair tool \texttt{klocalizer} (v4.10)~\cite{yildiran2024krepair}. We evaluate both tools on the same commits and base configurations, scoring success by whether the generated configuration compiles all touched object files upon materialization via \texttt{make olddefconfig}.
+  \item \emph{Configuration Repair:} In RQ3, we compare a repair over the build conditions of \tool{} with Kmax's repair, \texttt{klocalizer --repair} (krepair, v4.10)~\cite{yildiran2024krepair}, on the same configurations and objects.
 \end{itemize}
 
 \emph{Experimental Environment.}
@@ -668,13 +668,60 @@ Cond.\ lists & 1.000 & 1.000 & 0.500 & 0.500 \\
 \end{minipage}
 \end{figure}
 
-\subsection{RQ3: Developer Tasks}\label{sec:rq3}
-This research question evaluates how effectively the extracted build conditions support three practical developer queries: explaining build verdicts (\texttt{why}), synthesizing configurations to compile touched code (\texttt{config-for}), and detecting uncompiled source files (\texttt{blindspots}).
-The \texttt{why} command traces the condition chain of a target file under a given \texttt{.config}.
-Across 400 randomly sampled Linux source files, \texttt{why} correctly diagnoses each file's compilation status, pinpointing the exact configuration options whose values excluded non-compiled files.
-The \texttt{config-for} command combines extracted build conditions with a Kconfig dependency model to synthesize minimal configuration updates for commits from Linux stable releases.
-Across 402 tested commits touching C or assembly files, \texttt{config-for} successfully synthesizes valid configurations that compile all touched objects for 384 commits (95.5\%), validated by materializing the configuration with \texttt{make olddefconfig} and executing a concrete build.
-Finally, the \texttt{blindspots} command evaluates build conditions against a corpus of standard release configurations, identifying 49 orphan files in Linux that are never compiled in any analyzed configuration, including abandoned test stubs and legacy drivers whose controlling Kconfig options were removed.
+\subsection{RQ3: Configuration Repair}\label{sec:rq3}
+This research question compares the build conditions of \tool{} and Kmax on a developer task: changing a configuration so that it builds an object it does not, such as a file touched by a patch~\cite{yildiran2024krepair}.
+\tl{Preliminary: Kmax on Linux x86-64 (20 of 120 repairs), arm64, and arm is rerunning, and the compile check runs on all repairs. The Built column of \autoref{tab:rq3} is still predicted from the build conditions of \tool{}; replace it with the compiled objects (compile column of code/data/csv/rq3\_*.csv). Numbers from rq3\_summary.csv.}
+
+\emph{Protocol.}
+For each of the 36 Linux configurations of RQ1, we draw 10 objects with a fixed seed from those the build did not compile and that both tools extract, so both repairs are asked for the same 360 objects.
+\tool{} formulates the repair as maximum satisfiability: the build condition of the object must hold, and each option it mentions keeps its value in the configuration where it can, which Z3 solves.
+Kmax's repair, \texttt{klocalizer --repair}, removes the settings of the configuration in an unsatisfiable core with the build condition from Kmax and the Kconfig constraints from kclause until the two are satisfiable~\cite{yildiran2024krepair}.
+We apply each repaired configuration with \texttt{make olddefconfig}, which enforces the Kconfig dependencies, in a copy of the RQ1 build of the original configuration, and compile the object there with \texttt{make}, which Kbuild has no rule for when the configuration does not select the object.
+A repair succeeds when Kbuild compiles the object, or selects it and its source fails to compile; we record the number of options that differ from the original configuration after \texttt{olddefconfig} and the time of the repair.
+The time of \tool{} is the solver call after its build conditions are loaded, and the time of Kmax is one \texttt{klocalizer} run, which also starts Python and reads its cached formulas.
+
+\emph{Results.}
+\tl{To be written: discuss \autoref{tab:rq3} and \autoref{fig:rq3}. The repair of \tool{} uses only build conditions, so olddefconfig undoes most of its changes; klocalizer adds the Kconfig constraints.}
+
+\begin{table}[t]
+\centering\footnotesize
+\caption{Configuration repair on Linux: repairs that produce a configuration, objects built after \texttt{make olddefconfig}, and the medians of the options changed after it and of the repair time.}
+\label{tab:rq3}
+\begin{tabular}{llrrrrr}
+\toprule
+Architecture & Tool & Repairs & Configurations & Built & Options changed & Time (s) \\
+\midrule
+i386 & \tool{} & 60 & 60 & 10 & 0 & 0.002 \\
+i386 & Kmax & 60 & 52 & 52 & 159 & 19.4 \\
+x86-64 & \tool{} & 120 & 120 & 26 & 0 & 0.003 \\
+x86-64 & Kmax & -- & -- & -- & -- & -- \\
+arm64 & \tool{} & 100 & 100 & 25 & 0 & 0.004 \\
+arm64 & Kmax & -- & -- & -- & -- & -- \\
+arm & \tool{} & 80 & 80 & 18 & 0 & 0.003 \\
+arm & Kmax & -- & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\begin{subfigure}[b]{0.48\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figure/result/rq3_time.pdf}
+\caption{Median repair time per configuration}
+\label{fig:rq3-time}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.48\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figure/result/rq3_changed.pdf}
+\caption{Options changed by repairs that build the object}
+\label{fig:rq3-changed}
+\end{subfigure}
+\caption{Repair time and options changed of \tool{} and Kmax.}
+\Description{Left: a radar chart with one spoke per Linux configuration that both tools repaired completely and one polygon per tool at its median repair time on a log scale from 1 millisecond to 100 seconds; the tool takes about 2 milliseconds and Kmax about 20 to 30 seconds. Right: box plots of the number of options changed after make olddefconfig, per architecture and tool, over the repairs whose object Kbuild builds, on a log scale.}
+\label{fig:rq3}
+\end{figure}
 
 \section{Related Work}
   \label{sec:related}

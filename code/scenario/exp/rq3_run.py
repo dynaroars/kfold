@@ -1,9 +1,11 @@
 import subprocess
 import random
 import shutil
+import signal
 import json
 import time
 import os
+import re
 
 import pandas as pd
 
@@ -15,8 +17,9 @@ from tool.repair import repair
 from scenario import helper
 from tool.load import load
 
-# objects to add to each build, drawn from those the build did not compile
-OBJECTS = 10
+# objects to add to each build, drawn from those the build did not compile; one gives a
+# coarse result fast, and the first object drawn is the same for any number
+OBJECTS = 1
 
 
 def _save(pbar, done, visited, csv_path):
@@ -35,11 +38,14 @@ def _copy(tree, copy):
     subprocess.run(['cp', '-a', tree, copy], check=True)
 
 
-def _check(make, env, copy, base, out, obj, conditions, bits, timeout):
-    # the repaired configuration in the copy of the build: olddefconfig applies the
+def _check(make, env, tree, copy, base, out, obj, conditions, bits, timeout):
+    # the repaired configuration in a fresh copy of the RQ1 build: olddefconfig applies the
     # Kconfig rules it may break, the changes count against the base after it, and the
-    # object's condition is evaluated by each tool's conditions; then make compiles the
-    # object, which Kbuild has no rule for when the configuration does not select it
+    # object's condition is evaluated by each tool's conditions; then make -k builds the
+    # kernel incrementally, as RQ1 does, and the object counts as built when its file
+    # appears. A single-object goal such as make dir/file.o compiles the file whenever
+    # its directory has a rule, whether or not the configuration selects it
+    _copy(tree, copy)
     shutil.copy(out, os.path.join(copy, '.config'))
     subprocess.run([*make, f'O={copy}', 'olddefconfig'], env=env, check=True, capture_output=True)
     final = os.path.join(copy, '.config')
@@ -48,16 +54,23 @@ def _check(make, env, copy, base, out, obj, conditions, bits, timeout):
            'tool_holds': obj in evaluate({obj: conditions['tool'][obj]}, on),
            'kmax_holds': obj in evaluate({obj: conditions['kmax'][obj]}, on | bits)}
     start = time.perf_counter()
+    # a session of its own lets a timeout kill the sub-makes and compilers with it
+    process = subprocess.Popen([*make, f'O={copy}', '-k', f'-j{os.cpu_count()}'], env=env,
+                               stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                               start_new_session=True)
     try:
-        result = subprocess.run([*make, f'O={copy}', f'-j{os.cpu_count()}', obj], env=env,
-                                capture_output=True, timeout=timeout)
-        if result.returncode == 0 and os.path.isfile(os.path.join(copy, obj)):
+        stdout, _ = process.communicate(timeout=timeout)
+        # Kbuild prints "  CC      <object>" when it compiles the object, before a
+        # failing compile too
+        if os.path.isfile(os.path.join(copy, obj)):
             row['compile'] = 'compiled'
-        elif b'No rule to make target' in result.stderr:
-            row['compile'] = 'not selected'
-        else:
+        elif re.search(rf'^\s+(CC|AS)\s+{re.escape(obj)}$', stdout.decode(errors='replace'), re.M):
             row['compile'] = 'compile error'
+        else:
+            row['compile'] = 'not selected'
     except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        process.communicate()
         row['compile'] = 'timeout'
     row['compile_seconds'] = time.perf_counter() - start
     return row
@@ -100,9 +113,8 @@ def main():
                    key=lambda d: (d.rpartition('-')[0], int(d.rpartition('-')[2])))
     work = os.path.abspath(os.path.join(args.analysis_dir, args.tool, f'{args.target}.rq3'))
     os.makedirs(work, exist_ok=True)
-    # the copy of an RQ1 build that checks its repairs by compiling the object, so the
-    # builds RQ1 scores keep their objects; one copy per build serves its repairs, which
-    # each add a different object
+    # the copy of an RQ1 build that checks a repair by building it, so the builds RQ1
+    # scores keep their objects; each repair gets a fresh copy, as a build changes it
     copy = os.path.abspath(os.path.join(root, 'rq3', args.tool))
     formulas = os.path.abspath(os.path.join(args.analysis_dir, 'kmax', f'{args.target}.klocalizer'))
     # klocalizer runs from a copy of the kmax package that Python 3.10 can import
@@ -124,7 +136,6 @@ def main():
     for t, name in enumerate(trees):
         config = os.path.abspath(os.path.join(root, name, '.config'))
         base = read_values(config)
-        copied = False
         candidates = sorted(universe - _observed(os.path.join(root, name)))
         objects = random.Random(0).sample(candidates, OBJECTS)
         # klocalizer generates its formulas on its first call, which is not timed
@@ -142,10 +153,8 @@ def main():
                        **{k: v for k, v in done[name, obj].items() if k != 'repair'}}
                 # a repair of a run before the compile check gets the check alone
                 if row['status'] == 'ok' and not row.get('compile'):
-                    if not copied:
-                        _copy(os.path.join(root, name), copy)
-                        copied = True
-                    row.update(_check(make, shell, copy, base, out, obj, conditions, bits, args.timeout))
+                    row.update(_check(make, shell, os.path.join(root, name), copy, base, out, obj,
+                                      conditions, bits, args.timeout))
                 pbar.step(**row)
                 visited.add((name, obj))
                 _save(pbar, done, visited, csv_path)
@@ -185,10 +194,8 @@ def main():
                    'proposed': None, 'changed': None, 'tool_holds': None, 'kmax_holds': None,
                    'compile': None, 'compile_seconds': None}
             if status == 'ok':
-                if not copied:
-                    _copy(os.path.join(root, name), copy)
-                    copied = True
-                row.update(_check(make, shell, copy, base, out, obj, conditions, bits, args.timeout))
+                row.update(_check(make, shell, os.path.join(root, name), copy, base, out, obj,
+                                  conditions, bits, args.timeout))
             pbar.step(**row)
             visited.add((name, obj))
             _save(pbar, done, visited, csv_path)
