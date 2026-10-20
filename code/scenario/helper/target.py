@@ -42,3 +42,18 @@ KMAXALL = {
     'barebox': None,
     'xen': None,
 }
+
+# the cross compiler prefix of a Linux target, for the make commands of its build trees;
+# the others build with the host's compiler
+CROSS_COMPILE = {
+    'linux-arm64': 'aarch64-linux-gnu-',
+    'linux-arm': 'arm-none-eabi-',
+}
+
+# Kmax names the value of BITS as the options BITS=32 and BITS=64, which its arch.py
+# sets for each architecture; klocalizer sets them, and so does evaluating Kmax's
+# conditions under a configuration of that architecture
+KMAX_BITS = {
+    'linux-i386': 'BITS=32',
+    'linux-x86_64': 'BITS=64',
+}

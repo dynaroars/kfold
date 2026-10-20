@@ -1,3 +1,4 @@
+import importlib.util
 import subprocess
 import tempfile
 import shutil
@@ -22,6 +23,34 @@ PATCHES = [
      "    sys.stderr.write('PROGRESS %d %d %d\\n' % (covering_set.done,"
      ' len(pending_subdirectories), len(z3_pcs)))\n'),
 ]
+
+# the patches applied to a copy of the kmax package, for klocalizer, as (file, original,
+# replacement)
+PACKAGE_PATCHES = [
+    # an f-string that nests double quotes, which Python only parses from 3.12 on; the
+    # venv runs 3.10, where importing arch.py, and so klocalizer, fails
+    ('arch.py', 'self.__logger.debug(f"{" ".join(command)}")', 'self.__logger.debug(" ".join(command))'),
+]
+
+
+def patched_package(directory):
+    '''Copy the installed kmax package into `directory`, once, with PACKAGE_PATCHES applied.
+
+    Returns the directory to put first on PYTHONPATH, so klocalizer and the Kmax tools it
+    runs import the copy.
+    '''
+    package = os.path.dirname(importlib.util.find_spec('kmax').origin)
+    copy = os.path.join(directory, 'kmax')
+    if not os.path.isdir(copy):
+        shutil.copytree(package, copy)
+        for name, old, new in PACKAGE_PATCHES:
+            path = os.path.join(copy, name)
+            with open(path) as f:
+                source = f.read()
+            assert source.count(old) == 1, 'unexpected kmax version'
+            with open(path, 'w') as f:
+                f.write(source.replace(old, new))
+    return directory
 
 
 def _patched_kmaxall():

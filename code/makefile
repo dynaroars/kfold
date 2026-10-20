@@ -60,3 +60,15 @@ rq2:
 	python3 -m scenario.exp.rq2_run --target=computed --tool=tool --n_ifeq=200 --timeout=60
 	python3 -m scenario.exp.rq2_run --target=computed --tool=kmax --n_ifeq=200 --timeout=60
 	python3 -m scenario.exp.rq2_plot
+
+
+rq3:
+	python3 -m scenario.exp.rq3_run --target=linux-i386 --tool=tool --n_build=2
+	python3 -m scenario.exp.rq3_run --target=linux-i386 --tool=kmax --n_build=2
+	python3 -m scenario.exp.rq3_run --target=linux-x86_64 --tool=tool --n_build=2
+	python3 -m scenario.exp.rq3_run --target=linux-x86_64 --tool=kmax --n_build=2
+	python3 -m scenario.exp.rq3_run --target=linux-arm64 --tool=tool --n_build=2
+	python3 -m scenario.exp.rq3_run --target=linux-arm64 --tool=kmax --n_build=2
+	python3 -m scenario.exp.rq3_run --target=linux-arm --tool=tool --n_build=2
+	python3 -m scenario.exp.rq3_run --target=linux-arm --tool=kmax --n_build=2
+	python3 -m scenario.exp.rq3_plot

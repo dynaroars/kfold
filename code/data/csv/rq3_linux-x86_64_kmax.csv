@@ -1,0 +1,12 @@
+repair,build,object,status,seconds,proposed,changed,tool_holds,kmax_holds
+0,allnoconfig-0,sound/usb/6fire/midi.o,error,7.435613101988565,,,,
+1,allnoconfig-0,drivers/mtd/nand/spi/alliancememory.o,error,8.251770063012373,,,,
+2,allnoconfig-0,net/llc/llc_c_ev.o,error,7.7775413419585675,,,,
+3,allnoconfig-0,drivers/net/ethernet/mellanox/mlx4/main.o,error,8.21511804399779,,,,
+4,allnoconfig-0,drivers/bus/mhi/host/init.o,error,7.7902009230456315,,,,
+5,allnoconfig-0,drivers/iio/dummy/iio_dummy_evgen.o,error,7.662536693038419,,,,
+6,allnoconfig-0,drivers/pcmcia/soc_common.o,error,7.550695320998784,,,,
+7,allnoconfig-0,drivers/net/wireless/realtek/rtlwifi/rtl8192de/led.o,error,7.951003915979527,,,,
+8,allnoconfig-0,drivers/net/ethernet/engleder/tsnep_tc.o,error,7.518428285024129,,,,
+9,allnoconfig-0,samples/ftrace/ftrace-direct-modify.o,error,7.745844482968096,,,,
+10,allnoconfig-1,sound/virtio/virtio_chmap.o,error,7.511608891014475,,,,
