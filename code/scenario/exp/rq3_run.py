@@ -27,6 +27,42 @@ def _save(pbar, done, visited, csv_path):
     pd.concat([rows, rest], ignore_index=True).to_csv(csv_path, index=None)
 
 
+def _copy(tree, copy):
+    # a fresh copy of an RQ1 build; cp -a keeps the source link of the O= tree
+    if os.path.isdir(copy):
+        shutil.rmtree(copy)
+    os.makedirs(os.path.dirname(copy), exist_ok=True)
+    subprocess.run(['cp', '-a', tree, copy], check=True)
+
+
+def _check(make, env, copy, base, out, obj, conditions, bits, timeout):
+    # the repaired configuration in the copy of the build: olddefconfig applies the
+    # Kconfig rules it may break, the changes count against the base after it, and the
+    # object's condition is evaluated by each tool's conditions; then make compiles the
+    # object, which Kbuild has no rule for when the configuration does not select it
+    shutil.copy(out, os.path.join(copy, '.config'))
+    subprocess.run([*make, f'O={copy}', 'olddefconfig'], env=env, check=True, capture_output=True)
+    final = os.path.join(copy, '.config')
+    on = read_config(final)
+    row = {'proposed': changed(base, read_values(out)), 'changed': changed(base, read_values(final)),
+           'tool_holds': obj in evaluate({obj: conditions['tool'][obj]}, on),
+           'kmax_holds': obj in evaluate({obj: conditions['kmax'][obj]}, on | bits)}
+    start = time.perf_counter()
+    try:
+        result = subprocess.run([*make, f'O={copy}', f'-j{os.cpu_count()}', obj], env=env,
+                                capture_output=True, timeout=timeout)
+        if result.returncode == 0 and os.path.isfile(os.path.join(copy, obj)):
+            row['compile'] = 'compiled'
+        elif b'No rule to make target' in result.stderr:
+            row['compile'] = 'not selected'
+        else:
+            row['compile'] = 'compile error'
+    except subprocess.TimeoutExpired:
+        row['compile'] = 'timeout'
+    row['compile_seconds'] = time.perf_counter() - start
+    return row
+
+
 def _klocalizer(src, arch, env, config, obj, formulas, out, timeout):
     # Kmax's repair, krepair, as klocalizer --repair; its formulas are generated on the
     # first call for the source tree and cached in `formulas`
@@ -41,11 +77,11 @@ def main():
     src = os.path.abspath(os.path.join(root, 'src'))
     arch = target.VARIABLES[args.target]['ARCH']
     cross = {'CROSS_COMPILE': target.CROSS_COMPILE[args.target]} if args.target in target.CROSS_COMPILE else {}
-    # klocalizer runs make in the source tree to read its version; under an outer make,
-    # MAKELEVEL makes that make print "Entering directory" before it, which klocalizer
-    # cannot parse, so it runs with the environment of a shell
-    env = {k: v for k, v in os.environ.items() if k not in ('MAKEFLAGS', 'MAKELEVEL', 'MFLAGS')}
-    env.update(ARCH=arch, **cross)
+    # klocalizer and the builds run make in the source tree with the environment of a
+    # shell; under an outer make, MAKELEVEL makes that make print "Entering directory"
+    # before the kernel version, which klocalizer cannot parse
+    shell = {k: v for k, v in os.environ.items() if k not in ('MAKEFLAGS', 'MAKELEVEL', 'MFLAGS')}
+    env = dict(shell, ARCH=arch, **cross)
     make = ['make', '-C', src, f'ARCH={arch}'] + [f'{k}={v}' for k, v in cross.items()]
 
     # the build conditions of both tools from RQ1; the objects drawn are in both, so the
@@ -63,8 +99,11 @@ def main():
                     and int(d.rpartition('-')[2]) < args.n_build),
                    key=lambda d: (d.rpartition('-')[0], int(d.rpartition('-')[2])))
     work = os.path.abspath(os.path.join(args.analysis_dir, args.tool, f'{args.target}.rq3'))
-    scratch = os.path.join(work, 'olddefconfig')
-    os.makedirs(scratch, exist_ok=True)
+    os.makedirs(work, exist_ok=True)
+    # the copy of an RQ1 build that checks its repairs by compiling the object, so the
+    # builds RQ1 scores keep their objects; one copy per build serves its repairs, which
+    # each add a different object
+    copy = os.path.abspath(os.path.join(root, 'rq3', args.tool))
     formulas = os.path.abspath(os.path.join(args.analysis_dir, 'kmax', f'{args.target}.klocalizer'))
     # klocalizer runs from a copy of the kmax package that Python 3.10 can import
     if args.tool == 'kmax':
@@ -85,6 +124,7 @@ def main():
     for t, name in enumerate(trees):
         config = os.path.abspath(os.path.join(root, name, '.config'))
         base = read_values(config)
+        copied = False
         candidates = sorted(universe - _observed(os.path.join(root, name)))
         objects = random.Random(0).sample(candidates, OBJECTS)
         # klocalizer generates its formulas on its first call, which is not timed
@@ -94,18 +134,31 @@ def main():
                         os.path.join(work, 'warmup.config'), None)
             print(f'[rq3.run] klocalizer formulas generated in {time.perf_counter() - start:.1f}s')
         for i, obj in enumerate(objects):
+            out = os.path.join(work, f'{name}-{i}.config')
             if (name, obj) in done:
-                pbar.step(**{k: v for k, v in done[name, obj].items() if k != 'repair'})
+                # every row has every column, also those of runs before the compile check
+                row = {'proposed': None, 'changed': None, 'tool_holds': None, 'kmax_holds': None,
+                       'compile': None, 'compile_seconds': None,
+                       **{k: v for k, v in done[name, obj].items() if k != 'repair'}}
+                # a repair of a run before the compile check gets the check alone
+                if row['status'] == 'ok' and not row.get('compile'):
+                    if not copied:
+                        _copy(os.path.join(root, name), copy)
+                        copied = True
+                    row.update(_check(make, shell, copy, base, out, obj, conditions, bits, args.timeout))
+                pbar.step(**row)
                 visited.add((name, obj))
                 _save(pbar, done, visited, csv_path)
                 continue
-            out = os.path.join(work, f'{name}-{i}.config')
             status = 'ok'
-            # the tool's time is the repair alone, after the conditions are loaded; Kmax's
-            # is a klocalizer call, which also starts Python and reads its cached formulas
+            # the time is the repair alone: the tool's is the repair call, after the
+            # conditions and the configuration are read; Kmax's is a klocalizer call, which
+            # also starts Python and reads its cached formulas; the compile check is timed
+            # apart, as compile_seconds
+            on = read_config(config)
             start = time.perf_counter()
             if args.tool == 'tool':
-                flips = repair(conditions['tool'], read_config(config), obj)
+                flips = repair(conditions['tool'], on, obj)
                 seconds = time.perf_counter() - start
                 if flips is None:
                     status = 'unsat'
@@ -129,19 +182,13 @@ def main():
                     status = 'timeout'
                 seconds = time.perf_counter() - start
             row = {'build': name, 'object': obj, 'status': status, 'seconds': seconds,
-                   'proposed': None, 'changed': None, 'tool_holds': None, 'kmax_holds': None}
+                   'proposed': None, 'changed': None, 'tool_holds': None, 'kmax_holds': None,
+                   'compile': None, 'compile_seconds': None}
             if status == 'ok':
-                # olddefconfig applies the Kconfig rules the repaired configuration may
-                # break; the changes count against the base after it, and the object counts
-                # as added when its condition still holds, by each tool's conditions
-                shutil.copy(out, os.path.join(scratch, '.config'))
-                subprocess.run([*make, f'O={scratch}', 'olddefconfig'], check=True, capture_output=True)
-                final = os.path.join(scratch, '.config')
-                on = read_config(final)
-                row.update(proposed=changed(base, read_values(out)),
-                           changed=changed(base, read_values(final)),
-                           tool_holds=obj in evaluate({obj: conditions['tool'][obj]}, on),
-                           kmax_holds=obj in evaluate({obj: conditions['kmax'][obj]}, on | bits))
+                if not copied:
+                    _copy(os.path.join(root, name), copy)
+                    copied = True
+                row.update(_check(make, shell, copy, base, out, obj, conditions, bits, args.timeout))
             pbar.step(**row)
             visited.add((name, obj))
             _save(pbar, done, visited, csv_path)
