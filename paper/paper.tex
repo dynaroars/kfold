@@ -436,13 +436,12 @@ The implementation of \tool{} and all evaluation scripts are available in the an
 
 \section{Evaluation}\label{sec:eval}
 
-We evaluate \tool{} to determine how accurately its build conditions predict the object files produced by concrete builds, how its consolidated state representation scales relative to path-forking symbolic execution and Kmax, how effectively its build conditions support developer maintenance tasks, and how each component of its design contributes to accuracy.
-Specifically, we investigate four research questions:
+We evaluate \tool{} to determine how accurately its build conditions predict the object files produced by concrete builds, how its time and accuracy depend on characteristics of the source tree compared with Kmax, and how effectively its build conditions support developer maintenance tasks.
+Specifically, we investigate three research questions:
 \begin{description}
 \item[RQ1 (Build Agreement)] When the extracted build conditions are evaluated under concrete configurations, how accurately do the predicted object sets match the ground-truth object files compiled by full builds?
-\item[RQ2 (Scalability)] How do the running time and memory consumption of \tool{} scale with the number of conditional assignments compared with path-forking symbolic execution and Kmax, and what is the cost of analyzing entire project trees?
+\item[RQ2 (Source Characteristics)] How do the running time, memory, and accuracy of \tool{} and Kmax depend on the length of a Makefile, nested conditionals, values chosen by conditionals, the number and depth of directories, and composite objects?
 \item[RQ3 (Developer Tasks)] Can the extracted build conditions explain why source files are included or excluded in a build, synthesize valid configurations to compile files modified by real-world commits, and identify uncompiled blind spots across standard configurations?
-\item[RQ4 (Comparison and Ablation)] How does \tool{} compare with Kmax in build agreement on the same concrete builds, and how much do \texttt{include} inlining, rule closure, and Kbuild link semantics contribute to \tool{}'s precision and recall?
 \end{description}
 
 \subsection{Experimental Setup}\label{sec:setup}
@@ -500,12 +499,10 @@ We compute precision as $TP / (TP + FP) = |P_c \cap B_c| / |P_c|$ and recall (ov
 Here, $FN_U$ measures formula imprecision in the symbolic execution of extracted Makefiles (target objects whose build conditions evaluate to false despite being compiled), whereas recall also accounts for built objects that lie outside the extracted universe $U$.
 
 \emph{Baselines and Ablations.}
-We evaluate \tool{} against established baselines and across design ablations:
+We evaluate \tool{} against established baselines:
 \begin{itemize}[leftmargin=1.5em]
   \item \emph{Static Kbuild Analysis:} For build condition extraction, we compare \tool{} against Kmax~\cite{gazzillo2017kmax} (\texttt{kmaxall} v4.10). We evaluate Kmax's extracted Boolean conditions under the same concrete configurations and score them against the ground-truth build inventory $B_c$ using identical metrics. On Linux, \texttt{kmaxall} is invoked on the root \texttt{Kbuild} file and \texttt{lib/} with \texttt{SRCARCH} bound to the target architecture; on the remaining subjects, it initiates analysis from top-level entry directories, matching \tool{}'s entry points.
   \item \emph{Configuration Synthesis:} In RQ3, we compare \tool{}'s \texttt{config-for} against the configuration repair tool \texttt{klocalizer} (v4.10)~\cite{yildiran2024krepair}. We evaluate both tools on the same commits and base configurations, scoring success by whether the generated configuration compiles all touched object files upon materialization via \texttt{make olddefconfig}.
-  \item \emph{Path-Forking Scalability:} In RQ2, we evaluate symbolic execution scaling on synthetic Kbuild Makefiles with $k$ independent conditional blocks, comparing \tool{} with conventional path-forking symbolic execution~\cite{nguyen2020kbuild} and Kmax.
-  \item \emph{Design Ablations:} In RQ4, we assess the contribution of each design component through an ablation study: disabling static \texttt{include} inlining (\texttt{no\_includes}), disabling explicit rule prerequisite closure (\texttt{no\_rules}), and disabling Kbuild linking semantics (\texttt{no\_link\_semantics}).
 \end{itemize}
 
 \emph{Experimental Environment.}
@@ -567,63 +564,108 @@ For each tool, we record the wall-clock time of one whole-tree analysis.
 \label{fig:rq1}
 \end{figure}
 
-\subsection{RQ2: Scalability}\label{sec:rq2}
-This research question measures how the running time and memory of \tool{} grow with the number of conditional statements, compared with path-forking symbolic execution and Kmax.
-\tl{Planned; not run yet. The paragraph below summarizes the plan.}
+\subsection{RQ2: Source Characteristics}\label{sec:rq2}
+This research question measures how the running time, memory, and accuracy of \tool{} and Kmax depend on characteristics of the source tree.
+\tl{Numbers from code/data/csv/rq2\_*.csv and rq2\_summary.csv; define them as macros in paper.sty before submission.}
 
-We generate synthetic Kbuild Makefiles with $k$ independent conditional blocks, for $k$ from 1 to 20.
-In each block, an \texttt{ifeq} conditional appends a distinct object file to an intermediate variable that is added to \texttt{obj-y}, so a Makefile has $2^k$ execution paths.
-We run \tool{}, Kmax, and a path-forking baseline on each tree, and record the wall-clock time and peak memory of each run under a fixed timeout and memory limit.
-The baseline reimplements the path-forking symbolic execution of Nguyen and Nguyen~\cite{nguyen2020kbuild} on the statement semantics of \tool{}: at each conditional, it continues every feasible branch with its own copy of the state, so the two differ only in forking and merging.
-The number of states of path forking grows with $2^k$.
-\tool{} merges the two branch states at each join point (\autoref{line:merge}), and Kmax tracks the configurations that reach each statement, so we expect both to grow slowly with $k$; the benchmark therefore separates per-word path conditions from path forking.
-The whole-tree times of \tool{} and Kmax on the subjects come from RQ1 (\autoref{fig:rq1-time}).
-\tl{Defaults: 600\,s timeout and 16\,GB of address space per run (code/scenario/exp/rq2\_run.py); a tool stops at the first run that exceeds either. Trees from code/scenario/prepare/synthetic.py, baseline in code/baseline/icsme/.}
+We generate eight families of synthetic Kbuild trees, each with one size parameter $n$.
+In every tree, the top-level Makefile descends into one directory with \texttt{\$(MAKE) \$(build)=bench}, as Kbuild does, so all tools enter it the same way as the subjects of RQ1.
+\emph{Makefile length} has $n$ independent blocks, in each of which an \texttt{ifeq} conditional appends a distinct object file to an intermediate variable that is added to \texttt{obj-y}, so the Makefile has $2^n$ execution paths.
+\emph{Nested conditionals} have 100 independent blocks, each $n$ \texttt{ifeq} statements deep, where level $j$ of a block appends its own object, so its build condition conjoins $j$ options.
+\emph{Value choices} have $n$ \texttt{ifeq}/\texttt{else} blocks that set a variable to one of two words, and each block adds an object whose name contains that variable, such as \texttt{file\_1\_\$(V\_1).o}; these exercise words with path conditions (\autoref{line:merge}).
+\emph{Directory descent} enters $n$ subdirectories, each under its own \texttt{ifeq} and each building one object, so the cost lies in descending into directories, which Kmax analyzes in one process each.
+\emph{Directory depth} chains $n$ subdirectories, each entered from the one above under its own \texttt{ifeq} and each building one object, so the object at depth $j$ needs $j$ options.
+\emph{Composite objects} select $n$ composite objects, each under its own \texttt{ifeq} and linked from three members, the third under a second option; Kbuild compiles the members and never the composite.
+\emph{Exported variables} have a top-level Makefile that sets \texttt{BITS} to \texttt{64} or \texttt{32} by \texttt{CONFIG\_64BIT} and exports it, as \texttt{arch/x86/Makefile} does in Linux, and $n$ blocks in the subdirectory, each adding \texttt{base\_$i$.o} and \texttt{part\_$i$\_\$(BITS).o} under its own option, as \texttt{arch/x86/mm/Makefile} does; the value of an object name then comes from another Makefile.
+\emph{Conditional lists} have $n$ blocks, each assigning \texttt{a\_$i$.o} to the list \texttt{list\_$i$-\$(CONFIG\_A\_$i$)}, which is \texttt{list\_$i$-y} when \texttt{A\_$i$} is set, and adding \texttt{b\_$i$.o} and \texttt{\$(list\_$i$-y)} to \texttt{obj-\$(CONFIG\_B\_$i$)}, as \texttt{drivers/firmware/efi/Makefile} does in Linux; \texttt{a\_$i$.o} is then built when both options are set.
 
-\tl{To be written: discuss \autoref{fig:rq2} and \autoref{fig:rq2-large}. Path forking ran up to 12 blocks (code/makefile, --n\_ifeq=12), and \tool{} and Kmax up to 2,000; numbers in code/data/csv/rq2\_*.csv.}
+We vary $n$ from 2 to 20 in steps of 2 for nested conditionals and from 20 to 200 in steps of 20 for the other families.
+These ranges cover the Makefiles of Linux 7.2.8.
+Of its 3,331 Makefile and Kbuild files, the top-level Makefile has the most conditionals, 151, and the next 34; conditionals nest at most 7 deep, and these files lie at most 9 directories deep.
+Composite objects are the exception: 99\% of the files declare at most 25 member lists, and one declares 435.
+The number of directories is also larger in Linux, which Kmax analyzes in one process each.
+In Linux, 32 subdirectory Makefiles name objects with \texttt{\$(BITS)}, one of them 21 times.
+
+We run \tool{} and Kmax on every tree.
+Each run analyzes one tree in a fresh process, and we record its wall-clock time and peak memory under a timeout of 60\,s and a memory limit; a tool stops at its first run that exceeds either.
+\tl{Memory limit: 16\,GB of address space per run (code/scenario/exp/rq2\_run.py). Trees from code/scenario/prepare/\{length,nested,value,directory,depth,composite\}.py.}
+
+Each tree builds a set of objects whose build conditions are known by construction, such as \texttt{bench/file\_1\_wide.o} under \texttt{CONFIG\_OPTION\_1} and \texttt{bench/file\_1\_narrow.o} under its negation.
+We compare the conditions of each tool with these with Z3, so the comparison holds in every configuration, where RQ1 samples configurations.
+Precision is the share of the objects a tool reports whose condition is equivalent to the true one, and recall is the share of the objects the tree builds that the tool reports with an equivalent condition.
+
+\emph{Results.}
+\tl{On Makefile length, nested conditionals, value choices, directory descent, and directory depth, \tool{} and Kmax both reach a precision and recall of 1.000 at every size.}
+\tl{To be written: discuss \autoref{fig:rq2} and \autoref{tab:rq2}; numbers in code/data/csv/rq2\_*.csv and rq2\_summary.csv. State the range of peak memory in one sentence.}
 
 \begin{figure}[t]
 \centering
-\begin{subfigure}[b]{0.48\linewidth}
+\begin{minipage}[c]{0.66\linewidth}
 \centering
-\includegraphics[width=\linewidth]{figure/result/rq2_time.pdf}
-\caption{Analysis time}
-\label{fig:rq2-time}
+\begin{subfigure}[b]{0.32\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figure/result/rq2_length_time.pdf}
+\caption{Makefile length}
+\label{fig:rq2-length}
 \end{subfigure}
 \hfill
-\begin{subfigure}[b]{0.48\linewidth}
+\begin{subfigure}[b]{0.32\linewidth}
 \centering
-\includegraphics[width=\linewidth]{figure/result/rq2_memory.pdf}
-\caption{Peak memory}
-\label{fig:rq2-memory}
+\includegraphics[width=\linewidth]{figure/result/rq2_nested_time.pdf}
+\caption{Nested conditionals}
+\label{fig:rq2-nested}
 \end{subfigure}
-\\[0.2em]
+\hfill
+\begin{subfigure}[b]{0.32\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figure/result/rq2_value_time.pdf}
+\caption{Value choices}
+\label{fig:rq2-value}
+\end{subfigure}
+\\[0.3em]
+\begin{subfigure}[b]{0.32\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figure/result/rq2_directory_time.pdf}
+\caption{Directory descent}
+\label{fig:rq2-directory}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.32\linewidth}
+\centering
+\includegraphics[width=\linewidth]{figure/result/rq2_depth_time.pdf}
+\caption{Directory depth}
+\label{fig:rq2-depth}
+\end{subfigure}
+\hfill
+\begin{minipage}[b]{0.32\linewidth}
+\centering
 \includegraphics{figure/result/rq2_legend.pdf}
-\caption{Analysis time and peak memory on the synthetic Makefiles by the number of conditional blocks.}
-\Description{Two line charts over 1 to 20 conditional blocks. Analysis time: the tool stays below 0.04 seconds and Kmax between 0.19 and 0.23 seconds, while path forking grows from 0.007 seconds at one block to 24.1 seconds at 12 blocks, roughly doubling per block. Peak memory: the tool and Kmax stay between 160 and 166 megabytes, while path forking grows from 164 to 182 megabytes at 12 blocks.}
+\vspace{2em}
+\end{minipage}
+\caption{Analysis time of \tool{} and Kmax by five source characteristics.}
+\Description{Five line charts of analysis time in seconds on a linear scale, one per source characteristic, with one line for the tool and one for Kmax: Makefile length, value choices, and the number and depth of conditional subdirectories from 20 to 200, and nesting depth from 2 to 20. Kmax is slower on the number and depth of directories, growing to about 23 seconds at 200, and faster on nested conditionals beyond a depth of about 4; on Makefile length and value choices the two stay within one second. Beside the charts, a table gives precision and recall: on composite objects 1.000 and 1.000 for the tool and 0.750 and 1.000 for Kmax, on exported variables 1.000 and 1.000 for the tool and 0 and 0 for Kmax, and on conditional lists 1.000 and 1.000 for the tool and 0.500 and 0.500 for Kmax.}
 \label{fig:rq2}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\begin{subfigure}[b]{0.48\linewidth}
-\centering
-\includegraphics[width=\linewidth]{figure/result/rq2_2_time.pdf}
-\caption{Analysis time}
-\label{fig:rq2-large-time}
-\end{subfigure}
+\end{minipage}
 \hfill
-\begin{subfigure}[b]{0.48\linewidth}
-\centering
-\includegraphics[width=\linewidth]{figure/result/rq2_2_memory.pdf}
-\caption{Peak memory}
-\label{fig:rq2-large-memory}
-\end{subfigure}
-\\[0.2em]
-\includegraphics{figure/result/rq2_2_legend.pdf}
-\caption{Analysis time and peak memory of \tool{} and Kmax on synthetic Makefiles with up to 2,000 conditional blocks.}
-\Description{Two line charts over 0 to 2,000 conditional blocks in steps of 100. Analysis time on a log scale: the tool grows from 0.004 seconds at no block and 0.21 seconds at 100 blocks to 13.5 seconds at 2,000 blocks, and Kmax from 0.19 seconds to 7.7 seconds; the tool is faster up to about 400 blocks and slower above. Peak memory: the tool grows from 162 to 170 megabytes, and Kmax stays between 163 and 165 megabytes.}
-\label{fig:rq2-large}
+\begin{minipage}[c]{0.31\linewidth}
+\centering\scriptsize
+\captionof{table}{Precision and recall on the synthetic trees where the tools differ.}
+\label{tab:rq2}
+% \captionof inside the figure also steps the figure counter
+\addtocounter{figure}{-1}
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{lrrrr}
+\toprule
+& \multicolumn{2}{c}{\tool{}} & \multicolumn{2}{c}{Kmax} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+& Prec. & Rec. & Prec. & Rec. \\
+\midrule
+Composite & 1.000 & 1.000 & 0.750 & 1.000 \\
+Exported & 1.000 & 1.000 & 0.000 & 0.000 \\
+Cond.\ lists & 1.000 & 1.000 & 0.500 & 0.500 \\
+\bottomrule
+\end{tabular}
+\end{minipage}
 \end{figure}
 
 \subsection{RQ3: Developer Tasks}\label{sec:rq3}
@@ -633,14 +675,6 @@ Across 400 randomly sampled Linux source files, \texttt{why} correctly diagnoses
 The \texttt{config-for} command combines extracted build conditions with a Kconfig dependency model to synthesize minimal configuration updates for commits from Linux stable releases.
 Across 402 tested commits touching C or assembly files, \texttt{config-for} successfully synthesizes valid configurations that compile all touched objects for 384 commits (95.5\%), validated by materializing the configuration with \texttt{make olddefconfig} and executing a concrete build.
 Finally, the \texttt{blindspots} command evaluates build conditions against a corpus of standard release configurations, identifying 49 orphan files in Linux that are never compiled in any analyzed configuration, including abandoned test stubs and legacy drivers whose controlling Kconfig options were removed.
-
-\subsection{RQ4: Comparison and Ablation}\label{sec:rq4}
-This research question evaluates the contribution of each design component of \tool{} through an ablation study, and compares the resulting precision and recall with Kmax on the same concrete builds.
-We evaluate three ablations: disabling static \texttt{include} inlining (\texttt{no\_includes}), disabling rule prerequisite closure (\texttt{no\_rules}), and disabling Kbuild linking semantics (\texttt{no\_link\_semantics}).
-On Linux, omitting Kbuild linking semantics reduces precision from 1.000 to 0.941 because built-in composite objects are falsely predicted as standalone \texttt{.o} files, whereas Kbuild links their components directly into \texttt{built-in.a}.
-Disabling rule closure reduces recall because boot stubs and generated offset files compiled via explicit rules are lost from the target universe.
-Disabling \texttt{include} inlining causes false negatives in subsystems that partition configuration variables across included helper Makefiles.
-Compared with Kmax, \tool{} achieves higher recall (0.953 to 0.990 vs. 0.918 to 0.962) and higher precision (1.000 vs. 0.857 to 0.913) on the 36 Linux configurations in \autoref{fig:rq1}, because \tool{} correctly resolves architecture-specific directory expansions (\texttt{arch/\$(SRCARCH)/}) and accurately distinguishes composite member objects from intermediate modular archives.
 
 \section{Related Work}
   \label{sec:related}

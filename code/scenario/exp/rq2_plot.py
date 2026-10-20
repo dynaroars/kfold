@@ -8,16 +8,16 @@ import pandas as pd
 from scenario import helper
 
 # the source characteristics compared between the tool and Kmax, as (--target, sizes,
-# x-axis label)
+# x-axis label); the label is short, as the subfigure captions name the characteristics
 STRUCTURES = [
-    ('length', range(20, 201, 20), 'conditional blocks'),
-    ('nested', range(2, 21, 2), 'nesting depth of 100 blocks'),
-    ('value', range(20, 201, 20), 'value-choosing blocks'),
-    ('directory', range(20, 201, 20), 'conditional subdirectories'),
+    ('length', range(20, 201, 20), 'blocks'),
+    ('nested', range(2, 21, 2), 'nesting depth'),
+    ('value', range(20, 201, 20), 'blocks'),
+    ('directory', range(20, 201, 20), 'directories'),
     ('depth', range(20, 201, 20), 'directory depth'),
-    ('composite', range(20, 201, 20), 'composite objects'),
-    ('exported', range(20, 201, 20), 'blocks naming $(BITS)'),
-    ('computed', range(20, 201, 20), 'conditional lists'),
+    ('composite', range(20, 201, 20), 'composites'),
+    ('exported', range(20, 201, 20), 'blocks'),
+    ('computed', range(20, 201, 20), 'lists'),
 ]
 TOOLS = ['tool', 'kmax']
 # the measures of each run, as (CSV column, y-axis label, file name suffix)
@@ -43,10 +43,11 @@ def _load(args, structure, sizes):
 
 
 def _plot(runs, column, ylabel, xlabel, out):
-    # one line per tool over the runs that finished, a third of the text wide for a
-    # figure of the six characteristics, on a linear scale so where the tools cross shows;
+    # one line per tool over the runs that finished, a fifth of the text wide for a
+    # figure of three panels in a row beside a table, on a linear scale so where the tools
+    # cross shows;
     # a run that timed out or ran out of memory gets a marker at the top above its n_ifeq
-    fig, ax = plt.subplots(figsize=helper.plot.figsize(0.32 * helper.plot.TEXT_PT, 0.7))
+    fig, ax = plt.subplots(figsize=helper.plot.figsize(0.21 * helper.plot.TEXT_PT, 0.85))
     for tool, df in runs.items():
         ok = df[df['status'] == 'ok']
         ax.plot(ok['n_ifeq'], ok[column], color=helper.plot.SERIES[tool],
@@ -68,11 +69,10 @@ def _plot(runs, column, ylabel, xlabel, out):
 
 
 def _legend(handles, labels, out):
-    # the legend the figures share, one row as wide as the text
-    fig, ax = plt.subplots(figsize=(helper.plot.TEXT_PT / 72.27, 0.2))
+    # the legend the figures share, one entry per line, for the free cell of a panel
+    fig, ax = plt.subplots(figsize=helper.plot.figsize(0.21 * helper.plot.TEXT_PT, 0.5))
     ax.axis('off')
-    ax.legend(handles, labels, loc='center', ncol=len(labels), frameon=False,
-              handlelength=1.8, columnspacing=2.0)
+    ax.legend(handles, labels, loc='center', ncol=1, frameon=False, handlelength=1.8)
     _save(fig, out)
 
 
