@@ -13,13 +13,14 @@ FALSE = z3.BoolVal(False)
 # [('lib-y', CONFIG_TAR), ('lib-', Not(CONFIG_TAR))]
 
 
-def execute(statements, root, variables):
+def execute(statements, root, variables, command_line=()):
     '''Execute a list of Makefile statements symbolically starting from an initial state.
 
     Parameters:
         statements: parsed AST statement objects from pymake3
         root:       source tree root path, used to resolve static include directives
         variables:  initial symbolic state, formatted as {variable: {word: path condition}}
+        command_line: names of the variables set on Make's command line
 
     Returns:
         (variables, rules):
@@ -27,7 +28,7 @@ def execute(statements, root, variables):
             rules:     recorded Make rules [(target tokens, prerequisite tokens, path condition,
                        [(recipe line expansion, path condition)])]
     '''
-    executor = Executor(root, variables)
+    executor = Executor(root, variables, command_line)
     executor.run(statements, TRUE)
     return executor.variables, executor.rules
 
@@ -221,9 +222,10 @@ def map_words(tokens, fn):
 
 class Executor:
 
-    def __init__(self, root, variables):
+    def __init__(self, root, variables, command_line=()):
         self.root = root
         self.variables = {name: dict(words) for name, words in variables.items()}
+        self.command_line = set(command_line)
         self.rules = []
         # the rule whose recipe the next command lines belong to; a conditional inside
         # a recipe keeps it, so its command lines join the recipe under their condition
@@ -242,6 +244,18 @@ class Executor:
                 self.rule = (self.expand(statement.targetexp), self.expand(statement.depexp),
                              path_condition, [])
                 self.rules.append(self.rule)
+            elif isinstance(statement, parserdata.StaticPatternRule):
+                # `targets: pattern: prerequisites` is a rule for each target, with the
+                # stem the pattern matches in place of % in its prerequisites
+                pattern = concrete(self.expand(statement.patternexp))
+                prerequisites = self.expand(statement.depexp)
+                recipe = []
+                for target, target_condition in to_words(self.expand(statement.targetexp)).items():
+                    stem = match(pattern, target)
+                    self.rules.append(([[(target, target_condition)]],
+                                       map_words(prerequisites, lambda w: w.replace('%', stem, 1)),
+                                       path_condition, recipe))
+                self.rule = (None, None, path_condition, recipe)
             else:
                 self.rule = None
                 if isinstance(statement, parserdata.SetVariable):
@@ -313,6 +327,10 @@ class Executor:
             if z3.is_false(when):
                 continue
             if statement.token == '?=' and name in self.variables:
+                continue
+            # a variable set on the command line keeps its value against the Makefile's
+            # = and := assignments, as in Make
+            if statement.token != '+=' and name in self.command_line:
                 continue
             old = self.variables.get(name, {})
             if statement.token == '+=':

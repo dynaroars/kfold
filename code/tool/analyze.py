@@ -6,9 +6,13 @@ from tool import parse, execute, collect, descend, top
 
 
 def kbuild_file(path, directory):
-    '''Locate the build file for a directory: prefers 'Kbuild', falling back to 'Makefile'.'''
-    kbuild = os.path.join(path, directory, 'Kbuild')
-    return kbuild if os.path.isfile(kbuild) else os.path.join(path, directory, 'Makefile')
+    '''Locate the build file for a directory: prefers 'Kbuild', then Xen's 'build.mk',
+    falling back to 'Makefile'.'''
+    for name in ['Kbuild', 'build.mk']:
+        file = os.path.join(path, directory, name)
+        if os.path.isfile(file):
+            return file
+    return os.path.join(path, directory, 'Makefile')
 
 
 def analyze(path, variables, progress=None):
@@ -34,7 +38,7 @@ def analyze(path, variables, progress=None):
     analyzed = {('.', 'Makefile', ()): execute.TRUE}
     done = 0
     while work:
-        directory, makefile, goals, path_condition = work.pop()
+        directory, makefile, goals, assignments, path_condition = work.pop()
         if progress:
             progress(done=done, left=len(work) + 1, objects=len(conditions), dir=directory)
         key = (directory, makefile, goals)
@@ -44,10 +48,15 @@ def analyze(path, variables, progress=None):
             analyzed[key] = z3.simplify(z3.Or(analyzed.get(key, execute.FALSE), path_condition))
             # each subdirectory starts from the top-level environment exported by Make,
             # with automatic variables $(obj) and $(src) set to the directory path
+            # and the variables the sub-make line sets, which its Makefile cannot overwrite;
+            # the key leaves them out, so Linux's need-builtin=1 and need-builtin= on the
+            # same path condition analyze a directory once
             start = dict(state)
             if makefile is None:
                 start.update(execute.from_strings({'obj': directory, 'src': directory}))
-            local, rules = execute.execute(parse.parse(file), path, start)
+            start.update(execute.from_strings(dict(assignments)))
+            local, rules = execute.execute(parse.parse(file), path, start,
+                                           [*variables, *(name for name, _ in assignments)])
             # Make builds the goals, or else the default goal: for a directory, the files
             # Kbuild lists; for a standalone Makefile, its first target
             if goals:

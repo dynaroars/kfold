@@ -18,6 +18,7 @@ Output, under <csv_dir>/:
   busybox_build.csv       make's return code per configuration (nonzero: some file failed)
 '''
 import subprocess
+import shutil
 import os
 import re
 
@@ -71,6 +72,10 @@ def build_random_configs(path, root, n_build, csv_path):
     pbar = progress_bar.create(total=n_build, unit='config', desc='    - `make` random configs',
                                csv_path=csv_path)
     for i in range(n_build):
+        # randconfig draws a new configuration on every run, so a rerun starts from a
+        # fresh copy; objects of the previous configuration would count as compiled
+        if os.path.exists(os.path.join(root, str(i))):
+            shutil.rmtree(os.path.join(root, str(i)))
         build = extract(path, root, str(i), TOPDIR)
         subprocess.run(['make', 'randconfig'], cwd=build, check=True,
                        capture_output=True)

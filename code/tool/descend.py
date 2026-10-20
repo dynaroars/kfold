@@ -1,3 +1,4 @@
+import shlex
 import os
 
 import z3
@@ -17,12 +18,13 @@ def descend(directory, variables, path_condition):
         path_condition: incoming path condition reaching the current directory
 
     Returns:
-        [(child_directory, None, (), child_path_condition)]:
+        [(child_directory, None, (), (), child_path_condition)]:
             child_directory:      normalized relative path to child subdirectory
-            None, ():             the child's own Kbuild file, built for its default goal
+            None, (), ():         the child's own Kbuild file, built for its default goal
+                                  with no variables set on its command line
             child_path_condition: conjunction of directory reaching condition and obj-y condition
     '''
-    return [(os.path.normpath(os.path.join(directory, word)), None, (),
+    return [(os.path.normpath(os.path.join(directory, word)), None, (), (),
              z3.simplify(z3.And(path_condition, condition)))
             for word, condition in variables.get('obj-y', {}).items() if word.endswith('/')]
 
@@ -92,11 +94,12 @@ def submakes(root, variables, rules, reach, path_condition):
         path_condition: incoming path condition reaching the current Makefile
 
     Returns:
-        [(directory, makefile, goals, path condition)]:
+        [(directory, makefile, goals, assignments, path condition)]:
             a line running $(MAKE) -f <file> obj=<dir> <goal>..., such as $(MAKE) $(build)=<dir>,
             gives (<dir>, None, (<goal>, ...), ...): the directory's own Kbuild file. A line
             running $(MAKE) -f <file> <goal>... without obj= gives ('.', <file>, ...), as
-            Kbuild runs that file from the tree root. Each path condition conjoins
+            Kbuild runs that file from the tree root. assignments are the (name, value) pairs
+            the line sets on the sub-make's command line, such as need-builtin=1. Each path condition conjoins
             `path_condition` with the conditions of the rule, the target, its reach, and the line.
     '''
     executor = execute.Executor(root, variables)
@@ -112,7 +115,9 @@ def submakes(root, variables, rules, reach, path_condition):
             executor.variables['@'] = {target: execute.TRUE}
             for line, line_condition in lines:
                 for s, g in execute.alternatives(executor.expand(line)):
-                    words = s.split()
+                    # the shell joins backslash-continued lines and removes the quotes
+                    # around values such as 'ALL_OBJS=a.o b.o'
+                    words = shlex.split(s.replace('\\\n', ' '))
                     if '-f' not in words[:-1]:
                         continue
                     i = words.index('-f') + 1
@@ -121,10 +126,12 @@ def submakes(root, variables, rules, reach, path_condition):
                     # the goals are the words after the Makefile that set no variable
                     goals = tuple(word for word in words[i + 1:]
                                   if '=' not in word and not word.startswith('-'))
+                    assignments = tuple(tuple(word.split('=', 1)) for word in words[i + 1:]
+                                        if '=' in word and not word.startswith(('-', 'obj=')))
                     condition = z3.simplify(z3.And(path_condition, rule_condition, target_condition,
                                                    reach[os.path.normpath(target)], line_condition, g))
                     if dirs:
-                        found.append((os.path.normpath(dirs[0]), None, goals, condition))
+                        found.append((os.path.normpath(dirs[0]), None, goals, assignments, condition))
                     else:
-                        found.append(('.', makefile, goals, condition))
+                        found.append(('.', makefile, goals, assignments, condition))
     return found

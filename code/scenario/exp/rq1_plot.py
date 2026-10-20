@@ -33,6 +33,10 @@ def _load(args):
             csv_path = os.path.join(args.csv_dir, f'rq1_{system}_{tool}.csv')
             if not os.path.isfile(csv_path):
                 continue
+            # rq1_run writes an empty CSV for a target without build trees
+            if not open(csv_path).read().strip():
+                print(f'[skip] {csv_path}: empty, the target has no build trees')
+                continue
             errors_path = os.path.join(args.analysis_dir, tool, f'{system}.rq1.json')
             errors = None
             if os.path.isfile(errors_path):
