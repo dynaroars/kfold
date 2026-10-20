@@ -10,7 +10,9 @@ Output, under <target_dir>/value-<n_ifeq>/:
 '''
 import os
 
-from scenario.prepare.synthetic import TOP
+import z3
+
+from scenario.prepare.length import TOP
 
 
 def bench(n_ifeq):
@@ -19,6 +21,16 @@ def bench(n_ifeq):
         lines += [f'ifeq ($(CONFIG_OPTION_{i}),y)', f'V_{i} := wide', 'else', f'V_{i} := narrow',
                   'endif', f'obj-y += file_{i}_$(V_{i}).o']
     return '\n'.join(lines) + '\n'
+
+
+def truth(n_ifeq):
+    # {object: build condition} by construction: wide with OPTION_i, narrow without it
+    conditions = {}
+    for i in range(1, n_ifeq + 1):
+        option = z3.Bool(f'CONFIG_OPTION_{i}')
+        conditions[f'bench/file_{i}_wide.o'] = option
+        conditions[f'bench/file_{i}_narrow.o'] = z3.Not(option)
+    return conditions
 
 
 def prepare(args):

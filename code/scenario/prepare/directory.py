@@ -11,7 +11,14 @@ Output, under <target_dir>/directory-<n_ifeq>/:
 '''
 import os
 
-from scenario.prepare.synthetic import TOP
+import z3
+
+from scenario.prepare.length import TOP
+
+
+def truth(n_ifeq):
+    # {object: build condition} by construction: dir_i/file.o is built with DIR_i
+    return {f'bench/dir_{i}/file.o': z3.Bool(f'CONFIG_DIR_{i}') for i in range(1, n_ifeq + 1)}
 
 
 def prepare(args):

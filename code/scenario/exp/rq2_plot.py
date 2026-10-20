@@ -13,15 +13,17 @@ MEASURES = [
     ('seconds', 'analysis time (s)', 'log', 'time'),
     ('memory_mb', 'peak memory (MB)', 'linear', 'memory'),
 ]
-# the benchmark of this figure: 1 to 20 conditional blocks, for every tool
+# the benchmark of this figure: Makefiles of 1 to 20 conditional blocks, for every tool,
+# path forking included
 SIZES = range(1, 21)
 
 
-def load(args, sizes, tools):
-    # {tool: rows of rq2_<tool>.csv with n_ifeq in sizes}, for the tools that have such rows
+def load(args, structure, sizes, tools):
+    # {tool: rows of rq2_<structure>_<tool>.csv with n_ifeq in sizes}, for the tools that
+    # have such rows
     runs = {}
     for tool in tools:
-        csv_path = os.path.join(args.csv_dir, f'rq2_{tool}.csv')
+        csv_path = os.path.join(args.csv_dir, f'rq2_{structure}_{tool}.csv')
         if os.path.isfile(csv_path):
             df = pd.read_csv(csv_path)
             df = df[df['n_ifeq'].isin(sizes)]
@@ -64,12 +66,12 @@ def _save(fig, out):
     print(f'[save] {out}')
 
 
-def draw(args, runs, prefix):
+def draw(args, runs, prefix, xlabel='conditional blocks'):
     # <prefix>_time.pdf, <prefix>_memory.pdf, and the legend they share, <prefix>_legend.pdf
     helper.plot.apply()
     for column, ylabel, scale, suffix in MEASURES:
         handles, labels = plot(runs, column, ylabel, scale,
-                               os.path.join(args.figure_dir, f'{prefix}_{suffix}.pdf'))
+                               os.path.join(args.figure_dir, f'{prefix}_{suffix}.pdf'), xlabel)
     legend(handles, labels, os.path.join(args.figure_dir, f'{prefix}_legend.pdf'))
 
 
@@ -84,7 +86,7 @@ def legend(handles, labels, out):
 
 def main():
     args = helper.args.parse_args()
-    draw(args, load(args, SIZES, helper.plot.SERIES), 'rq2')
+    draw(args, load(args, 'length', SIZES, helper.plot.SERIES), 'rq2_forking')
 
 
 if __name__ == '__main__':

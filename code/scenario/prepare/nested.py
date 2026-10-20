@@ -11,7 +11,9 @@ Output, under <target_dir>/nested-<n_ifeq>/:
 '''
 import os
 
-from scenario.prepare.synthetic import TOP
+import z3
+
+from scenario.prepare.length import TOP
 
 BLOCKS = 100
 
@@ -24,6 +26,12 @@ def bench(depth):
         lines += ['endif'] * depth
     lines.append('obj-y += $(OBJS)')
     return '\n'.join(lines) + '\n'
+
+
+def truth(depth):
+    # {object: build condition} by construction: level j of block b needs levels 1 to j
+    return {f'bench/file_{b}_{j}.o': z3.And([z3.Bool(f'CONFIG_OPTION_{b}_{l}') for l in range(1, j + 1)])
+            for b in range(1, BLOCKS + 1) for j in range(1, depth + 1)}
 
 
 def prepare(args):

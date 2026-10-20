@@ -12,7 +12,7 @@ def parse_args():
     parser.add_argument('--tool', type=str, default='tool', choices=['tool', 'kmax', 'icsme'])
     parser.add_argument('--n_build', type=int, default=10)
     parser.add_argument('--n_ifeq', type=int, default=20,
-                        help='conditional blocks of the synthetic target of RQ2')
+                        help='size of a synthetic target: conditional blocks, directories, or composites')
     parser.add_argument('--timeout', type=int, default=600,
                         help='seconds an RQ2 analysis may run')
     parser.add_argument('--memory_gb', type=int, default=16,

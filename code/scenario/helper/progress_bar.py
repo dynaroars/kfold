@@ -67,11 +67,13 @@ class ProgressBar:
         self._update_step()
         self._display()
 
+    def save_csv(self):
+        pd.DataFrame(self.csv_data).to_csv(self.csv_path, index=None)
+
     def to_csv(self):
         # close the bar first: it ends the line, and tqdm does not redraw it at exit
         self.pbar.close()
-        df = pd.DataFrame(self.csv_data)
-        df.to_csv(self.csv_path, index=None)
+        self.save_csv()
 
 def create(total, unit, desc, csv_path):
     return ProgressBar(total, unit, desc, csv_path)
