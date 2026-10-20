@@ -12,4 +12,5 @@
 
 - The user runs every experiment by hand (`make prepare`, `make rq1`, ...), in their own venv (`~/.local/share/venv`). Do not run experiments, builds, or baselines yourself unless asked.
 - Do not edit `makefile` unless asked. When new code needs a new command, give the user the line to add.
+- Baselines (`baseline/`, such as Kmax and its klocalizer/krepair) run as their authors wrote them: never fix or change their behavior. The only allowed change is a syntax fix that lets them run on this Python version, applied to a copy by the scenario code (e.g., `PACKAGE_PATCHES` in `scenario/helper/kmax.py`), never to the submodule or the installed package.
 - Never create a virtual environment (`.venv`, `python -m venv`, `uv venv`) and never install or uninstall packages. When code needs a new dependency or tool (a pip package, a baseline such as Kmax, a system library), tell the user the exact install command and add it to `requirements.txt` or the README setup.

@@ -1,8 +1,11 @@
 import subprocess
 import random
 import shutil
+import json
 import time
 import os
+
+import pandas as pd
 
 from scenario.prepare.helper import read_config as read_values, write_config, changed
 from scenario.exp.rq1_run import _in_scope, _observed
@@ -14,6 +17,14 @@ from tool.load import load
 
 # objects to add to each build, drawn from those the build did not compile
 OBJECTS = 10
+
+
+def _save(pbar, done, visited, csv_path):
+    # the rows so far and the kept rows of the earlier run not reached yet, so an
+    # interrupted run loses neither
+    rows = pd.DataFrame(pbar.csv_data)
+    rest = pd.DataFrame([row for key, row in done.items() if key not in visited])
+    pd.concat([rows, rest], ignore_index=True).to_csv(csv_path, index=None)
 
 
 def _klocalizer(src, arch, env, config, obj, formulas, out, timeout):
@@ -30,7 +41,11 @@ def main():
     src = os.path.abspath(os.path.join(root, 'src'))
     arch = target.VARIABLES[args.target]['ARCH']
     cross = {'CROSS_COMPILE': target.CROSS_COMPILE[args.target]} if args.target in target.CROSS_COMPILE else {}
-    env = dict(os.environ, ARCH=arch, **cross)
+    # klocalizer runs make in the source tree to read its version; under an outer make,
+    # MAKELEVEL makes that make print "Entering directory" before it, which klocalizer
+    # cannot parse, so it runs with the environment of a shell
+    env = {k: v for k, v in os.environ.items() if k not in ('MAKEFLAGS', 'MAKELEVEL', 'MFLAGS')}
+    env.update(ARCH=arch, **cross)
     make = ['make', '-C', src, f'ARCH={arch}'] + [f'{k}={v}' for k, v in cross.items()]
 
     # the build conditions of both tools from RQ1; the objects drawn are in both, so the
@@ -56,6 +71,14 @@ def main():
         package = kmax.patched_package(os.path.join(work, 'package'))
         env['PYTHONPATH'] = os.pathsep.join([package, env.get('PYTHONPATH', '')]).rstrip(os.pathsep)
     csv_path = os.path.join(args.csv_dir, f'rq3_{args.target}_{args.tool}.csv')
+    # the repairs of an earlier run that did not fail are kept unless --clear asks to redo
+    # them, so a rerun redoes only those that failed
+    done = {}
+    visited = set()
+    if os.path.isfile(csv_path) and not args.clear:
+        earlier = pd.read_csv(csv_path)
+        done = {(row['build'], row['object']): row for row in
+                json.loads(earlier[earlier['status'] != 'error'].to_json(orient='records'))}
     pbar = helper.progress_bar.create(total=len(trees) * OBJECTS, unit='repair',
                                       desc=f'rq3.run.{args.target}.{args.tool}', csv_path=csv_path)
 
@@ -71,6 +94,11 @@ def main():
                         os.path.join(work, 'warmup.config'), None)
             print(f'[rq3.run] klocalizer formulas generated in {time.perf_counter() - start:.1f}s')
         for i, obj in enumerate(objects):
+            if (name, obj) in done:
+                pbar.step(**{k: v for k, v in done[name, obj].items() if k != 'repair'})
+                visited.add((name, obj))
+                _save(pbar, done, visited, csv_path)
+                continue
             out = os.path.join(work, f'{name}-{i}.config')
             status = 'ok'
             # the tool's time is the repair alone, after the conditions are loaded; Kmax's
@@ -89,7 +117,10 @@ def main():
             else:
                 try:
                     result = _klocalizer(src, arch, env, config, obj, formulas, out, args.timeout)
-                    if result.returncode != 0 or not os.path.isfile(out):
+                    # klocalizer's answer when no configuration builds the object
+                    if b'No satisfying configuration found' in result.stdout + result.stderr:
+                        status = 'unsat'
+                    elif result.returncode != 0 or not os.path.isfile(out):
                         status = 'error'
                         # klocalizer's messages, to find why it failed
                         with open(os.path.join(work, f'{name}-{i}.log'), 'wb') as f:
@@ -112,7 +143,8 @@ def main():
                            tool_holds=obj in evaluate({obj: conditions['tool'][obj]}, on),
                            kmax_holds=obj in evaluate({obj: conditions['kmax'][obj]}, on | bits))
             pbar.step(**row)
-            pbar.save_csv()
+            visited.add((name, obj))
+            _save(pbar, done, visited, csv_path)
     pbar.to_csv()
     print(f'[save] {csv_path}')
 
